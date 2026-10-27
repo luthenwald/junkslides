@@ -61,7 +61,7 @@ Progress tracker. The design roadmap is docs/08-roadmap.md.
     `ui` (screen), and the pure `nav`, `keymap` and `edit`. Styles in
     `client/assets/zeno.css`. `just client` bundles both into
     `server/priv/static` (not in version control); the page at `/` loads
-    `/zeno/zeno.css`, `/theme.css` and `/zeno/zeno_client.js`.
+    `/zeno/zeno.css`, `/theme.css` and `/zeno/zeno_client.js` (since M5 under `/.zeno/`).
   - Panes with a draggable divider (S1 hit strips) and hiding, saved with
     `SaveView`; command and edit modes with every command-mode key of
     05-editor.md; typing sent after a 200 ms pause, `---` only on commit;
@@ -124,53 +124,74 @@ Progress tracker. The design roadmap is docs/08-roadmap.md.
   - Settled behaviour is in docs/05-editor.md (Canvas mode) and
     docs/04-layout.md (overflow of flowing cells, base styles, reload).
 
+- M5 hardening, first pass (2026-10-27), each fix its own revision:
+  - `X` in command mode purges orphans (the user's choice), one undo step,
+    with a notice; browser check.
+  - Updates on large decks: a profile of typing in a 60-slide deck showed
+    every slide's probes rendering again with each state, because a memo
+    around the probe layer dropped the inner memos' cache. Probes are now
+    memoised per slide on a string key, `id.parse` checks bytes, and slide
+    numbers are padded by byte size. Script time for ten typed characters
+    with a state after each: 401 to 113 ms at 60 slides, 622 to 212 ms at
+    150. Typing right after `o` lands in the new cell even at 150 slides.
+  - Theme reload keeps the old stylesheet until the new one has loaded (no
+    unstyled flash); browser check that the old link goes.
+  - A released drag keeps its preview until a state shows the cell at the
+    dropped area (or its `Place` is rejected, the cell is gone, or a second
+    passes). Not covered by a browser check: the race needs a state from
+    another edit between release and echo.
+  - Editor paths moved to `/.zeno/...` and `/.zeno/ws`; deck files never
+    start with a dot, so a deck's own `zeno/` folder or `ws` file is served.
+  - `zeno serve` on a taken port prints one plain line and exits 1 instead
+    of a supervisor report and an Erlang exit; the URL is printed once.
+  - Looked at and fine: writing a talk from `zeno init` with cells, notes,
+    breaks, lists and code; canvas placing, variants and alignment;
+    overflow on a long cell; start with a broken layout.json or no
+    theme.css; CLI usage and error messages.
+  - Tests: core 47 on both targets, server 26, client 26, e2e 21.
+
 ## Todo
 
-- M5 hardening (docs/08-roadmap.md): make a real talk with Zeno, fix what
-  hurts.
-- Ask the user: a key or status-line action for `PurgeOrphans` (05-editor.md
-  has none).
+- M5, with the user: use Zeno on a real talk and collect what hurts.
+- `Ctrl-[` and `Ctrl-]` on a Mac keyboard (only checked in headless
+  Chrome). On layouts where `[` needs Option they cannot be typed; matching
+  `code` `BracketLeft` as well would be the fix, if the user wants it.
+- Safari: the user said not now (2026-10-27); D18 stays as it is.
 - Possibly report the jot `{=mark=}` bug upstream (ask the user first; it is
   outward-facing).
 
 ## Next step
 
-M5, hardening. Read docs/08-roadmap.md (M5), docs/05-editor.md and
-docs/04-layout.md, then use the editor on a real deck: `cp -r examples/talk
-<somewhere>` (never serve `examples/talk` in place) and `just zeno serve
-<somewhere>`, open http://127.0.0.1:4870/ in Chrome.
+M5 continues with the user's own use. Nothing is half done; every fix of the
+first pass is committed with its test and docs.
 
-Open points to settle with the user first:
+1. Ask the user how a real talk went in Zeno (`cp -r examples/talk
+   <somewhere>` or `just zeno init <folder>`, then `just zeno serve
+   <folder>`, open http://127.0.0.1:4870/ in Chrome; never serve
+   `examples/talk` in place). Fix what they report, each fix with a test
+   and the doc it changes, in its own revision.
+2. Points to raise with them:
+   - Placing a one-line cell gives a one-row box, so a larger variant
+     overflows at once (flagged, by design: nothing resizes itself). They
+     may want `Enter` or `v` to grow the box to fit, which would change
+     04-layout.md (ask first).
+   - `Ctrl-[` on their keyboard (see Todo).
+   - The jot report.
 
-1. `PurgeOrphans` has no key. Options to put to them: a command-mode key
-   (for example `X`, with a notice saying how many records went), or only a
-   CLI command (`zeno purge <folder>`). Do not pick one silently.
-2. Safari (D18 says revisit in M5): typed arithmetic in the fit, scroll-state
-   probes (no overflow flags without them, S2 fallback 1) and
-   `field-sizing` are the features to check.
-3. The jot `{=mark=}` report upstream.
+Known rough edges left:
 
-Known rough edges to look at while using it:
-
-- `Ctrl-[` and `Ctrl-]` were only checked in headless Chrome; try them on a
-  Mac keyboard.
-- The theme is linked from the view, so the first paint has no theme for a
-  frame.
-- A state that arrives between a drag's release and its own echo ends the
-  preview early; the cell may jump back for a frame.
 - A pointer released outside the window: the drag ends when the pointer
   leaves the slide pane, so it commits the last snapped area.
-- Image paths starting with `zeno/` or `ws` would hit the editor's own
-  routes (06-runtime.md, Serving).
-- Overflow probes copy every slide; with a large deck, check typing latency
-  (they are memoised on the state, so only a new state re-renders them).
 - No `Tab` cycling inside the slide pane beyond `j`/`k`; no multi-select.
+- The cells pane re-renders every cell on each state (about 10 ms at 60
+  slides after the first pass). Memoising rows would need a key of
+  selection, mode, draft, diagnostics and overflow per cell.
 
 Tests to keep: `just test` (core, server, client, e2e, about 20 s). Add a
 browser check for each fix that changes behaviour, and record settled
 behaviour in the docs in the same change.
 
-Things learned so far to carry into M4 and M5:
+Things learned so far:
 
 - `core` API notes: `op.normalize_edit(deck, cell, text)` takes the deck;
   `op.apply_all` is all-or-nothing; `layout.apply(layout, deck, op)`;
@@ -209,6 +230,17 @@ Things learned so far to carry into M4 and M5:
   cannot be replayed and is dropped with a notice.
 - New cells are named by the server; the client follows them by looking for
   a cell ID that was not in the previous state (`app.Follow`).
+- Lustre 5.7: never wrap one `element.memo` in another; a kept outer memo
+  loses the inner memos' cache and they all render again next time. Memo
+  dependencies compare by reference, except strings and numbers, so build
+  a string key from decoded values.
+- Grapheme functions are slow on JavaScript (Intl.Segmenter); use byte
+  sizes and bit arrays where the text is ASCII.
+- Profiling the client: CDP `Profiler.start`/`stop` and
+  `Performance.getMetrics` on an unminified bundle (drop `--minify` from
+  `just client` for the run); the scratch test is not kept in the repo.
+- `mist.start` on a taken port logs a supervisor report and exits the
+  linked caller; trap exits and quiet `logging` around it.
 - Canvas API notes: `canvas.area_of_box` rounds a drawn box up to units and
   pushes it inside the grid; `slide.box_decoder` reads a drawn cell's box
   from an event target; `app.overflowing` gives the flagged content cells.
@@ -230,3 +262,6 @@ every spike check (about 2 minutes).
 - 2026-10-27: M3 cells pane done, unit and browser checks passing.
 - 2026-10-27: M4 slide pane done: canvas mode, drag and resize, overflow
   flags, theme reload; unit and browser checks passing.
+- 2026-10-27: M5 first pass: `X` purges orphans, faster updates on large
+  decks, theme reload without a flash, steadier drag preview, editor paths
+  under `/.zeno/`, plain CLI error for a taken port.

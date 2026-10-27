@@ -8,7 +8,6 @@
 import gleam/bit_array
 import gleam/dynamic/decode.{type Decoder}
 import gleam/json.{type Json}
-import gleam/list
 import gleam/order.{type Order}
 import gleam/set.{type Set}
 import gleam/string
@@ -102,23 +101,31 @@ fn format(bytes: BitArray) -> String {
 }
 
 /// Accepts a lowercase UUID of any RFC 9562 version (1 to 8) in the
-/// 36-character form.
+/// 36-character form. Checked byte by byte: every valid character is ASCII,
+/// and walking graphemes is slow on JavaScript, where every ID of every
+/// state passes through here.
 pub fn parse(text: String) -> Result(Id(tag), Nil) {
-  let graphemes = string.to_graphemes(text)
-  let valid =
-    list.length(graphemes) == 36
-    && list.index_fold(graphemes, True, fn(ok, g, i) {
-      ok
-      && case i {
-        8 | 13 | 18 | 23 -> g == "-"
-        14 -> string.contains("12345678", g)
-        19 -> string.contains("89ab", g)
-        _ -> string.contains("0123456789abcdef", g)
-      }
-    })
-  case valid {
+  case valid(<<text:utf8>>, 0) {
     True -> Ok(Id(text))
     False -> Error(Nil)
+  }
+}
+
+fn valid(bytes: BitArray, at: Int) -> Bool {
+  case bytes {
+    <<>> -> at == 36
+    <<byte, rest:bytes>> ->
+      case at {
+        8 | 13 | 18 | 23 -> byte == 0x2d
+        // The version, 1 to 8.
+        14 -> byte >= 0x31 && byte <= 0x38
+        // The variant, 8, 9, a or b.
+        19 -> byte == 0x38 || byte == 0x39 || byte == 0x61 || byte == 0x62
+        _ ->
+          { byte >= 0x30 && byte <= 0x39 } || { byte >= 0x61 && byte <= 0x66 }
+      }
+      && valid(rest, at + 1)
+    _ -> False
   }
 }
 

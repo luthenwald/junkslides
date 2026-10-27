@@ -258,7 +258,21 @@ pub fn probes(shared: Shared) -> Element(app.Msg) {
   keyed.div(
     [class("ze-probes"), attribute.aria_hidden(True)],
     list.map(shared.deck.slides, fn(slide) {
-      #(id.to_string(slide.id), probe_slide(shared, slide))
+      // A new state brings new values for every slide, but most slides are
+      // as they were. Strings compare by value, so a slide's probes render
+      // again only when its drawn cells or their records change.
+      let key =
+        drawn_cells(slide)
+        |> list.map(fn(cell) {
+          id.to_string(cell.id)
+          <> string.inspect(layout.record(shared.layout, cell.id))
+          <> cell.source
+        })
+        |> string.join("\u{0}")
+      #(
+        id.to_string(slide.id),
+        element.memo([element.ref(key)], fn() { probe_slide(shared, slide) }),
+      )
     }),
   )
 }

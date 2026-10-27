@@ -185,8 +185,13 @@ pub fn after_removal(deck: Deck, cell: Id(CellTag)) -> Selection {
 /// Slide numbers as the editor shows them: `01/12`, zero-padded to the
 /// width of the total and at least two digits.
 pub fn number(index: Int, total: Int) -> String {
-  let width = int.max(2, string.length(int.to_string(total)))
-  let pad = fn(n) { string.pad_start(int.to_string(n), width, "0") }
+  // Digits are single bytes, and byte sizes avoid grapheme segmentation,
+  // which is slow on JavaScript and runs for every slide on every render.
+  let width = int.max(2, string.byte_size(int.to_string(total)))
+  let pad = fn(n) {
+    let digits = int.to_string(n)
+    string.repeat("0", width - string.byte_size(digits)) <> digits
+  }
   pad(index + 1) <> "/" <> pad(total)
 }
 

@@ -44,4 +44,9 @@ pub fn parse_test() {
   assert parse("019a2c41-7f10-0b2e-9c4d-1a2b3c4d5e02") == Error(Nil)
   assert parse("019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e0") == Error(Nil)
   assert parse("019a2c417f10-7b2e-9c4d-1a2b3c4d5e02-") == Error(Nil)
+  // Too long, version 9, and a character outside ASCII in place of one.
+  assert parse("019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e021") == Error(Nil)
+  assert parse("019a2c41-7f10-9b2e-9c4d-1a2b3c4d5e02") == Error(Nil)
+  assert parse("019a2c41-7f10-7b2e-9c4d-1a2b3c4d5eé") == Error(Nil)
+  assert parse("") == Error(Nil)
 }

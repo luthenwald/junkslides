@@ -174,9 +174,17 @@ the lock files.
   pixels. The canvas reads them on `pointerdown` and on canvas keys (the
   focused drawn cell is the target). This replaces the rows probe of S2.
 - Overflow probes (S2) for every slide, in one hidden layer outside the
-  panes and memoised on the state (`element.memo`), so probe reports do not
-  re-render it. The flag is the probe's `::after`, so it is never a child
-  the theme's `:last-child` and similar selectors could count.
+  panes. Each slide's probes are memoised (`element.memo`) on a string made
+  of its drawn cells and their records, so a new state renders only the
+  slides it changed, and probe reports render none. Strings compare by
+  value; records and decoded values are new objects with every state. Do
+  not wrap one memo in another: Lustre 5.7 keeps an outer memo without the
+  inner memos' cache, and they all render again on the next change. The
+  flag is the probe's `::after`, so it is never a child the theme's
+  `:last-child` and similar selectors could count.
+- Grapheme functions (`string.length`, `pad_start`, `to_graphemes`) are
+  slow on JavaScript. Code that runs per ID or per slide on every render
+  works on bytes instead (`id.parse`, `nav.number`).
 - Drag targets on the canvas are placed in the grid explicitly; auto-placed
   items flow around anything else in the grid, such as the resize handle.
 - Alt keys are matched on `code`, since Option changes `key` on macOS.

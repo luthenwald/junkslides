@@ -54,8 +54,9 @@ pub fn view(model: Model) -> Element(app.Msg) {
           True -> divider_overlay()
           False -> element.none()
         },
-        // The probes change only with a new state.
-        element.memo([element.ref(shared)], fn() { slide.probes(shared) }),
+        // Memoised per slide inside; a memo around this one would lose the
+        // inner memos' cache whenever it is kept.
+        slide.probes(shared),
       ])
     }
   }

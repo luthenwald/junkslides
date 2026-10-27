@@ -1,5 +1,5 @@
 //// The Zeno editor in the browser (05-editor.md). It is served by
-//// `zeno serve` as /zeno/zeno_client.js and mounted on `#app`.
+//// `zeno serve` as /.zeno/zeno_client.js and mounted on `#app`.
 
 import lustre
 import zeno_client/app

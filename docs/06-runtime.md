@@ -134,13 +134,16 @@ folder; anything else is refused.
 
 | Path | Serves |
 |---|---|
-| `/` | The page: loads `/zeno/zeno.css` and `/zeno/zeno_client.js`; the client links `/theme.css?v=N` and changes `N` on `ReloadTheme` |
-| `/ws` | The WebSocket |
-| `/zeno/...` | The client bundle, from the server's `priv/static` |
+| `/` | The page: loads `/.zeno/zeno.css` and `/.zeno/zeno_client.js`; the client links `/theme.css?v=N` and changes `N` on `ReloadTheme` |
+| `/.zeno/ws` | The WebSocket |
+| `/.zeno/...` | The client bundle, from the server's `priv/static` |
 | anything else | A file in the deck folder |
 
 Path segments are percent-decoded, then empty, `.`, `..` and hidden (dot)
 segments are refused, which also hides the temporary files of atomic writes.
+Since no deck file can start with a dot, the editor's own paths under
+`/.zeno/` never hide one; an image in a folder named `zeno` or a file named
+`ws` is served like any other.
 Symbolic links inside the deck folder are followed; they are the user's own.
 
 ## Failure behaviour

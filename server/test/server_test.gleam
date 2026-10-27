@@ -128,11 +128,19 @@ pub fn static_files_stay_inside_the_deck_folder_test() {
   }
   let #(status, body) = get("/")
   assert status == 200
-  assert string.contains(body, "/zeno/zeno_client.js")
+  assert string.contains(body, "/.zeno/zeno_client.js")
   assert get("/theme.css") == #(200, harness.read(h.folder, "theme.css"))
   let assert Ok(Nil) =
     simplifile.write(filepath.join(h.folder, "a b.txt"), "spaced")
   assert get("/a%20b.txt") == #(200, "spaced")
+  // The editor's own paths start with a dot, so they hide no deck file.
+  let assert Ok(Nil) =
+    simplifile.create_directory_all(filepath.join(h.folder, "zeno"))
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(h.folder, "zeno/zeno.css"), "mine")
+  assert get("/zeno/zeno.css") == #(200, "mine")
+  let assert Ok(Nil) = simplifile.write(filepath.join(h.folder, "ws"), "too")
+  assert get("/ws") == #(200, "too")
   assert get("/missing.png").0 == 404
   assert get("/.deck.md.zeno-tmp").0 == 404
   assert get("/%2e%2e/static/theme.css").0 == 404

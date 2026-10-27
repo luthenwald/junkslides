@@ -69,7 +69,7 @@ pub fn start(name: String, port: Int) -> Harness {
 pub fn connect(folder: String, port: Int) -> Harness {
   let inbox = process.new_subject()
   let assert Ok(req) =
-    request.to("http://127.0.0.1:" <> string.inspect(port) <> "/ws")
+    request.to("http://127.0.0.1:" <> string.inspect(port) <> "/.zeno/ws")
   let assert Ok(client) =
     stratus.new(request: req, state: Nil)
     |> stratus.on_message(fn(state, message, conn) {

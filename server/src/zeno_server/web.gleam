@@ -1,6 +1,7 @@
-//// HTTP and WebSocket (06-runtime.md, Protocol and Serving). `/ws` speaks
-//// `zeno/protocol`; `/zeno/...` is the client bundle; every other path is a
-//// file in the deck folder, such as theme.css and images.
+//// HTTP and WebSocket (06-runtime.md, Protocol and Serving). `/.zeno/ws`
+//// speaks `zeno/protocol`; `/.zeno/...` is the client bundle; every other
+//// path is a file in the deck folder, such as theme.css and images. Deck
+//// files never start with a dot, so the editor's own paths cannot hide one.
 
 import filepath
 import gleam/bytes_tree
@@ -38,9 +39,9 @@ fn handle(
   owner: Subject(state.Message),
 ) -> Response(ResponseData) {
   case request.path_segments(req) {
-    ["ws"] -> socket(req, owner)
     [] -> page()
-    ["zeno", ..rest] -> serve(config.client, rest)
+    [".zeno", "ws"] -> socket(req, owner)
+    [".zeno", ..rest] -> serve(config.client, rest)
     segments -> serve(config.folder, segments)
   }
 }
@@ -88,8 +89,8 @@ fn socket(
 fn page() -> Response(ResponseData) {
   let html =
     "<!doctype html>\n<meta charset=utf-8>\n<title>Zeno</title>\n"
-    <> "<link rel=stylesheet href=/zeno/zeno.css>\n<div id=app></div>\n"
-    <> "<script type=module src=/zeno/zeno_client.js></script>\n"
+    <> "<link rel=stylesheet href=/.zeno/zeno.css>\n<div id=app></div>\n"
+    <> "<script type=module src=/.zeno/zeno_client.js></script>\n"
   response.new(200)
   |> response.set_header("content-type", "text/html; charset=utf-8")
   |> response.set_body(mist.Bytes(bytes_tree.from_string(html)))

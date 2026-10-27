@@ -163,7 +163,7 @@ pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
       theme: 0,
       theme_loaded: 0,
     )
-  #(model, ws.init("/ws", Socket))
+  #(model, ws.init("/.zeno/ws", Socket))
 }
 
 /// Stands in for the selection until the first state arrives.
@@ -177,7 +177,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
     Socket(event) -> socket(model, event)
     Reconnect -> #(
       Model(..model, connection: Connecting),
-      ws.init("/ws", Socket),
+      ws.init("/.zeno/ws", Socket),
     )
     CommandKey(command) ->
       case model.deck, model.mode {

@@ -2,22 +2,19 @@
 //// on its own copy of examples/talk. Run with `just e2e`, which builds the
 //// client and starts Chrome on port 9334.
 
-import cdp.{type Page}
+import cdp
 import filepath
-import gleam/erlang/process.{type Subject}
+import gleam/erlang/process
 import gleam/int
 import gleam/list
-import gleam/otp/actor
-import gleam/otp/static_supervisor
-import gleam/result
 import gleam/string
+import harness.{
+  cell, cells, deck, eventually, key, open, open_folder, open_with, prepare,
+  press, problem, saved_view, selected, serve, status,
+}
 import simplifile
 import zeno/protocol
-import zeno_server/state
 import zeno_server/view
-import zeno_server/web
-
-const chrome = 9334
 
 pub fn loads_the_deck_test() {
   let #(page, _) = open("load", 4901)
@@ -248,114 +245,4 @@ pub fn offline_edit_waits_for_the_connection_test() {
   press(page, "Escape")
   assert string.contains(status(page), "command")
   assert eventually(fn() { string.contains(deck(folder), "# Why lenses Kept.") })
-}
-
-// Helpers ----------------------------------------------------------------------
-
-/// Serves a fresh copy of the example deck and opens the editor on it.
-fn open(name: String, port: Int) -> #(Page, String) {
-  let #(page, folder, _, _) = open_with(name, port)
-  #(page, folder)
-}
-
-fn open_with(
-  name: String,
-  port: Int,
-) -> #(
-  Page,
-  String,
-  Subject(state.Message),
-  actor.Started(static_supervisor.Supervisor),
-) {
-  open_folder(prepare(name), port)
-}
-
-/// A fresh copy of the example deck, without view state.
-fn prepare(name: String) -> String {
-  let assert Ok(cwd) = simplifile.current_directory()
-  let folder = filepath.join(cwd, "build/scenarios/" <> name)
-  let _ = simplifile.delete(folder)
-  let _ = simplifile.delete(folder <> ".view.json")
-  let assert Ok(Nil) = simplifile.create_directory_all(folder)
-  list.each(["deck.md", "layout.json", "theme.css"], fn(file) {
-    let assert Ok(Nil) =
-      simplifile.copy_file(
-        filepath.join("../examples/talk", file),
-        filepath.join(folder, file),
-      )
-  })
-  folder
-}
-
-fn open_folder(
-  folder: String,
-  port: Int,
-) -> #(
-  Page,
-  String,
-  Subject(state.Message),
-  actor.Started(static_supervisor.Supervisor),
-) {
-  let config =
-    state.Config(
-      folder:,
-      view_file: folder <> ".view.json",
-      poll: 50,
-      debounce: 100,
-    )
-  let assert Ok(owner) = state.start(config)
-  let assert Ok(web) = serve(folder, port, owner)
-  let assert Ok(page) = cdp.connect(chrome)
-  let assert Ok(_) = cdp.viewport(page, 1280, 800)
-  let url = "http://127.0.0.1:" <> int.to_string(port) <> "/"
-  let assert Ok(_) = cdp.open(page, url, ".ze-selected")
-  #(page, folder, owner, web)
-}
-
-fn serve(folder: String, port: Int, owner: Subject(state.Message)) {
-  let assert Ok(cwd) = simplifile.current_directory()
-  let client = filepath.join(cwd, "../server/priv/static")
-  web.start(web.Config(port:, folder:, client:), owner)
-}
-
-fn press(page: Page, name: String) -> Nil {
-  key(page, name, [])
-}
-
-fn key(page: Page, name: String, modifiers: List(cdp.Modifier)) -> Nil {
-  let assert Ok(_) = cdp.key(page, name, modifiers)
-  Nil
-}
-
-fn selected(page: Page) -> String {
-  cdp.attribute(page, ".ze-selected", "data-cell") |> result.unwrap("")
-}
-
-fn cells(page: Page) -> Int {
-  cdp.count(page, ".ze-cell:not(.ze-empty)")
-}
-
-fn status(page: Page) -> String {
-  cdp.html(page, ".ze-status") |> result.unwrap("")
-}
-
-fn problem(page: Page) -> String {
-  cdp.html(page, ".ze-problem") |> result.unwrap("")
-}
-
-fn deck(folder: String) -> String {
-  let assert Ok(text) = simplifile.read(filepath.join(folder, "deck.md"))
-  text
-}
-
-fn saved_view(folder: String) -> protocol.View {
-  view.load(folder <> ".view.json", folder)
-}
-
-fn cell(suffix: String) -> String {
-  "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e" <> suffix
-}
-
-fn eventually(check: fn() -> Bool) -> Bool {
-  cdp.wait(3000, check) == Ok(Nil)
 }

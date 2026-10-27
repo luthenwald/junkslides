@@ -338,8 +338,14 @@ pub fn key(
     True -> [#("type", json.string("keyDown")), #("text", json.string(text))]
     False -> [#("type", json.string("rawKeyDown"))]
   }
+  // The physical key, which pages read for Alt combinations.
+  let physical = case string.length(name) {
+    1 -> "Key" <> string.uppercase(name)
+    _ -> name
+  }
   let common = [
     #("key", json.string(name)),
+    #("code", json.string(physical)),
     #("windowsVirtualKeyCode", json.int(code)),
     #("modifiers", json.int(bits)),
   ]

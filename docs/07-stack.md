@@ -38,7 +38,12 @@ instead of types; JSON codecs are written by hand.
 | `simplifile` (dev, core) | Reading `examples/talk` and fixtures in core tests | core (dev) | used on both targets |
 | `qcheck` | Property tests with shrinking | core | chosen; 1.0.5 |
 | `gleam_time` | `Timestamp` for orphans and coalescing, RFC 3339 in layout.json | core | chosen; 1.11.0 |
-| `stratus` | WebSocket client for server tests and the CDP driver | server (dev) | chosen (S3) |
+| `stratus` | WebSocket client for server tests and the CDP driver | server (dev) | chosen (S3); 3.0.0 |
+| `gleam_otp`, `gleam_erlang` | The deck owner actor, timers, subjects | server | chosen; 1.3.0 each |
+| `argv` | Command line arguments of `zeno` | server | chosen; 1.1.0 |
+| `envoy` | `HOME`, for the view state file | server | chosen; 1.2.0 |
+| `filepath` | Joining and expanding paths | server | chosen; 1.1.2 |
+| `gleam_httpc` | HTTP requests in server tests | server (dev) | chosen; 5.0.0 |
 
 Browser capabilities: drag, resize, overflow detection and rendered size
 work with Lustre events and CSS only in Chromium (spikes S1 and S2). No
@@ -70,13 +75,18 @@ zeno/
       codec.gleam       JSON for decks, ops and layouts
       protocol.gleam    client/server messages and codecs
     test/
-  server/      Erlang target
-    src/zeno/
-      server.gleam      CLI entry: init, serve
-      state.gleam       owner process: state, history, rebase
-      store.gleam       atomic writes, hashing
-      watch.gleam       file watching
-      web.gleam         HTTP, WebSocket, static files
+  server/      Erlang target (package zeno_server)
+    src/
+      zeno_server.gleam CLI entry: init, serve
+      zeno_server/
+        state.gleam     owner actor: state, history, polling, rebase, writes
+        store.gleam     hashing, atomic writes
+        web.gleam       HTTP, WebSocket, static files
+        theme.gleam     variants from theme.css, the default theme
+        view.gleam      per-user view state
+      zeno_server_store_ffi.erl   write and fsync (the one Erlang FFI)
+    priv/static/        the client bundle (M3), not in version control
+    test/
   client/      JavaScript target
     src/zeno/
       app.gleam         Lustre application, model, update
@@ -89,6 +99,10 @@ zeno/
 
 `server` and `client` depend on `core` by path. The module list is a
 suggestion; the package boundaries are not.
+
+Watching has no module of its own: the owner actor polls on its own timer,
+so reading a file, comparing hashes and applying the edit happen in one
+process, in order with client messages.
 
 ## Toolchain
 
@@ -106,7 +120,9 @@ the lock files.
   targets (`--target erlang` and `--target javascript`), since core runs on
   both.
 - `server`: integration tests on a temporary copy of `examples/talk`, covering
-  the external edit scenarios in 08-roadmap.md.
+  the external edit scenarios in 08-roadmap.md, with a client connected over
+  the WebSocket (stratus). The poll interval and quiet period are shortened
+  in tests. Run with `just server-test`.
 - `client`: kept thin; logic that can live in `core` should.
 - Browser checks: Chrome for Testing (headless shell, kept outside the repo
   in `~/Library/Caches/zeno-cft/`) is driven over the DevTools protocol from

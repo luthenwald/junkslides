@@ -37,49 +37,65 @@ Progress tracker. The design roadmap is docs/08-roadmap.md.
     exactly `---`. Split now refuses cuts that leave a structural line
     (03-data-model.md, Errors).
 
+- M2 server, in `server/` (package `zeno_server`), done:
+  - Modules: `zeno_server` (CLI), `state` (owner actor), `store`, `web`,
+    `theme`, `view`, plus `zeno_server_store_ffi.erl` (write and fsync).
+  - All ten external edit scenarios of docs/08-roadmap.md pass with a client
+    connected over the WebSocket (`server/test/scenarios_test.gleam`), plus
+    one where the write is due before polling sees the edit. Other tests:
+    rejection, undo and redo, view state, theme reload, static files and path
+    checks, `zeno init`, atomic writes: 25 tests, about 5 s.
+  - Checked by mutation: skipping the read before a write, replaying with a
+    new supply, skipping the consistency step after a rebase, the dropped
+    notice, the rebase itself, writing while broken (both files), the
+    consistency step on start, recording the own-write hash, telling late
+    clients about problems, and the theme reload each make a test fail.
+    Comparing an outside edit with the current deck instead of the saved one
+    gives the same result, since the consistency step repairs it.
+  - Design details settled by the implementation are in docs/06-runtime.md
+    (rebase by groups with their supply, a read before every write, no
+    writes while a file has a problem, the path table) and docs/07-stack.md.
+
 ## Todo
 
-- M2 server, M3 and M4 client, M5 hardening.
+- M3 and M4 client, M5 hardening.
 - Possibly report the jot `{=mark=}` bug upstream (ask the user first; it is
   outward-facing).
 
 ## Next step
 
-M2, the server, in a new `server/` package (Erlang target, `zeno_server`),
-depending on `core` by path (`zeno_core = { path = "../core" }`). Read
-docs/06-runtime.md and the external edit scenarios in docs/08-roadmap.md.
+M3, the client's cells pane, in a new `client/` package (JavaScript target,
+`zeno_client`, Lustre 5.x and `lustre_websocket`, D17), depending on `core`
+by path. Read docs/05-editor.md (Screen, Cells pane, Modes, Keymap, Undo,
+View state, Visual style) and the S1 to S3 spike notes first.
 
 Suggested order:
 
-1. `store.gleam`: `write_atomic` (temp file `.name.zeno-tmp` in the same
-   folder, `file:sync` through a one-function Erlang FFI, then
-   `simplifile.rename`), sha256 with gleam_crypto. Port from
-   `spikes/s4_files/src/store.gleam` and `s4_store_ffi.erl`.
-2. `watch.gleam`: the content-hash poller (250 ms) from the S4 spike, with
-   own-write suppression by hash (P18).
-3. `state.gleam`: the owner process (an actor). Holds deck, layout, history,
-   the last written hashes, pending ops since the last deck.md write, the
-   variants and the view. Seeds `id.supply(now_ms, crypto.strong_random_bytes(8))`
-   on start and reseeds per change (the supply skips live IDs either way).
-   Applies `Apply` with `op.apply_all`, then `layout.fold_effects`, then
-   `history.record` (or `history.record_edit` when the ops are one
-   `EditText`). Layout ops via `layout.apply`. External deck.md edits:
-   `file.parse`, `layout.apply_external`, rebase pending ops (drop the ones
-   that fail, send a `Notice`), record a step, write. On a parse error keep
-   state, send `Notice` with the line, do not write.
-   Debounced writes (300 ms): deck.md first, then layout.json, skipping
-   unchanged bytes. On load, run `layout.consistency`.
-4. `web.gleam`: mist on 127.0.0.1:4870; `/ws` speaks `protocol` (full
-   `State` broadcast after each change, `protocol.diagnostics(deck)`);
-   static files for the client bundle, theme.css and deck assets, with paths
-   kept inside the deck folder.
-5. `server.gleam`: CLI `zeno init <folder>` (minimal deck plus default
-   theme, copy from `examples/talk/theme.css`) and `zeno serve <folder>`.
-   Theme variants from `--zeno-variants` in theme.css; `ReloadTheme` on
-   change. View state in `~/.config/zeno/view.json` keyed by deck path (P15).
-6. Integration tests: the ten external edit scenarios of docs/08-roadmap.md
-   on a temp copy of `examples/talk`, using stratus as the WebSocket client
-   (as in `spikes/s3_socket/server/test`).
+1. Package and build: `lustre_dev_tools` bundles the client; put the output
+   where the server serves it, `server/priv/static/client.js` (the page at
+   `/` loads `/zeno/client.js` and `/theme.css`; see the path table in
+   docs/06-runtime.md, Serving). Add a `just client` recipe that builds the
+   bundle, and let `just zeno serve` use it. Check whether
+   `lustre/dev build` can name its output `client.js` directly or needs a
+   copy step in the recipe.
+2. Socket and model: connect to `/ws` (reconnect by calling `init` again on
+   close, as in S3), send `Hello`, keep `State` as the model's copy of
+   deck, layout, diagnostics, variants and view. Number `Apply` and
+   `ApplyLayout` with `seq`, show `Rejected` and `Notice` in the status line.
+   The server broadcasts the full `State` after every change and answers a
+   no-op undo with `State` too.
+3. Panes: cells pane and slide pane with a draggable divider and hiding
+   (S1 drag approach for the divider), `SaveView` on change; the slide pane
+   can stay a placeholder until M4.
+4. Cells pane: one controlled `html.textarea` per cell, growing with the
+   mirror technique from S2. Command and edit modes and the full command-mode
+   keymap of 05-editor.md. Typing sends `op.normalize_edit(deck, cell,
+   text)` as one `Apply` per change (the server coalesces typing into one
+   undo step per cell within a second); show `EditProblem`s inline.
+   Diagnostics from `State` mark cells. Kind cycling, clipboard (cut, copy,
+   paste through `Paste` so IDs revive), undo and redo, status line.
+5. Tests: logic that can live in `core` should; browser checks through the
+   CDP driver in `spikes/browser` (Chromium only, D18), paced by one frame.
 
 Things learned so far to carry into M2 to M4:
 
@@ -95,9 +111,21 @@ Things learned so far to carry into M2 to M4:
 - After restoring a mutated file with an older mtime, gleam may reuse the
   stale build; `touch` the file.
 
-Commands: `just --list`; `just test` runs the core tests on both targets
-(seconds); `just spikes-test` runs every spike check (about 2 minutes, it
-starts headless Chrome itself).
+- Server API notes: `state.start(state.Config(folder, view_file, poll,
+  debounce))` returns the owner's subject; `web.start(web.Config(port,
+  folder, client), owner)`; clients join with a `Subject(ServerMsg)`.
+  `support/harness.gleam` in the server tests serves a copy of
+  `examples/talk` and connects a stratus client; reuse it for any new
+  server behaviour.
+- Rebasing replays each `Apply` group with the `IdSupply` it used, so IDs
+  made by unsaved ops survive an outside edit. An unsaved undo or redo
+  cannot be replayed and is dropped with a notice.
+
+Commands: `just --list`; `just test` runs the core tests on both targets and
+the server tests (about 15 s); `just zeno init <folder>` and
+`just zeno serve <folder>` run the command from the current folder;
+`just spikes-test` runs every spike check (about 2 minutes, it starts
+headless Chrome itself).
 
 ## Log
 
@@ -105,3 +133,4 @@ starts headless Chrome itself).
   notes.
 - 2026-10-27: M0 decisions made with the user and recorded; M1 core done,
   all laws passing on both targets.
+- 2026-10-27: M2 server done, all ten external edit scenarios passing.

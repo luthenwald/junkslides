@@ -7,8 +7,18 @@ default:
 core-test:
    cd core && gleam test --target erlang && gleam test --target javascript
 
+# Server: unit tests and the external edit scenarios (about 5 s)
+server-test:
+   cd server && gleam test
+
 # Everything that is not a spike
-test: core-test
+test: core-test server-test
+
+# The zeno command, run from where just is called: `just zeno serve examples/talk`
+[no-cd]
+zeno *args:
+   cd "{{justfile_directory()}}/server" && gleam export erlang-shipment > /dev/null
+   "{{justfile_directory()}}/server/build/erlang-shipment/entrypoint.sh" run {{args}}
 
 # S5: jot coverage and the block splitter, on both targets
 s5:

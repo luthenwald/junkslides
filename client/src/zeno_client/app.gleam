@@ -3,6 +3,7 @@
 //// the mode and the clipboard, and sends ops.
 
 import gleam/bool
+import gleam/dict.{type Dict}
 import gleam/int
 import gleam/javascript/promise
 import gleam/list
@@ -13,11 +14,12 @@ import lustre/effect.{type Effect}
 import lustre_websocket as ws
 import zeno/deck.{type Cell, type Deck}
 import zeno/id.{type CellTag, type Id}
-import zeno/layout.{type Layout}
+import zeno/layout.{type Area, type Layout}
 import zeno/op.{type EditProblem, type Op}
 import zeno/protocol.{type Diagnostic, type View, View}
+import zeno_client/canvas.{type Box}
 import zeno_client/edit
-import zeno_client/keymap.{type Command, type EditCommand}
+import zeno_client/keymap.{type CanvasCommand, type Command, type EditCommand}
 import zeno_client/nav.{type Selection, OnCell, OnSlide}
 
 pub type Model {
@@ -38,6 +40,12 @@ pub type Model {
     /// Counts typing, so that only the last pause sends.
     typing: Int,
     dragging_divider: Bool,
+    /// A cell being moved or resized on the canvas.
+    drag: Option(Drag),
+    /// What each cell's overflow probe reported last; see `slide`.
+    overflow: Dict(Id(CellTag), Bool),
+    /// Counts theme reloads; the theme's URL carries it.
+    theme: Int,
   )
 }
 
@@ -59,6 +67,8 @@ pub type Shared {
 
 pub type Mode {
   Command
+  /// The slide pane has the keys (05-editor.md, Canvas mode).
+  Canvas
   /// Editing one cell. `text` is the draft as typed; `drop` is set after an
   /// Esc that could not commit, so that a second Esc drops the draft.
   Editing(
@@ -67,6 +77,25 @@ pub type Mode {
     problem: Option(EditProblem),
     drop: Bool,
   )
+}
+
+/// A drag on the canvas shows `area` as a preview and sends one `Place` when
+/// let go. Once `released`, the preview stays until the next state, so the
+/// cell does not jump back while the op travels.
+pub type Drag {
+  Drag(
+    cell: Id(CellTag),
+    how: DragKind,
+    start: Area,
+    area: Area,
+    released: Bool,
+  )
+}
+
+pub type DragKind {
+  /// `grab` is the grid cell the pointer pressed.
+  Moving(grab: #(Int, Int))
+  Resizing
 }
 
 /// Selecting a cell the server is about to create, which only the next
@@ -89,6 +118,13 @@ pub type Msg {
   DividerGrab
   DividerAt(Int)
   DividerRelease
+  CanvasKey(CanvasCommand, Option(Box))
+  /// A press on a drawn cell at a point of the slide, in design pixels.
+  Grab(cell: Id(CellTag), x: Int, y: Int, box: Box)
+  GrabHandle(Id(CellTag))
+  DragAt(col: Int, row: Int)
+  DragEnd
+  Probe(cell: Id(CellTag), overflows: Bool)
 }
 
 const typing_pause = 200
@@ -110,6 +146,9 @@ pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
       focus: 0,
       typing: 0,
       dragging_divider: False,
+      drag: None,
+      overflow: dict.new(),
+      theme: 0,
     )
   #(model, ws.init("/ws", Socket))
 }
@@ -136,7 +175,10 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
     EditKey(command, cursor) -> edit_key(model, command, cursor)
     Select(selection) ->
       case model.mode {
-        Command -> #(Model(..model, selection:), effect.none())
+        Command | Canvas -> #(
+          Model(..model, selection:, mode: Command),
+          effect.none(),
+        )
         Editing(..) -> #(model, effect.none())
       }
     StartEdit(cell) -> start_edit(model, cell)
@@ -168,7 +210,73 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
           )
         False -> #(model, effect.none())
       }
+    CanvasKey(command, box) ->
+      case model.deck, model.mode {
+        Some(shared), Canvas ->
+          canvas_key(Model(..model, notice: None), shared, command, box)
+        _, _ -> #(model, effect.none())
+      }
+    Grab(cell:, x:, y:, box:) ->
+      grab(
+        model,
+        cell,
+        fn(start) {
+          Drag(cell, Moving(canvas.cell_at(x, y)), start, start, False)
+        },
+        Some(box),
+      )
+    GrabHandle(cell) ->
+      grab(
+        model,
+        cell,
+        fn(start) { Drag(cell, Resizing, start, start, False) },
+        None,
+      )
+    DragAt(col:, row:) ->
+      case model.drag {
+        Some(Drag(released: False, how:, start:, ..) as drag) -> {
+          let area = case how {
+            Moving(grab) -> canvas.moved(start, grab, #(col, row))
+            Resizing -> canvas.resized(start, #(col, row))
+          }
+          #(Model(..model, drag: Some(Drag(..drag, area:))), effect.none())
+        }
+        _ -> #(model, effect.none())
+      }
+    DragEnd ->
+      case model.drag {
+        Some(Drag(released: False, cell:, start:, area:, ..) as drag)
+          if area != start
+        -> {
+          let model = Model(..model, drag: Some(Drag(..drag, released: True)))
+          let #(model, effects) = apply_layout(model, layout.Place(cell, area))
+          case model.connection {
+            Open(_) -> #(model, effects)
+            Connecting | Closed -> #(Model(..model, drag: None), effects)
+          }
+        }
+        Some(Drag(released: False, ..)) -> #(
+          Model(..model, drag: None),
+          effect.none(),
+        )
+        _ -> #(model, effect.none())
+      }
+    Probe(cell:, overflows:) -> #(
+      Model(..model, overflow: dict.insert(model.overflow, cell, overflows)),
+      effect.none(),
+    )
   }
+}
+
+/// The drawn cells whose probes report overflow.
+pub fn overflowing(model: Model, shared: Shared) -> List(Id(CellTag)) {
+  deck.cells(shared.deck)
+  |> list.filter_map(fn(cell) {
+    case cell.kind, dict.get(model.overflow, cell.id) {
+      deck.Content, Ok(True) -> Ok(cell.id)
+      _, _ -> Error(Nil)
+    }
+  })
 }
 
 // The socket ------------------------------------------------------------------
@@ -212,8 +320,20 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
         False, view -> view
       }
       let shared = Shared(deck: new, layout:, diagnostics:, variants:)
+      let drag = case model.drag {
+        Some(Drag(released: True, ..)) -> None
+        drag -> drag
+      }
+      let mode = case model.mode, view.slide_hidden {
+        Canvas, True -> Command
+        mode, _ -> mode
+      }
       #(
-        arrive(Model(..model, deck: Some(shared), view:), old, new),
+        arrive(
+          Model(..model, deck: Some(shared), view:, drag:, mode:),
+          old,
+          new,
+        ),
         effect.none(),
       )
     }
@@ -222,8 +342,17 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
         NewCell(seq: waiting, ..) if waiting == seq -> Stay
         follow -> follow
       }
+      let drag = case model.drag {
+        Some(Drag(released: True, ..)) -> None
+        drag -> drag
+      }
       #(
-        Model(..model, follow:, notice: Some("Not applied: " <> reason <> ".")),
+        Model(
+          ..model,
+          follow:,
+          drag:,
+          notice: Some("Not applied: " <> reason <> "."),
+        ),
         effect.none(),
       )
     }
@@ -231,8 +360,11 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
       Model(..model, notice: Some(text)),
       effect.none(),
     )
-    // Theme reloading comes with the slide pane (M4).
-    protocol.ReloadTheme -> #(model, effect.none())
+    // A new URL makes the browser fetch the theme again.
+    protocol.ReloadTheme -> #(
+      Model(..model, theme: model.theme + 1),
+      effect.none(),
+    )
   }
 }
 
@@ -264,7 +396,7 @@ fn arrive(model: Model, old: Option(Deck), new: Deck) -> Model {
                 Ok(_) -> model
                 Error(Nil) -> lost_edit(model, old, cell, text)
               }
-            Command -> model
+            Command | Canvas -> model
           }
         }
       }
@@ -383,6 +515,17 @@ fn command_key(
       let cells_hidden = view.cells_hidden && !slide_hidden
       save_view(model, View(..view, cells_hidden:, slide_hidden:))
     }
+    keymap.ToCanvas ->
+      case model.view.slide_hidden {
+        True -> #(
+          Model(
+            ..model,
+            notice: Some("The slide pane is hidden; Ctrl-] shows it."),
+          ),
+          effect.none(),
+        )
+        False -> #(Model(..model, mode: Canvas), effect.none())
+      }
   }
 }
 
@@ -454,11 +597,11 @@ fn start_edit(model: Model, cell: Id(CellTag)) -> #(Model, Effect(Msg)) {
     Editing(..), Some(shared) -> {
       let #(committed, effects) = commit(model, False)
       case committed.mode {
-        Command -> #(enter_edit(committed, shared.deck, cell), effects)
+        Command | Canvas -> #(enter_edit(committed, shared.deck, cell), effects)
         Editing(..) -> #(committed, effects)
       }
     }
-    Command, Some(shared) -> #(
+    Command, Some(shared) | Canvas, Some(shared) -> #(
       enter_edit(Model(..model, notice: None), shared.deck, cell),
       effect.none(),
     )
@@ -584,7 +727,125 @@ fn commit(model: Model, by_escape: Bool) -> #(Model, Effect(Msg)) {
   }
 }
 
+// Canvas mode ------------------------------------------------------------------
+
+fn canvas_key(
+  model: Model,
+  shared: Shared,
+  command: CanvasCommand,
+  box: Option(Box),
+) -> #(Model, Effect(Msg)) {
+  let model = Model(..model, focus: model.focus + 1)
+  let deck = shared.deck
+  let select = fn(selection) { #(Model(..model, selection:), effect.none()) }
+  // Keys that change a drawn cell. An unplaced cell's area is where it is
+  // drawn, read from the focused element when the key was pressed.
+  let on_drawn = fn(
+    next: fn(Id(CellTag), Option(Area)) -> #(Model, Effect(Msg)),
+  ) {
+    case model.selection, canvas.is_drawn(deck, model.selection) {
+      OnCell(cell), True ->
+        next(
+          cell,
+          option.or(
+            canvas.placed(shared.layout, cell),
+            option.map(box, canvas.area_of_box),
+          ),
+        )
+      _, _ -> #(model, effect.none())
+    }
+  }
+  let place = fn(cell, from: Option(Area), change: fn(Area) -> Area) {
+    case from {
+      Some(area) ->
+        case change(area), canvas.placed(shared.layout, cell) {
+          // At the edge of the grid nothing changes, and nothing is sent.
+          new, Some(old) if new == old -> #(model, effect.none())
+          new, _ -> apply_layout(model, layout.Place(cell, new))
+        }
+      None -> #(model, effect.none())
+    }
+  }
+  case command {
+    keymap.NextDrawn -> select(canvas.next_drawn(deck, model.selection))
+    keymap.PreviousDrawn -> select(canvas.previous_drawn(deck, model.selection))
+    keymap.PlaceHere ->
+      on_drawn(fn(cell, area) {
+        case canvas.placed(shared.layout, cell) {
+          Some(_) -> #(
+            Model(..model, notice: Some("This cell is already placed.")),
+            effect.none(),
+          )
+          None -> place(cell, area, fn(area) { area })
+        }
+      })
+    keymap.Nudge(dx:, dy:) ->
+      on_drawn(fn(cell, area) { place(cell, area, canvas.nudge(_, dx, dy)) })
+    keymap.Resize(dw:, dh:) ->
+      on_drawn(fn(cell, area) { place(cell, area, canvas.grow(_, dw, dh)) })
+    keymap.ReturnToFlow ->
+      on_drawn(fn(cell, _) {
+        case canvas.placed(shared.layout, cell) {
+          Some(_) -> apply_layout(model, layout.Unplace(cell))
+          None -> #(model, effect.none())
+        }
+      })
+    keymap.CycleVariant ->
+      on_drawn(fn(cell, _) {
+        let current = layout.record(shared.layout, cell).variant
+        let variant = canvas.next_variant(shared.variants, current)
+        apply_layout(model, layout.SetVariant(cell, variant))
+      })
+    keymap.CycleAlign ->
+      on_drawn(fn(cell, _) {
+        let align = canvas.next_align(layout.record(shared.layout, cell).align)
+        apply_layout(model, layout.SetAlign(cell, align))
+      })
+    keymap.CanvasUndo -> send(model, protocol.Undo)
+    keymap.CanvasRedo -> send(model, protocol.Redo)
+    keymap.ToCells -> #(Model(..model, mode: Command), effect.none())
+  }
+}
+
+/// A press on a drawn cell or its handle: an edit in progress is committed
+/// first, then the cell is selected in canvas mode and the drag starts.
+fn grab(
+  model: Model,
+  cell: Id(CellTag),
+  drag: fn(Area) -> Drag,
+  box: Option(Box),
+) -> #(Model, Effect(Msg)) {
+  let #(model, effects) = case model.mode {
+    Editing(..) -> commit(model, False)
+    Command | Canvas -> #(model, effect.none())
+  }
+  case model.mode, model.deck {
+    Editing(..), _ | _, None -> #(model, effects)
+    _, Some(shared) -> {
+      let start =
+        option.or(
+          canvas.placed(shared.layout, cell),
+          option.map(box, canvas.area_of_box),
+        )
+      let model =
+        Model(
+          ..model,
+          mode: Canvas,
+          selection: OnCell(cell),
+          focus: model.focus + 1,
+          notice: None,
+          drag: option.map(start, drag),
+        )
+      #(model, effects)
+    }
+  }
+}
+
 // Sending ------------------------------------------------------------------
+
+fn apply_layout(model: Model, op: layout.LayoutOp) -> #(Model, Effect(Msg)) {
+  send(Model(..model, seq: model.seq + 1), protocol.ApplyLayout(model.seq, op))
+}
 
 fn apply(model: Model, ops: List(Op)) -> #(Model, Effect(Msg)) {
   send(Model(..model, seq: model.seq + 1), protocol.Apply(model.seq, ops))

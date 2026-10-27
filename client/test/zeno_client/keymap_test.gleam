@@ -1,7 +1,15 @@
 import zeno_client/keymap.{Key}
 
 fn key(name: String) -> keymap.Key {
-  Key(key: name, ctrl: False, alt: False, meta: False, composing: False)
+  Key(
+    key: name,
+    code: "",
+    ctrl: False,
+    alt: False,
+    shift: False,
+    meta: False,
+    composing: False,
+  )
 }
 
 pub fn command_keys_test() {
@@ -12,6 +20,7 @@ pub fn command_keys_test() {
   assert keymap.command(key("U")) == Ok(keymap.Redo)
   assert keymap.command(Key(..key("["), ctrl: True)) == Ok(keymap.ToggleCells)
   assert keymap.command(Key(..key("]"), ctrl: True)) == Ok(keymap.ToggleSlide)
+  assert keymap.command(key("Tab")) == Ok(keymap.ToCanvas)
 }
 
 pub fn browser_keys_are_left_alone_test() {
@@ -27,4 +36,23 @@ pub fn edit_keys_test() {
   assert keymap.edit(key("Enter")) == Error(Nil)
   // Esc that ends an input method composition is not a commit.
   assert keymap.edit(Key(..key("Escape"), composing: True)) == Error(Nil)
+}
+
+pub fn canvas_keys_test() {
+  assert keymap.canvas(key("j")) == Ok(keymap.NextDrawn)
+  assert keymap.canvas(key("Enter")) == Ok(keymap.PlaceHere)
+  assert keymap.canvas(key("ArrowLeft")) == Ok(keymap.Nudge(-1, 0))
+  assert keymap.canvas(Key(..key("ArrowLeft"), shift: True))
+    == Ok(keymap.Resize(-1, 0))
+  assert keymap.canvas(key("J")) == Ok(keymap.Resize(0, 1))
+  assert keymap.canvas(key("Tab")) == Ok(keymap.ToCells)
+  assert keymap.canvas(key("Escape")) == Ok(keymap.ToCells)
+  assert keymap.canvas(key("x")) == Error(Nil)
+}
+
+pub fn alt_keys_match_the_physical_key_test() {
+  // Option-l on macOS types `¬`.
+  let alt_l = Key(..key("¬"), code: "KeyL", alt: True)
+  assert keymap.canvas(alt_l) == Ok(keymap.Nudge(1, 0))
+  assert keymap.canvas(Key(..key("j"), code: "KeyJ", ctrl: True)) == Error(Nil)
 }

@@ -167,34 +167,198 @@ body {
   flex: 1;
 }
 
-/* Slide pane: a placeholder frame until the canvas (M4). */
+/* Slide pane */
 
 .ze-slide-pane {
   flex: 1 1 0;
   min-width: 0;
   background: var(--ze-ground);
-  container-type: size;
   outline: none;
 }
 
 .ze-stage {
+  position: relative;
   height: 100%;
-  display: grid;
-  place-items: center;
+  overflow: hidden;
+  container-type: size;
 }
 
-.ze-frame {
-  width: min(92cqw, 92cqh * 16 / 9);
-  aspect-ratio: 16 / 9;
+/* The 1920x1080 design space, scaled to fit and centred (spike S1). */
+.ze-fit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  translate: -50% -50%;
+  scale: min(100cqw / 1920px, 100cqh / 1080px);
+  user-select: none;
+  touch-action: none;
+}
+
+.ze-fit .zeno-slide {
+  outline: 1px solid var(--ze-rule);
+}
+
+/* Drawn cells take the pointer themselves, never their content, so that
+   `offsetX` is always relative to the cell. */
+.ze-fit .zeno-cell {
+  outline: none;
+}
+
+.ze-fit .zeno-cell * {
+  pointer-events: none;
+}
+
+.ze-fit .zeno-cell.ze-selected {
+  outline: 3px solid var(--ze-quiet);
+  outline-offset: 4px;
+}
+
+.ze-canvas .ze-fit .zeno-cell.ze-selected {
+  outline-color: var(--ze-ink);
+}
+
+.ze-fit .zeno-cell.ze-overflow {
+  outline: 3px dashed var(--ze-quiet);
+  outline-offset: 4px;
+}
+
+.ze-fit .zeno-cell.ze-overflow.ze-selected {
+  outline-color: var(--ze-ink);
+}
+
+/* The editor's layer: the same grid as the slide, above it. */
+.ze-layer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: repeat(18, 60px) / repeat(32, 60px);
+  pointer-events: none;
+}
+
+.ze-handle {
+  justify-self: end;
+  align-self: end;
+  width: 24px;
+  height: 24px;
+  margin: -12px;
   background: var(--ze-paper);
-  border: 1px solid var(--ze-rule);
-  display: grid;
-  place-items: center;
+  border: 3px solid var(--ze-ink);
+  cursor: nwse-resize;
+  pointer-events: auto;
 }
 
-.ze-frame-number {
-  color: var(--ze-faint);
-  font-variant-numeric: tabular-nums;
+.ze-target {
+  pointer-events: auto;
+  cursor: grabbing;
+}
+
+/* Overflow probes (spike S2): hidden copies of every slide. Each probe is
+   a scroll-state container, and its flag runs `ze-fits` or `ze-overflows`;
+   Lustre hears `animationstart`. The flag is a pseudo-element, so that it
+   is never a child the theme's selectors could count. */
+.ze-probes {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ze-probes > .zeno-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.ze-probe {
+  position: relative;
+  overflow: hidden;
+  container-type: scroll-state;
+}
+
+.ze-probe::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  animation: ze-fits 1ms;
+}
+
+@container scroll-state((scrollable: bottom) or (scrollable: right)) {
+  .ze-probe::after {
+    animation: ze-overflows 1ms;
+  }
+}
+
+@keyframes ze-fits {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ze-overflows {
+  to {
+    opacity: 1;
+  }
+}
+
+/* The slide's structure (04-layout.md, Theme contract). Zero specificity,
+   so that any rule in theme.css wins. */
+:where(.zeno-slide) {
+  position: relative;
+  box-sizing: border-box;
+  width: 1920px;
+  height: 1080px;
+  display: grid;
+  grid-template: repeat(18, 60px) / repeat(32, 60px);
+  background: #fff;
+  overflow: visible;
+}
+
+:where(.zeno-body) {
+  grid-area: 2 / 2 / 18 / 32;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+:where(.zeno-cell) {
+  min-width: 0;
+}
+
+:where(.zeno-cell) > :first-child {
+  margin-top: 0;
+}
+
+:where(.zeno-cell) > :last-child {
+  margin-bottom: 0;
+}
+
+:where(.zeno-cell img) {
+  max-width: 100%;
+}
+
+:where(.zeno-cell a) {
+  color: inherit;
+}
+
+:where(.zeno-cell[data-align="start"]) {
+  text-align: start;
+}
+
+:where(.zeno-cell[data-align="center"]) {
+  text-align: center;
+}
+
+:where(.zeno-cell[data-align="end"]) {
+  text-align: end;
 }
 
 /* Status line */

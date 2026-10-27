@@ -82,13 +82,13 @@ fn socket(
   )
 }
 
-/// The page: the editor's styles, the deck's theme, and the client bundle
-/// (`just client` builds both into priv/static).
+/// The page: the editor's styles and the client bundle (`just client`
+/// builds both into priv/static). The client links the deck's theme
+/// itself, so that it can reload it.
 fn page() -> Response(ResponseData) {
   let html =
     "<!doctype html>\n<meta charset=utf-8>\n<title>Zeno</title>\n"
-    <> "<link rel=stylesheet href=/zeno/zeno.css>\n"
-    <> "<link rel=stylesheet href=/theme.css>\n<div id=app></div>\n"
+    <> "<link rel=stylesheet href=/zeno/zeno.css>\n<div id=app></div>\n"
     <> "<script type=module src=/zeno/zeno_client.js></script>\n"
   response.new(200)
   |> response.set_header("content-type", "text/html; charset=utf-8")

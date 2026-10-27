@@ -128,7 +128,7 @@ pub fn static_files_stay_inside_the_deck_folder_test() {
   }
   let #(status, body) = get("/")
   assert status == 200
-  assert string.contains(body, "/theme.css")
+  assert string.contains(body, "/zeno/zeno_client.js")
   assert get("/theme.css") == #(200, harness.read(h.folder, "theme.css"))
   let assert Ok(Nil) =
     simplifile.write(filepath.join(h.folder, "a b.txt"), "spaced")

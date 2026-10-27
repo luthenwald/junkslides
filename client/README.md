@@ -1,12 +1,12 @@
 # zeno_client
 
 The Zeno editor in the browser, on the JavaScript target with Lustre: the
-cells pane with command and edit modes, the panes and divider, and the
-status line. The slide pane is a placeholder until M4. See
-docs/05-editor.md.
+cells pane with command and edit modes, the slide pane with canvas mode,
+the panes and divider, and the status line. See docs/05-editor.md and
+docs/04-layout.md.
 
 ```sh
 just client         # bundle into ../server/priv/static
-just client-test    # navigation, keymap and drafts, on JavaScript
+just client-test    # navigation, keymap, drafts and canvas arithmetic
 just e2e            # the editor in headless Chrome against a real server
 ```

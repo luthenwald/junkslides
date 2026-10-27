@@ -3,6 +3,13 @@
 default:
    @just --list
 
+# Core: unit tests and the laws as properties, on both targets
+core-test:
+   cd core && gleam test --target erlang && gleam test --target javascript
+
+# Everything that is not a spike
+test: core-test
+
 # S5: jot coverage and the block splitter, on both targets
 s5:
    cd spikes/s5_jot && gleam test --target erlang && gleam test --target javascript

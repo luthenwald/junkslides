@@ -24,6 +24,11 @@ pub opaque type Id(tag) {
 pub opaque type IdSupply
 ```
 
+The supply is a pure value: the server seeds it with the current time in
+milliseconds and 62 random bits, and the core counts upwards from there
+(UUIDv7 with a 12-bit counter, RFC 9562 section 6.2, method 1). A fresh ID
+also skips any ID that is already live.
+
 Guarantees from the types:
 
 - IDs cannot be forged or typed by hand (opaque type).
@@ -120,7 +125,7 @@ disappears and later reappears revives its ID.
 ### Normalising edits
 
 ```gleam
-pub fn normalize_edit(cell: Cell, new_source: String)
+pub fn normalize_edit(deck: Deck, cell: Id(CellTag), new_source: String)
   -> Result(List(Op), EditProblem)
 ```
 
@@ -128,7 +133,11 @@ The client calls this before sending a text edit.
 
 - A line that is exactly `---` becomes `EditText` for the part before it,
   `Split`, and `InsertBreak` before the second part. Several such lines produce
-  several breaks.
+  several breaks. The deck is needed to address the cell's slide. The ops are
+  `EditText` with all parts joined, then a `Split` and `InsertBreak` pair per
+  break, from the last break backwards, so that every op addresses the
+  original cell by its ID.
+- Unchanged text gives no ops.
 - A line that is exactly a marker gives `Error(MarkerLine(line_number))`. The
   edit stays local and the cell shows the problem.
 - Leading and trailing blank lines are trimmed.
@@ -245,11 +254,18 @@ obviously correct. Bound: 500 steps. Consecutive `EditText` ops on the same
 cell within one second coalesce into one step. External edits are steps too.
 A new step clears the redo stack.
 
+Coalescing is a separate entry point,
+`record_edit(history, deck, layout, cell, now)`. An edit joins the present
+step while it is on the same cell and at most one second after the first
+edit of that step, so one undo step covers at most a second of typing.
+
 ## Errors
 
 `OpError` covers: unknown cell or slide ID, position out of range, no next cell
 to merge, removing the first break, deleting the only slide, an area outside
-the grid, an unnormalised `EditText`. Errors never change the deck.
+the grid, an unnormalised `EditText` or `Paste`, and a `Split` whose cut would
+leave a structural line (cutting ` ---` after the space leaves a line that is
+exactly `---`; found by the property tests). Errors never change the deck.
 
 ## Laws
 

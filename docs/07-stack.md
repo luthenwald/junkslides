@@ -30,12 +30,14 @@ instead of types; JSON codecs are written by hand.
 | `mist` | HTTP server and WebSocket | server | chosen; round trip verified in S3 |
 | `lustre_websocket` | WebSocket from the Lustre client | client | chosen (D17); ships its own small JS FFI. No reconnect logic, the client calls `init` again on close |
 | `gleam_json` | Codecs for protocol, layout.json, view state | core | chosen |
-| `youid` | UUIDv7 generation (`uuid.v7()`) and parsing | server, core | chosen |
+| `youid` | UUIDv7 generation and parsing | none | not needed: `IdSupply` in core makes UUIDv7 from a time and random bits passed in, and `id.gleam` parses UUIDs itself |
 | `simplifile` | File reading and writing | server | chosen; `rename` is `file:rename/2` and atomic for readers (S4). No fsync: a one-function Erlang FFI calls `file:sync/1` |
-| `gleam_crypto` | sha256 of written and watched files | server | chosen (S4) |
+| `gleam_crypto` | sha256 of written and watched files; random bits for `IdSupply` | server | chosen (S4) |
 | `jot` | Parsing djot cell bodies | core | chosen (S5): 12.x, covers the dialect on both targets; used through a wrapper that walks the AST for diagnostics. Rendering goes from the AST to Lustre elements, never through `to_html` |
 | `gleeunit` | Test runner | all | chosen |
-| `qcheck` | Property tests with shrinking | core | chosen |
+| `simplifile` (dev, core) | Reading `examples/talk` and fixtures in core tests | core (dev) | used on both targets |
+| `qcheck` | Property tests with shrinking | core | chosen; 1.0.5 |
+| `gleam_time` | `Timestamp` for orphans and coalescing, RFC 3339 in layout.json | core | chosen; 1.11.0 |
 | `stratus` | WebSocket client for server tests and the CDP driver | server (dev) | chosen (S3) |
 
 Browser capabilities: drag, resize, overflow detection and rendered size
@@ -55,13 +57,17 @@ zeno/
   docs/
   core/        target-agnostic package
     src/zeno/
-      id.gleam          Id, tags, IdSupply
+      id.gleam          Id, tags, IdSupply, IdSet
+      line.gleam        structural lines of deck.md
       deck.gleam        Kind, Cell, Slide, Deck, Position, invariants
       op.gleam          Op, Effect, apply, normalize_edit, OpError
-      layout.gleam      Area, CellRecord, Layout, LayoutOp, fold_effects
+      layout.gleam      Area, CellRecord, Layout, LayoutOp, fold_effects,
+                        consistency, external edits
       history.gleam     snapshots, undo, redo, coalescing
-      dialect.gleam     cell body validation and rendering (via jot)
-      file.gleam        deck.md parse and print, layout.json codecs
+      dialect.gleam     cell body validation via jot, URL sanitising
+      blocks.gleam      splitting unmarked text into blocks (reading rule 5)
+      file.gleam        deck.md parse and print, layout.json parse and print
+      codec.gleam       JSON for decks, ops and layouts
       protocol.gleam    client/server messages and codecs
     test/
   server/      Erlang target

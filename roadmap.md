@@ -9,60 +9,99 @@ Progress tracker. The design roadmap is docs/08-roadmap.md.
   for browser checks.
 - M0, all five spikes, each with a note in `docs/spikes/`:
   - S1 drag: pure Lustre and CSS (hit-cell overlay, grab from `offsetX`).
-    Works in Chromium.
   - S2 measure: CSS scroll-state probes report overflow and rendered height
-    to the model via `animationstart`; mirror text areas grow. Chromium only
-    so far.
-  - S3 socket: shared gleam_json codec on both targets, mist server,
-    lustre_websocket client. Round trip verified from Erlang and in Chrome.
-  - S4 files: atomic writes (temp file, fsync FFI, rename) verified; polly
-    misses same-second edits, and a content-hash poller does not.
-  - S5 jot: jot 12.x covers the dialect; wrap it with an AST walker; own line
-    splitter for reading rule 5.
-- docs/07-stack.md package statuses updated.
+    to the model via `animationstart`; mirror text areas grow.
+  - S3 socket: shared gleam_json codec, mist server, lustre_websocket client.
+  - S4 files: atomic writes (temp file, fsync FFI, rename); content-hash
+    poller instead of polly.
+  - S5 jot: jot 12.x wrapped with an AST walker; own block splitter.
+- M0 decisions (2026-10-27), recorded in docs/09-decisions.md:
+  - P18 changed: own content-hash poller instead of polly.
+  - D17: `lustre_websocket` for the client socket.
+  - D18: the prototype targets Chromium; Safari revisited in M5.
+  - djot extras (super and subscript, insert, delete, mark, symbols) are
+    forbidden (02-file-format.md).
+- M1 core, in `core/` (package `zeno_core`), done:
+  - Modules: id, line, deck, op, layout, history, dialect, blocks, file,
+    codec, protocol. See docs/07-stack.md for what each holds.
+  - `examples/talk/` (deck.md, layout.json, theme.css) round-trips byte for
+    byte; `core/test/fixtures/hand.md` covers ID-less markers, preamble,
+    bare breaks, unmarked blocks and duplicate IDs.
+  - All ten laws of docs/03-data-model.md pass as qcheck properties on both
+    targets (`core/test/laws_test.gleam`), plus unit tests per op, the parser
+    and printer, layout, history, dialect and protocol: 47 tests.
+  - The properties were checked by mutation: breaking effects, IDs, blank
+    edges, retire, revive, placement checks, history, normalisation, the
+    printer or the paste rule each makes them fail.
+  - Found by the properties: `Split` could cut ` ---` into a line that is
+    exactly `---`. Split now refuses cuts that leave a structural line
+    (03-data-model.md, Errors).
 
 ## Todo
 
-- Decisions waiting for the user (see Next step).
-- M1 core, M2 server, M3 and M4 client, M5 hardening.
+- M2 server, M3 and M4 client, M5 hardening.
+- Possibly report the jot `{=mark=}` bug upstream (ask the user first; it is
+  outward-facing).
 
 ## Next step
 
-1. Get the user's answers on the open decisions from M0:
-   - P18: replace polly with the content-hash poller (`spikes/s4_files/src/store.gleam`,
-     `poll`). Recommended. If yes, update P18 in docs/09-decisions.md,
-     06-runtime.md (watching) and 07-stack.md.
-   - Client WebSocket: `lustre_websocket` (third-party Gleam package with
-     its own small JS FFI). Recommended. Alternatives are in
-     docs/spikes/S3-socket.md.
-   - Safari: whether to verify S1 and S2 in Safari before M4, and which
-     overflow fallback to use if Safari lacks scroll-state queries
-     (docs/spikes/S2-measure.md).
-   - Dialect: whether djot extras (super and subscript, insert, delete,
-     mark, symbols) are forbidden, as proposed in docs/spikes/S5-jot.md. If
-     yes, add them to the forbidden list in 02-file-format.md.
-2. Start M1 in `core/` as laid out in docs/07-stack.md (gleam package,
-   target-agnostic, deps gleam_json, jot 12.x, gleam_time for Timestamp,
-   dev deps gleeunit and qcheck). Order inside M1:
-   `id.gleam` (opaque `Id(tag)`, own UUID parser, `IdSupply`), then
-   `deck.gleam` and the invariants, `file.gleam` (parser with the reading
-   rules, using the splitter from `spikes/s5_jot/src/blocks.gleam`, and the
-   canonical printer), `op.gleam` (`apply`, `normalize_edit`), `layout.gleam`
-   (`fold_effects`, layout ops, layout.json codec), `history.gleam`,
-   `protocol.gleam`. Write `examples/talk/` (canonical, byte-for-byte
-   round trip) plus a hand-written fixture for ID-less markers, preamble
-   and duplicates. Laws as qcheck properties on both targets.
-3. Things learned in M0 to carry into M1 to M4:
-   - Lustre renders on the next animation frame; `html.textarea` is always
-     controlled (pass the model text back in).
-   - Never use `jot.to_html`; render the AST to Lustre elements and sanitise
-     URLs.
-   - Synthetic browser input over CDP must be paced by one frame (20 ms).
+M2, the server, in a new `server/` package (Erlang target, `zeno_server`),
+depending on `core` by path (`zeno_core = { path = "../core" }`). Read
+docs/06-runtime.md and the external edit scenarios in docs/08-roadmap.md.
 
-Commands: `just --list`; `just spikes-test` runs every spike check (about 2
-minutes, it starts headless Chrome itself).
+Suggested order:
+
+1. `store.gleam`: `write_atomic` (temp file `.name.zeno-tmp` in the same
+   folder, `file:sync` through a one-function Erlang FFI, then
+   `simplifile.rename`), sha256 with gleam_crypto. Port from
+   `spikes/s4_files/src/store.gleam` and `s4_store_ffi.erl`.
+2. `watch.gleam`: the content-hash poller (250 ms) from the S4 spike, with
+   own-write suppression by hash (P18).
+3. `state.gleam`: the owner process (an actor). Holds deck, layout, history,
+   the last written hashes, pending ops since the last deck.md write, the
+   variants and the view. Seeds `id.supply(now_ms, crypto.strong_random_bytes(8))`
+   on start and reseeds per change (the supply skips live IDs either way).
+   Applies `Apply` with `op.apply_all`, then `layout.fold_effects`, then
+   `history.record` (or `history.record_edit` when the ops are one
+   `EditText`). Layout ops via `layout.apply`. External deck.md edits:
+   `file.parse`, `layout.apply_external`, rebase pending ops (drop the ones
+   that fail, send a `Notice`), record a step, write. On a parse error keep
+   state, send `Notice` with the line, do not write.
+   Debounced writes (300 ms): deck.md first, then layout.json, skipping
+   unchanged bytes. On load, run `layout.consistency`.
+4. `web.gleam`: mist on 127.0.0.1:4870; `/ws` speaks `protocol` (full
+   `State` broadcast after each change, `protocol.diagnostics(deck)`);
+   static files for the client bundle, theme.css and deck assets, with paths
+   kept inside the deck folder.
+5. `server.gleam`: CLI `zeno init <folder>` (minimal deck plus default
+   theme, copy from `examples/talk/theme.css`) and `zeno serve <folder>`.
+   Theme variants from `--zeno-variants` in theme.css; `ReloadTheme` on
+   change. View state in `~/.config/zeno/view.json` keyed by deck path (P15).
+6. Integration tests: the ten external edit scenarios of docs/08-roadmap.md
+   on a temp copy of `examples/talk`, using stratus as the WebSocket client
+   (as in `spikes/s3_socket/server/test`).
+
+Things learned so far to carry into M2 to M4:
+
+- `core` API notes: `op.normalize_edit(deck, cell, text)` takes the deck;
+  `op.apply_all` is all-or-nothing; `layout.apply(layout, deck, op)`;
+  `history.record_edit` coalesces typing per cell within a second of the
+  step's first edit; `file.parse` returns the new `IdSupply`.
+- Lustre renders on the next animation frame; `html.textarea` is always
+  controlled (pass the model text back in).
+- Never use `jot.to_html`; render the AST (`dialect.parse`) to Lustre
+  elements and pass URLs through `dialect.safe_url`.
+- Synthetic browser input over CDP must be paced by one frame (20 ms).
+- After restoring a mutated file with an older mtime, gleam may reuse the
+  stale build; `touch` the file.
+
+Commands: `just --list`; `just test` runs the core tests on both targets
+(seconds); `just spikes-test` runs every spike check (about 2 minutes, it
+starts headless Chrome itself).
 
 ## Log
 
 - 2026-10-27: toolchain installed, scaffolding, all M0 spikes done with
-  notes; decisions listed under Next step are open.
+  notes.
+- 2026-10-27: M0 decisions made with the user and recorded; M1 core done,
+  all laws passing on both targets.

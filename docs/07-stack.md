@@ -25,8 +25,9 @@ instead of types; JSON codecs are written by hand.
 
 | Package | Used for | Where | Status |
 |---|---|---|---|
-| `lustre` | Client UI (Elm architecture) | client | chosen; 5.7.1 in the spikes |
-| `lustre_dev_tools` | Building and bundling the client | client (dev) | chosen; 2.4.0 bundles with Bun into `dist/` |
+| `lustre` | Client UI (Elm architecture) | client | chosen; 5.7.1 |
+| `lustre_dev_tools` | Building and bundling the client | client (dev) | chosen; 2.4.0 bundles with Bun into `server/priv/static/zeno_client.js` (named after the entry module) and copies `client/assets/` along |
+| `gleam_javascript` | `promise.wait`, the client's timers (typing pause, reconnect) | client | chosen; 1.0.1 |
 | `mist` | HTTP server and WebSocket | server | chosen; round trip verified in S3 |
 | `lustre_websocket` | WebSocket from the Lustre client | client | chosen (D17); ships its own small JS FFI. No reconnect logic, the client calls `init` again on close |
 | `gleam_json` | Codecs for protocol, layout.json, view state | core | chosen |
@@ -38,12 +39,12 @@ instead of types; JSON codecs are written by hand.
 | `simplifile` (dev, core) | Reading `examples/talk` and fixtures in core tests | core (dev) | used on both targets |
 | `qcheck` | Property tests with shrinking | core | chosen; 1.0.5 |
 | `gleam_time` | `Timestamp` for orphans and coalescing, RFC 3339 in layout.json | core | chosen; 1.11.0 |
-| `stratus` | WebSocket client for server tests and the CDP driver | server (dev) | chosen (S3); 3.0.0 |
+| `stratus` | WebSocket client for server tests and the CDP driver | server (dev), e2e | chosen (S3); 3.0.0 |
 | `gleam_otp`, `gleam_erlang` | The deck owner actor, timers, subjects | server | chosen; 1.3.0 each |
 | `argv` | Command line arguments of `zeno` | server | chosen; 1.1.0 |
 | `envoy` | `HOME`, for the view state file | server | chosen; 1.2.0 |
 | `filepath` | Joining and expanding paths | server | chosen; 1.1.2 |
-| `gleam_httpc` | HTTP requests in server tests | server (dev) | chosen; 5.0.0 |
+| `gleam_httpc` | HTTP requests in server tests and the CDP driver | server (dev), e2e | chosen; 5.0.0 |
 
 Browser capabilities: drag, resize, overflow detection and rendered size
 work with Lustre events and CSS only in Chromium (spikes S1 and S2). No
@@ -85,14 +86,25 @@ zeno/
         theme.gleam     variants from theme.css, the default theme
         view.gleam      per-user view state
       zeno_server_store_ffi.erl   write and fsync (the one Erlang FFI)
-    priv/static/        the client bundle (M3), not in version control
+    priv/static/        the client bundle and its stylesheet, built by
+                        `just client`, not in version control
     test/
-  client/      JavaScript target
-    src/zeno/
-      app.gleam         Lustre application, model, update
-      cells.gleam       cells pane
-      canvas.gleam      slide pane, drag and resize
-      keys.gleam        keymap
+  client/      JavaScript target (package zeno_client)
+    src/
+      zeno_client.gleam main: mounts the app on #app
+      zeno_client/
+        app.gleam       model, messages, update: socket, selection, modes,
+                        clipboard, sending ops
+        ui.gleam        the screen: panes, divider, cells pane, status line
+        nav.gleam       selection and the positions keys act on (pure)
+        keymap.gleam    the keymap, in one place (pure)
+        edit.gleam      drafts to ops, split position (pure)
+    assets/zeno.css     the editor's styles
+    test/               the pure modules, on JavaScript
+  e2e/         Erlang target (package zeno_e2e): the editor in headless
+               Chrome against an in-process server
+    src/cdp.gleam       the DevTools protocol driver
+    test/
   examples/
     talk/        a sample deck used in development and integration tests
 ```
@@ -123,9 +135,28 @@ the lock files.
   the external edit scenarios in 08-roadmap.md, with a client connected over
   the WebSocket (stratus). The poll interval and quiet period are shortened
   in tests. Run with `just server-test`.
-- `client`: kept thin; logic that can live in `core` should.
+- `client`: kept thin; logic that can live in `core` should. What is
+  client-only but pure (navigation, keymap, drafts) lives in its own modules
+  and is unit tested on JavaScript: `just client-test`.
+- `e2e`: the editor in headless Chrome against an in-process server
+  (`state.start` and `web.start`) on a copy of `examples/talk`, checking the
+  page through the DOM and the files on disk. `just e2e` builds the client
+  and starts Chrome on port 9334.
 - Browser checks: Chrome for Testing (headless shell, kept outside the repo
   in `~/Library/Caches/zeno-cft/`) is driven over the DevTools protocol from
-  Gleam, using only the DOM, Input, Page and Emulation domains. See
-  `spikes/browser` and `just browser-test`. Synthetic input is paced by one
-  frame. Safari is not covered.
+  Gleam, using only the DOM, Input, Page and Emulation domains (and
+  `Page.captureScreenshot` to look at the page while working). See
+  `e2e/src/cdp.gleam`; the spikes keep their own copy in `spikes/browser`.
+  Synthetic input is paced by one frame. Safari is not covered.
+
+## Client techniques
+
+- Keyboard focus without JavaScript: the element that should have focus
+  carries `autofocus` with a counter as its value. Lustre calls `focus()`
+  whenever that attribute is added to an element or its value changes, and
+  focusing scrolls the element into view.
+- Text areas are controlled (S2): the one being edited shows the draft from
+  the model, the others the deck's text, and each grows with the mirror
+  technique.
+- The divider is dragged with the hit-strip approach of S1: while dragging,
+  an overlay of one strip per percent reports `pointerenter`.

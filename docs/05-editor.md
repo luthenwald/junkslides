@@ -34,6 +34,8 @@
 - Notes cells are shown in a lighter gray with a small `notes` label.
 - A cell with a problem (marker line, forbidden construct, overflow) shows a
   one-line quiet message under it.
+- A slide without cells shows one quiet row, `empty slide`, which can be
+  selected like a cell. `o`, `O` and `Enter` there insert its first cell.
 
 ## Modes
 
@@ -46,6 +48,11 @@
 `Tab` switches focus between the cells pane (command mode) and the canvas.
 Selection is shared: selecting a cell in either pane selects it in the other
 and scrolls it into view.
+
+Clicking into a cell's text enters edit mode for that cell; leaving the text
+area commits, as `Esc` does. Keyboard focus follows the model: the selected
+cell in command mode, the text area in edit mode, the slide pane when the
+cells pane is hidden. Focusing also scrolls into view.
 
 ## Keymap
 
@@ -73,6 +80,16 @@ modes. It is a starting point and should be easy to change in one place.
 | `Ctrl-[` / `Ctrl-]` | Hide or show cells pane / slide pane | |
 | `Tab` | Focus the canvas | |
 
+- The arrow keys up and down work as `k` and `j`.
+- `b` on the first cell of a slide does nothing; that cell already starts
+  one.
+- The clipboard is the editor's own, not the system clipboard. It holds one
+  cell with its ID, so a cut followed by a paste revives the cell and its
+  layout (03-data-model.md, paste rule).
+- New cells (`o`, `O`, `p`, `P`, `D`, a split) get their IDs on the server;
+  the editor selects the new cell when the state that contains it arrives.
+- `Tab` arrives with the canvas (M4).
+
 ### Edit mode
 
 | Key | Action |
@@ -83,6 +100,19 @@ modes. It is a starting point and should be easy to change in one place.
 
 Text edits are sent as `EditText` while typing, debounced to about 200 ms, and
 coalesce into one undo step per cell (see 03-data-model.md).
+
+- The text area shows the text as typed; the deck gets it normalised
+  (`normalize_edit`), so a new empty line being started is not trimmed away
+  under the cursor.
+- A `---` line is sent only on commit, so a half-typed break never moves
+  text to a new slide.
+- Entering edit mode puts the cursor at the end of the text.
+- A marker line cannot be committed. `Esc` then keeps edit mode, focus
+  stays, and the problem shows under the cell and in the status line. A
+  second `Esc` drops the change.
+- `Alt-Enter` on a draft with a `---` line asks for a commit first.
+- If the cell being edited is removed outside Zeno, edit mode ends and the
+  draft goes to the clipboard with the cell's ID, so `p` brings it back.
 
 ### Canvas mode
 
@@ -111,6 +141,17 @@ Pane sizes and hidden panes are per-user view state, not deck data. The server
 stores them outside the deck, in the user's config directory
 (`~/.config/zeno/view.json`, keyed by deck path), and sends them on connect.
 This keeps the deck folder clean and avoids browser storage APIs.
+
+The divider's position is kept between 15 and 85 percent and saved when it is
+let go; hiding or showing a pane is saved at once.
+
+## Connection
+
+The status line says `connecting` until the first state arrives, and
+`offline, reconnecting` when the server goes away; the editor then tries again
+every second and takes the state the server sends on connect. Ops are not
+queued while offline: a key that would send one says so instead, and an edit
+in progress stays in its cell until it can be committed.
 
 ## Visual style
 

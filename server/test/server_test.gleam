@@ -147,6 +147,14 @@ pub fn static_files_stay_inside_the_deck_folder_test() {
   assert get("/a%2f..%2f..%2fstatic%2ftheme.css").0 == 404
 }
 
+pub fn serve_says_when_the_port_is_taken_test() {
+  let h = harness.start("port-taken", 4899)
+  let _ = harness.next_state(h)
+  let assert Error(message) = zeno_server.serve(h.folder, 4899)
+  assert string.contains(message, "Could not listen on 127.0.0.1:4899.")
+  assert string.contains(message, "--port N")
+}
+
 pub fn resolve_refuses_paths_leaving_the_folder_test() {
   assert web.resolve(["assets", "lens.png"]) == Ok("assets/lens.png")
   assert web.resolve(["a%20b.png"]) == Ok("a b.png")

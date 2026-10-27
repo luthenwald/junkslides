@@ -43,6 +43,7 @@ instead of types; JSON codecs are written by hand.
 | `gleam_otp`, `gleam_erlang` | The deck owner actor, timers, subjects | server | chosen; 1.3.0 each |
 | `argv` | Command line arguments of `zeno` | server | chosen; 1.1.0 |
 | `envoy` | `HOME`, for the view state file | server | chosen; 1.2.0 |
+| `logging` | Quiets the listener's report when `zeno serve` finds its port taken | server | chosen; 1.5.0, already a dependency of `mist` |
 | `filepath` | Joining and expanding paths | server | chosen; 1.1.2 |
 | `gleam_httpc` | HTTP requests in server tests and the CDP driver | server (dev), e2e | chosen; 5.0.0 |
 

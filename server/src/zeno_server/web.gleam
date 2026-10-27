@@ -30,6 +30,8 @@ pub fn start(
   mist.new(handle(_, config, owner))
   |> mist.bind("127.0.0.1")
   |> mist.port(config.port)
+  // `zeno serve` says where it listens itself.
+  |> mist.after_start(fn(_, _, _) { Nil })
   |> mist.start
 }
 

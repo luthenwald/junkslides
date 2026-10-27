@@ -13,6 +13,7 @@ import gleam/erlang/process
 import gleam/int
 import gleam/io
 import gleam/result
+import logging
 import simplifile
 import zeno/deck.{Cell, Content, Deck, Slide}
 import zeno/file
@@ -98,10 +99,20 @@ pub fn serve(folder: String, port: Int) -> Result(Nil, String) {
     |> result.map(filepath.join(_, "static"))
     |> result.replace_error("The zeno_server priv folder is missing."),
   )
+  // A port in use makes the listener's supervisor log a long report and
+  // exit, which would take this process with it, before the start returns
+  // its error. The message below says it plainly instead.
+  logging.set_level(logging.Emergency)
+  process.trap_exits(True)
+  let started = web.start(web.Config(port:, folder:, client:), owner)
+  process.trap_exits(False)
+  logging.set_level(logging.Notice)
   use _ <- result.try(
-    web.start(web.Config(port:, folder:, client:), owner)
+    started
     |> result.replace_error(
-      "Could not listen on 127.0.0.1:" <> int.to_string(port) <> ".",
+      "Could not listen on 127.0.0.1:"
+      <> int.to_string(port)
+      <> ". Is the port in use, perhaps by another zeno serve? Pick another with --port N.",
     ),
   )
   io.println("Serving " <> folder)

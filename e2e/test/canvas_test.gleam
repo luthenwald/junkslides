@@ -154,6 +154,8 @@ pub fn theme_reloads_test() {
   assert eventually(fn() {
     cdp.count(page, "link[href=\"/theme.css?v=1\"]") == 1
   })
+  // The previous theme's link goes once the new one has loaded.
+  assert eventually(fn() { cdp.count(page, "link[href^=\"/theme.css\"]") == 1 })
   // The new theme makes the large heading overflow its placed box.
   assert eventually(fn() { cdp.count(page, ".ze-fit .ze-overflow") == 1 })
   // Variants come from the new list: `large` is gone, so none, then `loud`.

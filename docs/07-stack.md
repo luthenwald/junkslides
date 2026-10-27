@@ -189,4 +189,7 @@ the lock files.
   items flow around anything else in the grid, such as the resize handle.
 - Alt keys are matched on `code`, since Option changes `key` on macOS.
 - The theme is a `<link>` in the Lustre view, so a reload is a new URL.
+  The new URL gets its own link, keyed by version, and the old one goes on
+  the new one's `load` (or `error`) event: changing a link's `href` drops
+  its stylesheet before the new one arrives.
 

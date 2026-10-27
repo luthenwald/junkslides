@@ -121,4 +121,6 @@ editor:
 
 When theme.css changes on disk, the server tells clients to reload the
 stylesheet; layout records are unaffected. The editor links the theme as
-`/theme.css?v=N` and changes `N`, so the browser fetches it again.
+`/theme.css?v=N` and adds a link for `N + 1`, so the browser fetches it
+again. The old link stays until the new stylesheet has loaded, so the slide
+is never drawn without a theme.

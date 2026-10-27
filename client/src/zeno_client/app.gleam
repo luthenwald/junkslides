@@ -46,6 +46,10 @@ pub type Model {
     overflow: Dict(Id(CellTag), Bool),
     /// Counts theme reloads; the theme's URL carries it.
     theme: Int,
+    /// The latest reload whose stylesheet has arrived. Its link stays until
+    /// the newer one has loaded, so the slide is never drawn without a
+    /// theme.
+    theme_loaded: Int,
   )
 }
 
@@ -125,6 +129,7 @@ pub type Msg {
   DragAt(col: Int, row: Int)
   DragEnd
   Probe(cell: Id(CellTag), overflows: Bool)
+  ThemeLoaded(Int)
 }
 
 const typing_pause = 200
@@ -149,6 +154,7 @@ pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
       drag: None,
       overflow: dict.new(),
       theme: 0,
+      theme_loaded: 0,
     )
   #(model, ws.init("/ws", Socket))
 }
@@ -263,6 +269,10 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
       }
     Probe(cell:, overflows:) -> #(
       Model(..model, overflow: dict.insert(model.overflow, cell, overflows)),
+      effect.none(),
+    )
+    ThemeLoaded(n) -> #(
+      Model(..model, theme_loaded: int.max(model.theme_loaded, n)),
       effect.none(),
     )
   }

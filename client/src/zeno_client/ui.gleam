@@ -64,11 +64,26 @@ pub fn view(model: Model) -> Element(app.Msg) {
 
 /// The deck's theme. A reload changes its URL, and the browser fetches it
 /// again.
+/// The theme, and while a reload is on its way, the previous one too. The
+/// browser drops a stylesheet as soon as its link changes, so the new one
+/// gets a link of its own. A theme that fails to load counts as arrived.
 fn theme(model: Model) -> Element(app.Msg) {
-  html.link([
-    attribute.rel("stylesheet"),
-    attribute.href("/theme.css?v=" <> int.to_string(model.theme)),
-  ])
+  let link = fn(n) {
+    let loaded = app.ThemeLoaded(n)
+    #(
+      int.to_string(n),
+      html.link([
+        attribute.rel("stylesheet"),
+        attribute.href("/theme.css?v=" <> int.to_string(n)),
+        event.on("load", decode.success(loaded)),
+        event.on("error", decode.success(loaded)),
+      ]),
+    )
+  }
+  keyed.fragment(case model.theme_loaded == model.theme {
+    True -> [link(model.theme)]
+    False -> [link(model.theme_loaded), link(model.theme)]
+  })
 }
 
 fn focus(model: Model) -> Attribute(msg) {

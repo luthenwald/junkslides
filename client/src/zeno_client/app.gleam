@@ -84,15 +84,16 @@ pub type Mode {
 }
 
 /// A drag on the canvas shows `area` as a preview and sends one `Place` when
-/// let go. Once `released`, the preview stays until the next state, so the
-/// cell does not jump back while the op travels.
+/// let go. `released` is then that op's `seq`, and the preview stays until a
+/// state shows the cell at `area`, so the cell does not jump back while the
+/// op travels, also when other states arrive first.
 pub type Drag {
   Drag(
     cell: Id(CellTag),
     how: DragKind,
     start: Area,
     area: Area,
-    released: Bool,
+    released: Option(Int),
   )
 }
 
@@ -130,9 +131,15 @@ pub type Msg {
   DragEnd
   Probe(cell: Id(CellTag), overflows: Bool)
   ThemeLoaded(Int)
+  /// The time a released drag waits for its state is up.
+  DragSettled(seq: Int)
 }
 
 const typing_pause = 200
+
+/// How long a released drag's preview waits for a state that shows it,
+/// should that state never come (an outside edit placed the cell elsewhere).
+const drag_settle = 1000
 
 const reconnect_after = 1000
 
@@ -227,7 +234,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
         model,
         cell,
         fn(start) {
-          Drag(cell, Moving(canvas.cell_at(x, y)), start, start, False)
+          Drag(cell, Moving(canvas.cell_at(x, y)), start, start, None)
         },
         Some(box),
       )
@@ -235,12 +242,12 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
       grab(
         model,
         cell,
-        fn(start) { Drag(cell, Resizing, start, start, False) },
+        fn(start) { Drag(cell, Resizing, start, start, None) },
         None,
       )
     DragAt(col:, row:) ->
       case model.drag {
-        Some(Drag(released: False, how:, start:, ..) as drag) -> {
+        Some(Drag(released: None, how:, start:, ..) as drag) -> {
           let area = case how {
             Moving(grab) -> canvas.moved(start, grab, #(col, row))
             Resizing -> canvas.resized(start, #(col, row))
@@ -251,17 +258,22 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
       }
     DragEnd ->
       case model.drag {
-        Some(Drag(released: False, cell:, start:, area:, ..) as drag)
+        Some(Drag(released: None, cell:, start:, area:, ..) as drag)
           if area != start
         -> {
-          let model = Model(..model, drag: Some(Drag(..drag, released: True)))
+          let seq = model.seq
+          let model =
+            Model(..model, drag: Some(Drag(..drag, released: Some(seq))))
           let #(model, effects) = apply_layout(model, layout.Place(cell, area))
           case model.connection {
-            Open(_) -> #(model, effects)
+            Open(_) -> #(
+              model,
+              effect.batch([effects, after(drag_settle, DragSettled(seq))]),
+            )
             Connecting | Closed -> #(Model(..model, drag: None), effects)
           }
         }
-        Some(Drag(released: False, ..)) -> #(
+        Some(Drag(released: None, ..)) -> #(
           Model(..model, drag: None),
           effect.none(),
         )
@@ -271,6 +283,14 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
       Model(..model, overflow: dict.insert(model.overflow, cell, overflows)),
       effect.none(),
     )
+    DragSettled(seq:) ->
+      case model.drag {
+        Some(Drag(released: Some(sent), ..)) if sent == seq -> #(
+          Model(..model, drag: None),
+          effect.none(),
+        )
+        _ -> #(model, effect.none())
+      }
     ThemeLoaded(n) -> #(
       Model(..model, theme_loaded: int.max(model.theme_loaded, n)),
       effect.none(),
@@ -331,7 +351,14 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
       }
       let shared = Shared(deck: new, layout:, diagnostics:, variants:)
       let drag = case model.drag {
-        Some(Drag(released: True, ..)) -> None
+        Some(Drag(released: Some(_), cell:, area:, ..) as drag) -> {
+          let landed = layout.record(layout, cell).place == Some(area)
+          let gone = result.is_error(deck.find_cell(new, cell))
+          case landed || gone {
+            True -> None
+            False -> Some(drag)
+          }
+        }
         drag -> drag
       }
       let mode = case model.mode, view.slide_hidden {
@@ -353,7 +380,7 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
         follow -> follow
       }
       let drag = case model.drag {
-        Some(Drag(released: True, ..)) -> None
+        Some(Drag(released: Some(sent), ..)) if sent == seq -> None
         drag -> drag
       }
       #(

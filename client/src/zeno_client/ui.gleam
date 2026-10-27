@@ -167,7 +167,7 @@ fn slide_pane(model: Model, shared: Shared) -> Element(app.Msg) {
     Command | Editing(..) -> []
   }
   let release = case model.drag {
-    Some(Drag(released: False, ..)) -> {
+    Some(Drag(released: None, ..)) -> {
       let end = decode.success(app.DragEnd)
       [
         event.on("pointerup", end),

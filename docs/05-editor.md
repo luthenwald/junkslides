@@ -149,10 +149,12 @@ Mouse: click selects, drag moves (placing an unplaced cell), handles resize.
   in canvas mode; the hovered grid cell becomes the new corner.
 - `v` cycles none, then the theme's variants in order; a variant the theme
   no longer lists goes back to none. `a` cycles none, start, center, end.
-- While dragging, the cell is drawn at the snapped preview area; the
-  preview stays until the next state, so the cell does not jump back while
-  the `Place` travels. Leaving the slide pane ends the drag, as letting go
-  does.
+- While dragging, the cell is drawn at the snapped preview area. After
+  letting go, the preview stays until a state shows the cell there, so the
+  cell does not jump back while the `Place` travels, also when states from
+  other edits arrive first. It also ends when the `Place` is rejected, the
+  cell is gone, or after a second. Leaving the slide pane ends the drag, as
+  letting go does.
 
 ## Undo
 

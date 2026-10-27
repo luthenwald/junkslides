@@ -226,7 +226,7 @@ fn editor_layer(model: Model, placed: List(#(Cell, Area))) -> Element(app.Msg) {
       }
     })
   let targets = case model.drag {
-    Some(Drag(released: False, ..)) ->
+    Some(Drag(released: None, ..)) ->
       list.flat_map(range(0, layout.rows), fn(row) {
         list.map(range(0, layout.columns), fn(col) {
           // Placed explicitly, so that nothing else in the grid moves them.

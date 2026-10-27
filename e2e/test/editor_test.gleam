@@ -116,6 +116,33 @@ pub fn move_and_undo_test() {
   assert eventually(fn() { deck(folder) != original })
 }
 
+pub fn purge_removes_orphans_and_undo_brings_them_back_test() {
+  let #(page, folder) = open("purge", 4915)
+  let orphans = fn() { string.contains(layout(folder), "\"retired_at\"") }
+  assert string.contains(status(page), "1 orphan")
+  press(page, "X")
+  assert eventually(fn() { !orphans() })
+  assert string.contains(status(page), "Removed 1 orphan; u brings it back.")
+  let counted = fn() {
+    status(page)
+    |> string.replace("Removed 1 orphan", "")
+    |> string.contains("1 orphan")
+  }
+  assert eventually(fn() { !counted() })
+  press(page, "u")
+  assert eventually(orphans)
+  press(page, "X")
+  press(page, "X")
+  assert eventually(fn() {
+    string.contains(status(page), "There are no orphans.")
+  })
+}
+
+fn layout(folder: String) -> String {
+  let assert Ok(text) = simplifile.read(filepath.join(folder, "layout.json"))
+  text
+}
+
 pub fn restructuring_keys_test() {
   let #(page, folder) = open("restructure", 4912)
   let has = fn(text) {

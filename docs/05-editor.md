@@ -78,6 +78,7 @@ modes. It is a starting point and should be easy to change in one place.
 | `b` | Start a new slide at the selected cell | `InsertBreak` |
 | `B` | Remove this slide's break (join with previous slide) | `RemoveBreak` |
 | `u` / `U` | Undo / redo | |
+| `X` | Remove all orphaned layout records | `PurgeOrphans` |
 | `Ctrl-[` / `Ctrl-]` | Hide or show cells pane / slide pane | |
 | `Tab` | Focus the canvas | |
 
@@ -90,6 +91,8 @@ modes. It is a starting point and should be easy to change in one place.
 - New cells (`o`, `O`, `p`, `P`, `D`, a split) get their IDs on the server;
   the editor selects the new cell when the state that contains it arrives.
 - `Tab` with the slide pane hidden says so instead.
+- `X` says how many orphans it removed. It is one undo step, so `u` brings
+  them back while the editor runs.
 
 ### Edit mode
 

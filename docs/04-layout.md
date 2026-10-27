@@ -85,8 +85,9 @@ Why keep them: undo does not need them (it uses snapshots), but external edits
 do. If a cell is cut in an outside editor, the file is saved, and the cell is
 pasted back later, its marker reappears and the record is revived.
 
-Orphans are removed only by the `PurgeOrphans` command in the prototype. The
-status line shows the number of orphans.
+Orphans are removed only by the `PurgeOrphans` command in the prototype,
+`X` in command mode (05-editor.md). The status line shows the number of
+orphans.
 
 ## Theme contract
 

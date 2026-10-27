@@ -169,7 +169,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
     CommandKey(command) ->
       case model.deck, model.mode {
         Some(shared), Command ->
-          command_key(Model(..model, notice: None), shared.deck, command)
+          command_key(Model(..model, notice: None), shared, command)
         _, _ -> #(model, effect.none())
       }
     EditKey(command, cursor) -> edit_key(model, command, cursor)
@@ -431,9 +431,10 @@ fn lost_edit(
 
 fn command_key(
   model: Model,
-  deck: Deck,
+  shared: Shared,
   command: Command,
 ) -> #(Model, Effect(Msg)) {
+  let deck = shared.deck
   // Every key moves focus back to the selection, which also scrolls it into
   // view.
   let model = Model(..model, follow: Stay, focus: model.focus + 1)
@@ -503,6 +504,24 @@ fn command_key(
       }
     keymap.Undo -> send(model, protocol.Undo)
     keymap.Redo -> send(model, protocol.Redo)
+    keymap.PurgeOrphans ->
+      case list.length(shared.layout.orphans) {
+        0 -> #(
+          Model(..model, notice: Some("There are no orphans.")),
+          effect.none(),
+        )
+        1 ->
+          Model(..model, notice: Some("Removed 1 orphan; u brings it back."))
+          |> apply_layout(layout.PurgeOrphans)
+        n ->
+          Model(
+            ..model,
+            notice: Some(
+              "Removed " <> int.to_string(n) <> " orphans; u brings them back.",
+            ),
+          )
+          |> apply_layout(layout.PurgeOrphans)
+      }
     keymap.ToggleCells -> {
       let view = model.view
       let cells_hidden = !view.cells_hidden

@@ -56,3 +56,8 @@ pub fn alt_keys_match_the_physical_key_test() {
   assert keymap.canvas(alt_l) == Ok(keymap.Nudge(1, 0))
   assert keymap.canvas(Key(..key("j"), code: "KeyJ", ctrl: True)) == Error(Nil)
 }
+
+pub fn purge_key_test() {
+  assert keymap.command(key("X")) == Ok(keymap.PurgeOrphans)
+  assert keymap.command(Key(..key("x"), meta: True)) == Error(Nil)
+}

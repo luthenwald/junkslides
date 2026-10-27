@@ -34,7 +34,7 @@ instead of types; JSON codecs are written by hand.
 | `youid` | UUIDv7 generation and parsing | none | not needed: `IdSupply` in core makes UUIDv7 from a time and random bits passed in, and `id.gleam` parses UUIDs itself |
 | `simplifile` | File reading and writing | server | chosen; `rename` is `file:rename/2` and atomic for readers (S4). No fsync: a one-function Erlang FFI calls `file:sync/1` |
 | `gleam_crypto` | sha256 of written and watched files; random bits for `IdSupply` | server | chosen (S4) |
-| `jot` | Parsing djot cell bodies | core | chosen (S5): 12.x, covers the dialect on both targets; used through a wrapper that walks the AST for diagnostics. Rendering goes from the AST to Lustre elements, never through `to_html` |
+| `jot` | Parsing djot cell bodies | core, client | chosen (S5): 12.x, covers the dialect on both targets; used through a wrapper that walks the AST for diagnostics. Rendering goes from the AST to Lustre elements, never through `to_html` |
 | `gleeunit` | Test runner | all | chosen |
 | `simplifile` (dev, core) | Reading `examples/talk` and fixtures in core tests | core (dev) | used on both targets |
 | `qcheck` | Property tests with shrinking | core | chosen; 1.0.5 |
@@ -96,14 +96,18 @@ zeno/
         app.gleam       model, messages, update: socket, selection, modes,
                         clipboard, sending ops
         ui.gleam        the screen: panes, divider, cells pane, status line
+        slide.gleam     the canvas: slides from the jot AST, the editor
+                        layer, overflow probes
         nav.gleam       selection and the positions keys act on (pure)
         keymap.gleam    the keymap, in one place (pure)
         edit.gleam      drafts to ops, split position (pure)
+        canvas.gleam    grid areas, moves, resizes, cycles (pure)
     assets/zeno.css     the editor's styles
     test/               the pure modules, on JavaScript
   e2e/         Erlang target (package zeno_e2e): the editor in headless
                Chrome against an in-process server
     src/cdp.gleam       the DevTools protocol driver
+    src/harness.gleam   a served copy of the example, page readers
     test/
   examples/
     talk/        a sample deck used in development and integration tests
@@ -136,11 +140,14 @@ the lock files.
   the WebSocket (stratus). The poll interval and quiet period are shortened
   in tests. Run with `just server-test`.
 - `client`: kept thin; logic that can live in `core` should. What is
-  client-only but pure (navigation, keymap, drafts) lives in its own modules
+  client-only but pure (navigation, keymap, drafts, canvas arithmetic) lives
+  in its own modules
   and is unit tested on JavaScript: `just client-test`.
 - `e2e`: the editor in headless Chrome against an in-process server
   (`state.start` and `web.start`) on a copy of `examples/talk`, checking the
-  page through the DOM and the files on disk. `just e2e` builds the client
+  page through the DOM and the files on disk: `editor_test` for the cells
+  pane, `canvas_test` for the slide pane (drawing, canvas keys, mouse drags
+  and resizes, overflow flags, theme reload). `just e2e` builds the client
   and starts Chrome on port 9334.
 - Browser checks: Chrome for Testing (headless shell, kept outside the repo
   in `~/Library/Caches/zeno-cft/`) is driven over the DevTools protocol from
@@ -160,3 +167,18 @@ the lock files.
   technique.
 - The divider is dragged with the hit-strip approach of S1: while dragging,
   an overlay of one strip per percent reports `pointerenter`.
+- Element sizes without measurement code: an event's `target` is the DOM
+  element, and its layout offsets (`offsetLeft`, `offsetTop`, `offsetWidth`,
+  `offsetHeight`, summed up the `offsetParent` chain to the slide) decode
+  like any other field. They ignore transforms, so they are in design
+  pixels. The canvas reads them on `pointerdown` and on canvas keys (the
+  focused drawn cell is the target). This replaces the rows probe of S2.
+- Overflow probes (S2) for every slide, in one hidden layer outside the
+  panes and memoised on the state (`element.memo`), so probe reports do not
+  re-render it. The flag is the probe's `::after`, so it is never a child
+  the theme's `:last-child` and similar selectors could count.
+- Drag targets on the canvas are placed in the grid explicitly; auto-placed
+  items flow around anything else in the grid, such as the resize handle.
+- Alt keys are matched on `code`, since Option changes `key` on macOS.
+- The theme is a `<link>` in the Lustre view, so a reload is a new URL.
+

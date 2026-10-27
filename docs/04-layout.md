@@ -32,7 +32,10 @@ inactive.
 ## Placing and moving
 
 - Dragging an unplaced cell out of the flow places it at the drop location,
-  with its current rendered size rounded up to whole grid units.
+  with its current rendered size rounded up to whole grid units. The size
+  and position come from the drawn element itself: a pointer or key event
+  carries its target, whose layout offsets (`offsetLeft`, `offsetWidth` and
+  so on, summed up to the slide) are in design pixels whatever the scale.
 - Dragging a placed cell moves it; dragging a handle resizes it. Both snap to
   grid units and are clamped to the grid.
 - While dragging, the client keeps a transient preview; one `Place` op is sent
@@ -63,9 +66,15 @@ cell's grid area, or for unplaced cells, the body area as a whole.
 - Overflow is flagged, never fixed silently: the cell gets a dashed outline on
   the canvas, the matching cell in the left pane gets a quiet mark, and the
   status line shows a count.
+- For unplaced cells, the flagged ones are those that do not fit: a cell
+  overflows when the flow up to and including it does not fit the body. The
+  cells before it stay unmarked.
+- Overflow at the bottom and at the right both count.
 - Nothing is clipped. Shrink-to-fit is planned for later.
-- Detecting overflow needs element measurement in the browser; see spike S2 in
-  08-roadmap.md.
+- Detection is CSS only (spike S2): behind every drawn box a hidden copy is
+  a scroll-state container, and its flag starts one of two animations,
+  which the editor hears. The copies cover every slide, so the count and
+  the marks cover the whole deck, also with the slide pane hidden.
 
 ## Orphans
 
@@ -93,6 +102,12 @@ structure, and the theme styles it:
 | `.zeno-cell[data-variant="large"]` | Variant styling, one selector per variant |
 | `.zeno-cell[data-align="center"]` | Alignment styling |
 
+The editor's stylesheet gives this structure its base: the slide's size and
+grid, a body area (columns 2 to 30, rows 2 to 16) that stacks cells as a
+flex column, no outer margins inside a cell, images no wider than their
+cell, links in the text colour, and `text-align` for `data-align`. These
+rules have zero specificity (`:where`), so any rule in theme.css wins.
+
 Theme tokens are CSS custom properties on `:root` (colours, type scale,
 spacing). The default theme uses grayscale values only, in a quiet, minimal
 style. The theme also lists its variants in a custom property. The server reads this
@@ -104,4 +119,5 @@ editor:
 ```
 
 When theme.css changes on disk, the server tells clients to reload the
-stylesheet; layout records are unaffected.
+stylesheet; layout records are unaffected. The editor links the theme as
+`/theme.css?v=N` and changes `N`, so the browser fetches it again.

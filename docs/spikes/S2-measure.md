@@ -97,3 +97,11 @@ Not covered:
 - Which fallback to adopt if Safari support matters for the prototype.
   Decided 2026-10-27: the prototype targets Chromium (D18); option 1 for
   Safari until M5.
+
+## Later
+
+- M4 (2026-10-27): the rows probe was not needed. The rendered size of a
+  drawn cell is read from the event's target (`offsetWidth` and the other
+  layout offsets) by a Lustre decoder; see docs/07-stack.md, Client
+  techniques. The overflow probes are used as described here, with the
+  flag as the probe's `::after`.

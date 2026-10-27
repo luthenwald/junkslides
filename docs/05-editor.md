@@ -33,7 +33,8 @@
   rendering on the left; the right pane renders.
 - Notes cells are shown in a lighter gray with a small `notes` label.
 - A cell with a problem (marker line, forbidden construct, overflow) shows a
-  one-line quiet message under it.
+  one-line quiet message under it. For overflow it reads "Does not fit its
+  box on the slide."
 - A slide without cells shows one quiet row, `empty slide`, which can be
   selected like a cell. `o`, `O` and `Enter` there insert its first cell.
 
@@ -88,7 +89,7 @@ modes. It is a starting point and should be easy to change in one place.
   layout (03-data-model.md, paste rule).
 - New cells (`o`, `O`, `p`, `P`, `D`, a split) get their IDs on the server;
   the editor selects the new cell when the state that contains it arrives.
-- `Tab` arrives with the canvas (M4).
+- `Tab` with the slide pane hidden says so instead.
 
 ### Edit mode
 
@@ -130,6 +131,26 @@ coalesce into one undo step per cell (see 03-data-model.md).
 
 Mouse: click selects, drag moves (placing an unplaced cell), handles resize.
 
+- `Esc` also returns to the cells pane. The status line shows `canvas`.
+- Pressing a drawn cell selects it and enters canvas mode; an edit in
+  progress is committed first. Clicking a cell in the cells pane returns to
+  command mode.
+- `j` and `k` move through the content cells of the slide in source order;
+  from a notes cell or an empty slide, `j` selects the first one.
+- Nudging or resizing an unplaced cell places it first, at the area where
+  it is drawn, so `Enter` is not needed before an arrow key. `Enter` on a
+  placed cell only says so.
+- A nudge or resize that the grid's edge stops sends nothing, so it adds no
+  undo step. A press without a move sends nothing either.
+- The resize handle is the bottom-right corner of the selected placed cell
+  in canvas mode; the hovered grid cell becomes the new corner.
+- `v` cycles none, then the theme's variants in order; a variant the theme
+  no longer lists goes back to none. `a` cycles none, start, center, end.
+- While dragging, the cell is drawn at the snapped preview area; the
+  preview stays until the next state, so the cell does not jump back while
+  the `Place` travels. Leaving the slide pane ends the drag, as letting go
+  does.
+
 ## Undo
 
 Undo lives on the server (03-data-model.md, History), so it covers both panes
@@ -158,6 +179,9 @@ in progress stays in its cell until it can be committed.
 - Grayscale values only, for the editor and for the default theme.
 - Minimal: one sans and one mono typeface, hairline rules, generous spacing,
   no shadows, no colour, no icons where a word will do.
-- Selection is a darker hairline outline; overflow is a dashed outline;
-  problems are quiet gray text, never red.
+- Selection is a darker hairline outline (darker still in canvas mode);
+  overflow is a dashed outline; problems are quiet gray text, never red.
+- Outlines on the slide are the editor's only marks there. They never
+  change the slide's layout, so what the canvas shows is what the theme
+  draws.
 - Motion only where it carries meaning (snapping during a drag).

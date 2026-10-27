@@ -90,64 +90,85 @@ Progress tracker. The design roadmap is docs/08-roadmap.md.
     slide rows, clicking into text, cursor at the end, Esc twice to drop,
     the editor's own clipboard, connection).
 
+- M4 client, slide pane (canvas), in `client/`, done:
+  - New modules: `slide` (slides drawn from the jot AST per the theme
+    contract, the editor layer, overflow probes) and the pure `canvas`
+    (areas from drawn boxes, moves, resizes, nudges, variant and alignment
+    cycles, drawn-cell navigation). `app` gained the `Canvas` mode, drags,
+    probe reports and the theme counter; `keymap` the canvas keys and `Tab`.
+  - The theme is linked from the Lustre view as `/theme.css?v=N`, and
+    `ReloadTheme` bumps `N`; the server page no longer links it.
+  - Canvas mode: `Tab` or `Esc` in and out, every key of 05-editor.md;
+    pressing a drawn cell selects it and enters canvas mode; drag to move
+    (placing an unplaced cell with its rendered size), handle to resize,
+    one `Place` per drag with a snapped preview; nudges and resizes of an
+    unplaced cell place it first; edge-stopped keys send nothing.
+  - Rendered sizes come from the event target's layout offsets, decoded
+    like any field, instead of the rows probe of S2. Overflow: one hidden
+    probe per drawn cell for the whole deck (prefix copies of the body for
+    flowing cells), dashed outline, quiet mark in the cells pane, count in
+    the status line.
+  - Base slide styles (grid, body area, links, alignment) in zeno.css at
+    zero specificity, so the theme always wins.
+  - Tests: 25 client unit tests; 20 browser checks (6 new in
+    `e2e/test/canvas_test.gleam`: drawing, canvas keys on layout.json,
+    drag with preview and handle resize, dragging out of the flow, overflow,
+    theme reload). The e2e helpers moved to `e2e/src/harness.gleam`.
+  - Checked by mutation: no scroll-state query, a click that sends `Place`,
+    an ignored `ReloadTheme`, canvas keys without the drawn box, and the
+    preview on the wrong cell each make a test fail. Auto-placed drag
+    targets no longer fail anything, since the handle is hidden while
+    dragging; the explicit placement stays as a safeguard.
+  - Found on the way: drag targets auto-placed in the layer grid flowed
+    around the resize handle and missed their cells.
+  - Settled behaviour is in docs/05-editor.md (Canvas mode) and
+    docs/04-layout.md (overflow of flowing cells, base styles, reload).
+
 ## Todo
 
-- M4 client canvas, M5 hardening.
+- M5 hardening (docs/08-roadmap.md): make a real talk with Zeno, fix what
+  hurts.
+- Ask the user: a key or status-line action for `PurgeOrphans` (05-editor.md
+  has none).
 - Possibly report the jot `{=mark=}` bug upstream (ask the user first; it is
   outward-facing).
 
 ## Next step
 
-M4, the slide pane (canvas), in `client/`. Read docs/04-layout.md (all of
-it, including the theme contract), docs/05-editor.md (Canvas mode, Visual
-style), the S1 and S2 spike notes, and `client/src/zeno_client/ui.gleam`
-(the placeholder `slide_pane`) first.
+M5, hardening. Read docs/08-roadmap.md (M5), docs/05-editor.md and
+docs/04-layout.md, then use the editor on a real deck: `cp -r examples/talk
+<somewhere>` (never serve `examples/talk` in place) and `just zeno serve
+<somewhere>`, open http://127.0.0.1:4870/ in Chrome.
 
-Suggested order:
+Open points to settle with the user first:
 
-1. Rendering: a new module (for example `zeno_client/slide.gleam`) that
-   draws the slide of the selection from deck, layout and theme. Structure
-   per the theme contract: `.zeno-slide` (1920x1080, a 32x18 grid of 60 px
-   units) scaled into the pane with the S1 CSS (`container-type: size` on
-   the stage, `scale: min(100cqw / 1920px, 100cqh / 1080px)`, centred with
-   `translate`); `.zeno-body` holding the unplaced content cells in source
-   order; placed cells as `.zeno-cell[data-placed]` with an inline
-   `grid-area`; `data-variant` and `data-align` from the cell record. Notes
-   cells are not drawn. Cell bodies go from `dialect.parse` (jot AST) to
-   Lustre elements, never `jot.to_html`; image and link URLs through
-   `dialect.safe_url`, images resolved against the deck folder (the server
-   serves it at `/`). Keep the editor's `ze-` classes off the slide.
-2. Theme reload: render the theme `<link>` inside the Lustre view with a
-   counter in its URL (`/theme.css?v=N`), bump it on `ReloadTheme`, and
-   drop the static theme link from the page in `server/src/zeno_server/
-   web.gleam` (and the path table in docs/06-runtime.md).
-3. Selection and modes: clicking a drawn cell selects it (both panes);
-   `Tab` toggles between command mode and a new canvas mode (add `Canvas` to
-   `app.Mode` and a canvas keymap to `keymap.gleam`); canvas keys from
-   05-editor.md: `j`/`k` through drawn cells of the slide, `Enter` places an
-   unplaced cell where it is drawn, Alt-hjkl or arrows nudge, HJKL or
-   Shift-arrows resize, `f` unplaces, `v` cycles variants (none, then each
-   name of `State.variants`), `a` cycles alignment, `u`/`U`. Layout ops go
-   through `ApplyLayout(seq, op)`; reuse `app.apply`'s seq numbering.
-4. Drag and resize (S1 approach A): pointerdown on a drawn cell or its
-   handle, `offsetX`/`offsetY` divided by 60 for the grab cell, an overlay
-   of 32x18 hit cells reporting `pointerenter`, clamped to the grid, one
-   `Place` on pointerup or pointercancel (also treat `pointerleave` on the
-   stage as a cancel). Children of a cell need `pointer-events: none`.
-   Placing an unplaced cell needs its rendered height in grid units: the S2
-   rows probe (18 probes, smallest that fits), rendered only for the
-   dragged cell.
-5. Overflow (S2): a hidden scroll-state probe behind each drawn box
-   reporting `fits`/`overflows` through `animationstart`; keep a set of
-   overflowing cells in the model; dashed outline on the canvas, a quiet
-   mark in the cells pane (`ui.problems`), and a count in the status line.
-6. `PurgeOrphans` has no key yet; propose one (or a status-line action) to
-   the user rather than inventing it silently.
-7. Tests: canvas logic that is pure (cycling variants and alignment, nudge
-   and resize clamping, the drag arithmetic) as client unit tests; browser
-   checks in `e2e/test/` reusing `open`, `press` and `key`, plus
-   `cdp.mouse` and `cdp.box` for drags (pace by one frame) and
-   `cdp.screenshot` to look at the slide while working.
+1. `PurgeOrphans` has no key. Options to put to them: a command-mode key
+   (for example `X`, with a notice saying how many records went), or only a
+   CLI command (`zeno purge <folder>`). Do not pick one silently.
+2. Safari (D18 says revisit in M5): typed arithmetic in the fit, scroll-state
+   probes (no overflow flags without them, S2 fallback 1) and
+   `field-sizing` are the features to check.
+3. The jot `{=mark=}` report upstream.
+
+Known rough edges to look at while using it:
+
+- `Ctrl-[` and `Ctrl-]` were only checked in headless Chrome; try them on a
+  Mac keyboard.
+- The theme is linked from the view, so the first paint has no theme for a
+  frame.
+- A state that arrives between a drag's release and its own echo ends the
+  preview early; the cell may jump back for a frame.
+- A pointer released outside the window: the drag ends when the pointer
+  leaves the slide pane, so it commits the last snapped area.
+- Image paths starting with `zeno/` or `ws` would hit the editor's own
+  routes (06-runtime.md, Serving).
+- Overflow probes copy every slide; with a large deck, check typing latency
+  (they are memoised on the state, so only a new state re-renders them).
+- No `Tab` cycling inside the slide pane beyond `j`/`k`; no multi-select.
+
+Tests to keep: `just test` (core, server, client, e2e, about 20 s). Add a
+browser check for each fix that changes behaviour, and record settled
+behaviour in the docs in the same change.
 
 Things learned so far to carry into M4 and M5:
 
@@ -163,6 +184,14 @@ Things learned so far to carry into M4 and M5:
 - Never use `jot.to_html`; render the AST (`dialect.parse`) to Lustre
   elements and pass URLs through `dialect.safe_url`.
 - Synthetic browser input over CDP must be paced by one frame (20 ms).
+- An event's `target` decodes like any field: `offsetLeft`, `offsetWidth`
+  and friends give layout sizes in unscaled pixels, `selectionStart` the
+  cursor. That covers measurement without JavaScript of our own.
+- Grid auto-placement flows around explicitly placed items; place generated
+  items explicitly. Lustre writes inline styles as `grid-area:4 / 5 / ...`
+  (no space after the colon), which matters to tests reading `style`.
+- Option changes `key` on macOS (Option-l is `¬`); match Alt keys on
+  `code`. `cdp.key` sends `code` for single letters.
   `cdp.key` types the key's text unless the page prevents it.
 - After restoring a mutated file with an older mtime, gleam may reuse the
   stale build; `touch` the file. Test runs that are interrupted can leave
@@ -180,10 +209,13 @@ Things learned so far to carry into M4 and M5:
   cannot be replayed and is dropped with a notice.
 - New cells are named by the server; the client follows them by looking for
   a cell ID that was not in the previous state (`app.Follow`).
+- Canvas API notes: `canvas.area_of_box` rounds a drawn box up to units and
+  pushes it inside the grid; `slide.box_decoder` reads a drawn cell's box
+  from an event target; `app.overflowing` gives the flagged content cells.
 
 Commands: `just --list`; `just test` runs everything that is not a spike:
 core on both targets, server, client unit tests and the browser checks
-(about 15 s, it starts headless Chrome itself); `just client` builds the
+(about 20 s, it starts headless Chrome itself); `just client` builds the
 bundle; `just zeno init <folder>` and `just zeno serve <folder>` build the
 client and run the command from the current folder; `just spikes-test` runs
 every spike check (about 2 minutes).
@@ -196,3 +228,5 @@ every spike check (about 2 minutes).
   all laws passing on both targets.
 - 2026-10-27: M2 server done, all ten external edit scenarios passing.
 - 2026-10-27: M3 cells pane done, unit and browser checks passing.
+- 2026-10-27: M4 slide pane done: canvas mode, drag and resize, overflow
+  flags, theme reload; unit and browser checks passing.

@@ -1,0 +1,20 @@
+/* Default prototype theme: grayscale, calm. */
+:root {
+  --zeno-variants: "large small quiet emphasis";
+}
+
+.zeno-slide {
+  background: #fafafa;
+  color: #222;
+  font: 32px/1.4 system-ui, sans-serif;
+}
+
+.zeno-body {
+  grid-area: 3 / 3 / 17 / 31;
+  gap: 24px;
+}
+
+.zeno-cell[data-variant="large"] { font-size: 64px; }
+.zeno-cell[data-variant="small"] { font-size: 24px; }
+.zeno-cell[data-variant="quiet"] { color: #777; }
+.zeno-cell[data-variant="emphasis"] { font-weight: 600; }

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "cells": {
+    "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e02": {
+      "place": { "col": 2, "row": 1, "w": 28, "h": 3 },
+      "variant": "large",
+      "align": "start"
+    },
+    "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e03": {
+      "variant": "quiet"
+    },
+    "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e06": {
+      "place": { "col": 8, "row": 3, "w": 16, "h": 12 },
+      "align": "center"
+    }
+  },
+  "slides": {},
+  "orphans": [
+    {
+      "kind": "cell",
+      "id": "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e70",
+      "record": { "variant": "large" },
+      "retired_at": "2026-10-27T14:03:00Z"
+    }
+  ]
+}

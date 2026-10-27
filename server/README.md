@@ -11,5 +11,6 @@ just zeno serve <folder>    # http://127.0.0.1:4870/
 just server-test            # unit tests and the external edit scenarios
 ```
 
-The client bundle is built into `priv/static` in M3; until then the page
-at `/` loads only the theme.
+The page at `/` loads the client bundle and its stylesheet from
+`priv/static`, which `just client` builds from `../client` (`just zeno`
+does that first).

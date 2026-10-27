@@ -82,13 +82,14 @@ fn socket(
   )
 }
 
-/// The client bundle is built in M3; until then the page loads nothing but
-/// the theme.
+/// The page: the editor's styles, the deck's theme, and the client bundle
+/// (`just client` builds both into priv/static).
 fn page() -> Response(ResponseData) {
   let html =
     "<!doctype html>\n<meta charset=utf-8>\n<title>Zeno</title>\n"
+    <> "<link rel=stylesheet href=/zeno/zeno.css>\n"
     <> "<link rel=stylesheet href=/theme.css>\n<div id=app></div>\n"
-    <> "<script type=module src=/zeno/client.js></script>\n"
+    <> "<script type=module src=/zeno/zeno_client.js></script>\n"
   response.new(200)
   |> response.set_header("content-type", "text/html; charset=utf-8")
   |> response.set_body(mist.Bytes(bytes_tree.from_string(html)))

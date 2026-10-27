@@ -11,12 +11,31 @@ core-test:
 server-test:
    cd server && gleam test
 
+# Client: the pure parts (navigation, keymap, edits) on JavaScript
+client-test:
+   cd client && gleam test
+
+# Client: bundle it with its stylesheet into server/priv/static
+client:
+   cd client && gleam run -m lustre/dev build --outdir=../server/priv/static --no-html --minify > /dev/null
+
+# The editor in headless Chrome for Testing against a real server
+e2e: client
+   #!/usr/bin/env bash
+   set -u
+   profile=$(mktemp -d)
+   "{{chrome}}" --remote-debugging-port=9334 --user-data-dir="$profile" --no-first-run about:blank >/dev/null 2>&1 &
+   pid=$!
+   trap 'kill $pid; rm -rf "$profile"' EXIT
+   sleep 1
+   cd e2e && gleam test
+
 # Everything that is not a spike
-test: core-test server-test
+test: core-test server-test client-test e2e
 
 # The zeno command, run from where just is called: `just zeno serve examples/talk`
 [no-cd]
-zeno *args:
+zeno *args: client
    cd "{{justfile_directory()}}/server" && gleam export erlang-shipment > /dev/null
    "{{justfile_directory()}}/server/build/erlang-shipment/entrypoint.sh" run {{args}}
 

@@ -134,7 +134,7 @@ folder; anything else is refused.
 
 | Path | Serves |
 |---|---|
-| `/` | The page: loads `/theme.css` and `/zeno/client.js` |
+| `/` | The page: loads `/zeno/zeno.css`, `/theme.css` and `/zeno/zeno_client.js` |
 | `/ws` | The WebSocket |
 | `/zeno/...` | The client bundle, from the server's `priv/static` |
 | anything else | A file in the deck folder |

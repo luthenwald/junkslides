@@ -1,0 +1,218 @@
+/* The editor (05-editor.md, Visual style): grayscale, one sans and one
+   mono typeface, hairline rules, no shadows. Classes start with `ze-` so
+   they never meet the theme's `zeno-` classes. */
+
+:root {
+  --ze-ink: #222;
+  --ze-quiet: #777;
+  --ze-faint: #aaa;
+  --ze-rule: #ddd;
+  --ze-paper: #fff;
+  --ze-ground: #f4f4f4;
+  --ze-sans: system-ui, sans-serif;
+  --ze-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+#app {
+  height: 100%;
+}
+
+.ze-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font: 14px/1.5 var(--ze-sans);
+  color: var(--ze-ink);
+  background: var(--ze-paper);
+  outline: none;
+}
+
+.ze-panes {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* Cells pane */
+
+.ze-cells-pane {
+  flex: 0 0 40%;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.ze-cells-pane.ze-alone {
+  flex: 1 1 auto;
+}
+
+.ze-cells {
+  padding: 8px 24px 50vh;
+}
+
+.ze-slide {
+  margin-top: 16px;
+}
+
+.ze-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ze-quiet);
+  font-variant-numeric: tabular-nums;
+}
+
+.ze-rule::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--ze-rule);
+}
+
+.ze-cell {
+  position: relative;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  outline: none;
+}
+
+.ze-cell.ze-selected {
+  border-color: var(--ze-quiet);
+}
+
+.ze-cell.ze-editing {
+  border-color: var(--ze-ink);
+}
+
+.ze-empty {
+  color: var(--ze-faint);
+  font-size: 12px;
+}
+
+.ze-label {
+  display: block;
+  font-size: 11px;
+  color: var(--ze-faint);
+}
+
+.ze-notes .ze-source,
+.ze-notes .ze-grow::after {
+  color: var(--ze-quiet);
+}
+
+/* A text area that grows with its text (S2, the mirror): the text is shown
+   again, hidden, in the same grid cell. */
+.ze-grow {
+  display: grid;
+}
+
+.ze-grow::after {
+  content: attr(data-value) " ";
+  visibility: hidden;
+  white-space: pre-wrap;
+}
+
+.ze-grow > .ze-source,
+.ze-grow::after {
+  grid-area: 1 / 1 / 2 / 2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: 13px/1.5 var(--ze-mono);
+  overflow-wrap: anywhere;
+}
+
+.ze-source {
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: var(--ze-ink);
+  outline: none;
+}
+
+.ze-problem {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ze-quiet);
+}
+
+/* Divider */
+
+.ze-divider {
+  flex: 0 0 5px;
+  cursor: col-resize;
+  border-left: 1px solid var(--ze-rule);
+}
+
+.ze-divider:hover {
+  border-left-color: var(--ze-quiet);
+}
+
+.ze-divider-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 10;
+}
+
+.ze-strip {
+  flex: 1;
+}
+
+/* Slide pane: a placeholder frame until the canvas (M4). */
+
+.ze-slide-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--ze-ground);
+  container-type: size;
+  outline: none;
+}
+
+.ze-stage {
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.ze-frame {
+  width: min(92cqw, 92cqh * 16 / 9);
+  aspect-ratio: 16 / 9;
+  background: var(--ze-paper);
+  border: 1px solid var(--ze-rule);
+  display: grid;
+  place-items: center;
+}
+
+.ze-frame-number {
+  color: var(--ze-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status line */
+
+.ze-status {
+  display: flex;
+  gap: 16px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--ze-rule);
+  font-size: 12px;
+  color: var(--ze-quiet);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ze-notice {
+  color: var(--ze-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

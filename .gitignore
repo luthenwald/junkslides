@@ -1,6 +1,6 @@
 build/
 node_modules/
-priv/static/
+server/priv/static/
 *.zeno-tmp
 .DS_Store
 dist/

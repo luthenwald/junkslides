@@ -95,3 +95,5 @@ Not covered:
 ## Open decisions
 
 - Which fallback to adopt if Safari support matters for the prototype.
+  Decided 2026-10-27: the prototype targets Chromium (D18); option 1 for
+  Safari until M5.

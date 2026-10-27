@@ -28,12 +28,11 @@ instead of types; JSON codecs are written by hand.
 | `lustre` | Client UI (Elm architecture) | client | chosen; 5.7.1 in the spikes |
 | `lustre_dev_tools` | Building and bundling the client | client (dev) | chosen; 2.4.0 bundles with Bun into `dist/` |
 | `mist` | HTTP server and WebSocket | server | chosen; round trip verified in S3 |
-| `lustre_websocket` | WebSocket from the Lustre client | client | works (S3); ships its own small JS FFI, pending a decision |
+| `lustre_websocket` | WebSocket from the Lustre client | client | chosen (D17); ships its own small JS FFI. No reconnect logic, the client calls `init` again on close |
 | `gleam_json` | Codecs for protocol, layout.json, view state | core | chosen |
 | `youid` | UUIDv7 generation (`uuid.v7()`) and parsing | server, core | chosen |
 | `simplifile` | File reading and writing | server | chosen; `rename` is `file:rename/2` and atomic for readers (S4). No fsync: a one-function Erlang FFI calls `file:sync/1` |
 | `gleam_crypto` | sha256 of written and watched files | server | chosen (S4) |
-| `polly` | Polling file watcher (Erlang and Node targets) | server | under review: compares mtime in whole seconds and misses a second edit within one second (S4). Proposed replacement: a small content-hash poller (P18) |
 | `jot` | Parsing djot cell bodies | core | chosen (S5): 12.x, covers the dialect on both targets; used through a wrapper that walks the AST for diagnostics. Rendering goes from the AST to Lustre elements, never through `to_html` |
 | `gleeunit` | Test runner | all | chosen |
 | `qcheck` | Property tests with shrinking | core | chosen |
@@ -41,7 +40,11 @@ instead of types; JSON codecs are written by hand.
 
 Browser capabilities: drag, resize, overflow detection and rendered size
 work with Lustre events and CSS only in Chromium (spikes S1 and S2). No
-pointer capture or measurement binding is needed there.
+pointer capture or measurement binding is needed there. The prototype
+targets Chromium (D18).
+
+File watching is our own content-hash poller in the server (P18), not
+`polly`, which misses a second edit within the same second (S4).
 
 ## Project layout
 

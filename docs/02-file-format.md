@@ -177,6 +177,9 @@ by a blank line).
 - Attributes (`{.class}`, `{#id}`) and divs (`:::`): they would bring layout
   back into content.
 - Tables, definition lists, math: possible later.
+- Superscript (`^x^`), subscript (`~x~`), insert (`{+x+}`), delete
+  (`{-x-}`), mark (`{=x=}`) and symbols (`:name:`): djot extras that the
+  dialect does not need.
 
 Forbidden constructs inside a cell do not break the file (they are not
 structural). They are reported as cell diagnostics and rendered as plain text.

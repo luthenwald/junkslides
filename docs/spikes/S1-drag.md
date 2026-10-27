@@ -86,4 +86,5 @@ specifies.
 ## Open decisions
 
 - Whether a Safari check is wanted before M4, by hand or through
-  safaridriver.
+  safaridriver. Decided 2026-10-27: no, the prototype targets Chromium
+  (D18).

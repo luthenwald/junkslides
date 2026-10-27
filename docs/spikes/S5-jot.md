@@ -122,7 +122,6 @@ changes its AST, the walker breaks at compile time, which is what we want.
 
 ## Open decisions
 
-- Whether the djot extras should be forbidden (my proposal) or allowed. They
-  add one spelling each, so they do not break the one-spelling rule, but they
-  are not in the list in 02-file-format.md.
+- Whether the djot extras should be forbidden (my proposal) or allowed.
+  Decided 2026-10-27: forbidden, listed in 02-file-format.md.
 - Whether to report the `{=mark=}` bug upstream.

@@ -80,4 +80,4 @@ write.
 
 ## Open decisions
 
-- Replace polly with the content poller (P18). I recommend it.
+- Replace polly with the content poller (P18). Decided 2026-10-27: yes.

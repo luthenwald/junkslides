@@ -68,8 +68,10 @@ consistency step on load (02-file-format.md) repairs the layout.
 
 ## Watching files
 
-The server watches deck.md, layout.json and theme.css (polling every 250 ms in
-the prototype).
+The server watches deck.md, layout.json and theme.css by polling every 250 ms
+and hashing the contents (P18). File times are not used: on macOS they have
+whole-second resolution here, so two edits within one second would look like
+one (spike S4). The same hash tells the server's own writes apart.
 
 When deck.md changes:
 

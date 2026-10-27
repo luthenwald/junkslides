@@ -57,7 +57,8 @@ server restart is client logic in M3.
 
 ## Open decisions
 
-- The client WebSocket binding. Options:
+- The client WebSocket binding. Decided 2026-10-27: `lustre_websocket`
+  (D17). The options were:
   1. `lustre_websocket` (third-party Gleam package with its own small JS
      FFI). It works today and is my recommendation.
   2. Lustre server components, which have Lustre's own WebSocket transport.

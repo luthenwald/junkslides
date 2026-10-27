@@ -36,7 +36,7 @@ use.
 | S1 drag | Can Lustre handle pointer down, move, up (and pointer capture) to drag and resize a box snapping to a 32x18 grid, smoothly, without handwritten JS? | A box drags and resizes on a scaled 16:9 grid in Chromium and Safari |
 | S2 measure | Can the client measure a rendered element (overflow detection) and make text areas grow with content without handwritten JS? Check CSS `field-sizing: content` support | Overflow of a box is detected; a text area grows |
 | S3 socket | mist WebSocket round trip with a codec shared from a core package | A message type defined in core goes both ways |
-| S4 files | polly on macOS; suppressing events from our own writes by hash; atomic write via temp file and rename | An external edit is seen within 300 ms; own writes are ignored; no partial file is ever observed |
+| S4 files | polly on macOS (replaced by a content poller, P18); suppressing events from our own writes by hash; atomic write via temp file and rename | An external edit is seen within 300 ms; own writes are ignored; no partial file is ever observed |
 | S5 jot | Does `jot` run on the JavaScript target, cover the allowed constructs, and expose enough structure to reject forbidden ones? | Decision: use jot as is, wrap it, or write a small parser for the subset |
 
 If a spike shows that a browser capability needs JavaScript, stop and report

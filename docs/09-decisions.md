@@ -24,6 +24,8 @@ ask.
 | D14 | A 32x18 grid on a fixed 16:9 slide | Square grid units, integer coordinates, calm alignment |
 | D15 | Gleam for server, client and shared core; no Haskell, no Rust, no handwritten JS or TS | Typed, one language on both sides |
 | D16 | Presenting and export come after the prototype | Focus on the editing loop first |
+| D17 | The client socket uses `lustre_websocket`, a third-party Gleam package that ships its own small JS FFI. This does not count as handwritten JS (decided after S3, 2026-10-27) | It works with the current Lustre; the alternatives were server components or our own FFI |
+| D18 | The prototype targets Chromium. In Safari, overflow may show without a flag and the slide may need the `cqw` sizing fallback; revisit in M5 (decided after S1 and S2, 2026-10-27) | S1 and S2 work without JS in Chromium only so far |
 
 ## Defaults chosen while writing the design (please review)
 
@@ -49,8 +51,8 @@ are the working assumptions for implementation until changed.
 | P15 | View state stored by the server in `~/.config/zeno/view.json` | 05 |
 | P16 | Modal keymap as listed in 05-editor.md | 05 |
 | P17 | Full-state broadcast over WebSocket; server bound to 127.0.0.1, port 4870 | 06 |
-| P18 | Polling watcher (`polly`) for the prototype | 06, 07 |
-| P19 | `jot` for cell bodies, pending spike S5 | 07 |
+| P18 | Own content-hash poller (250 ms) instead of `polly`, which misses edits within the same second (changed after S4, 2026-10-27) | 06, 07 |
+| P19 | `jot` for cell bodies, through a wrapper that walks the AST (S5) | 07 |
 | P20 | Slide numbers shown as `01/12` | 05 |
 
 ## Open questions

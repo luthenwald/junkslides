@@ -18,9 +18,9 @@ import zeno/layout.{Area}
 
 pub fn draws_the_slide_of_the_selection_test() {
   let #(page, _) = open("draw", 4921)
-  // Slide 1: the heading is placed, the paragraph flows, notes are not drawn.
+  // Slide 1: the heading and the paragraph are placed, notes are not drawn.
   assert drawn(page) == 2
-  assert cdp.count(page, ".ze-fit .zeno-cell[data-placed]") == 1
+  assert cdp.count(page, ".ze-fit .zeno-cell[data-placed]") == 2
   assert cdp.attribute(page, drawn_cell("03"), "data-variant") == Ok("quiet")
   assert cdp.attribute(page, drawn_cell("02"), "data-align") == Ok("start")
   assert cdp.count(page, ".ze-fit h1") == 1
@@ -74,37 +74,37 @@ pub fn tab_and_canvas_keys_change_the_layout_test() {
 
 pub fn click_selects_and_drag_moves_test() {
   let #(page, folder) = open("drag", 4923)
-  // The heading of slide 1 is placed at col 2, row 1, 28 by 3. Moved by
+  // The heading of slide 1 is placed at col 2, row 3, 28 by 3. Moved by
   // (5, 2), it stops at col 4, where its 28 columns end at the edge.
-  let start = grid_point(page, #(4, 2))
-  let end = grid_point(page, #(9, 4))
+  let start = grid_point(page, #(4, 4))
+  let end = grid_point(page, #(9, 6))
   let assert Ok(_) = cdp.mouse(page, cdp.Press, start.0, start.1)
   glide(page, start, end)
   // A preview while the button is held, and nothing sent yet.
   assert eventually(fn() {
     cdp.attribute(page, drawn_cell("02"), "style")
     |> result.unwrap("")
-    |> string.contains("grid-area:4 / 5 / span 3 / span 28")
+    |> string.contains("grid-area:6 / 5 / span 3 / span 28")
   })
-  assert place(folder, "02") == Some(Area(2, 1, 28, 3))
+  assert place(folder, "02") == Some(Area(2, 3, 28, 3))
   let assert Ok(_) = cdp.mouse(page, cdp.Release, end.0, end.1)
-  assert eventually(fn() { place(folder, "02") == Some(Area(4, 3, 28, 3)) })
+  assert eventually(fn() { place(folder, "02") == Some(Area(4, 5, 28, 3)) })
   assert string.contains(status(page), "canvas")
   assert selected(page) == cell("02")
   // Its handle resizes it, the hovered cell becoming the corner.
   let assert Ok(handle) = cdp.box(page, ".ze-handle")
   let #(x, y) = #(handle.x +. handle.w /. 2.0, handle.y +. handle.h /. 2.0)
   let assert Ok(_) = cdp.mouse(page, cdp.Press, x, y)
-  glide(page, #(x, y), grid_point(page, #(20, 8)))
-  let #(x, y) = grid_point(page, #(20, 8))
+  glide(page, #(x, y), grid_point(page, #(20, 10)))
+  let #(x, y) = grid_point(page, #(20, 10))
   let assert Ok(_) = cdp.mouse(page, cdp.Release, x, y)
-  assert eventually(fn() { place(folder, "02") == Some(Area(4, 3, 17, 6)) })
+  assert eventually(fn() { place(folder, "02") == Some(Area(4, 5, 17, 6)) })
   // A click without a move changes nothing.
-  drag(page, #(8, 4), #(8, 4))
-  assert place(folder, "02") == Some(Area(4, 3, 17, 6))
+  drag(page, #(8, 6), #(8, 6))
+  assert place(folder, "02") == Some(Area(4, 5, 17, 6))
   // One undo step per drag.
   press(page, "u")
-  assert eventually(fn() { place(folder, "02") == Some(Area(4, 3, 28, 3)) })
+  assert eventually(fn() { place(folder, "02") == Some(Area(4, 5, 28, 3)) })
 }
 
 pub fn dragging_a_flowing_cell_places_it_test() {

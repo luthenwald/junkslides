@@ -2,11 +2,12 @@
   "version": 1,
   "cells": {
     "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e02": {
-      "place": { "col": 2, "row": 1, "w": 28, "h": 3 },
+      "place": { "col": 2, "row": 3, "w": 28, "h": 3 },
       "variant": "large",
       "align": "start"
     },
     "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e03": {
+      "place": { "col": 2, "row": 7, "w": 28, "h": 1 },
       "variant": "quiet"
     },
     "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e06": {

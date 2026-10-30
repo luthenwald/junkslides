@@ -14,6 +14,7 @@
 //// to and including it: the cell overflows when that copy does.
 
 import gleam/bool
+import gleam/dict.{type Dict}
 import gleam/dynamic/decode.{type Decoder}
 import gleam/float
 import gleam/int
@@ -31,9 +32,9 @@ import zeno/deck.{type Cell, type Slide}
 import zeno/dialect
 import zeno/id
 import zeno/layout.{type Area, type CellRecord}
+import zeno/protocol.{type CodeBlock, type Token, CodeBlock}
 import zeno_client/app.{type Drag, type Model, type Shared, Canvas, Drag}
 import zeno_client/canvas.{type Box, Box}
-import zeno_client/highlight
 import zeno_client/nav.{OnCell}
 
 /// The slide of the selection, scaled to fit the pane, with the editor
@@ -72,7 +73,13 @@ pub fn view(
     ]
     #(
       id.to_string(cell.id),
-      cell_box(cell, layout.record(shared.layout, cell.id), area, decorations),
+      cell_box(
+        cell,
+        layout.record(shared.layout, cell.id),
+        area,
+        decorations,
+        model.highlights,
+      ),
     )
   }
   html.div([class("ze-fit")], [
@@ -129,6 +136,7 @@ fn cell_box(
   record: CellRecord,
   area: Option(Area),
   extra: List(Attribute(msg)),
+  highlights: Highlights,
 ) -> Element(msg) {
   let placement = case area {
     Some(area) -> [attribute("data-placed", ""), ..position(area)]
@@ -148,7 +156,7 @@ fn cell_box(
     |> option.values
   html.div(
     [class("zeno-cell"), ..list.flatten([placement, style, extra])],
-    body(cell.source),
+    body(cell.source, highlights),
   )
 }
 
@@ -313,7 +321,7 @@ fn probe_slide(shared: Shared, slide: Slide) -> Element(app.Msg) {
     list.index_map(unplaced, fn(cell, index) {
       let flow =
         list.take(unplaced, index + 1)
-        |> list.map(fn(c) { cell_box(c, record(c), None, []) })
+        |> list.map(fn(c) { cell_box(c, record(c), None, [], dict.new()) })
       #(
         "b" <> id.to_string(cell.id),
         html.div([class("zeno-body ze-probe"), on_probe(cell)], flow),
@@ -326,7 +334,7 @@ fn probe_slide(shared: Shared, slide: Slide) -> Element(app.Msg) {
           let probe = [class("ze-probe"), on_probe(cell)]
           Ok(#(
             "p" <> id.to_string(cell.id),
-            cell_box(cell, record(cell), Some(area), probe),
+            cell_box(cell, record(cell), Some(area), probe, dict.new()),
           ))
         }
         None -> Error(Nil)
@@ -356,14 +364,16 @@ fn on_probe(cell: Cell) -> Attribute(app.Msg) {
 /// or hard break is a line break, followed by the indentation its line had
 /// in the source, from `dialect.continuation_indents`. Should the blocks not
 /// match up, breaks are kept without indentation.
-pub fn body(source: String) -> List(Element(msg)) {
+pub fn body(source: String, highlights: Highlights) -> List(Element(msg)) {
   let doc = dialect.parse(source)
   let indents = dialect.continuation_indents(source)
   let indents = case list.length(indents) == list.length(doc.content) {
     True -> indents
     False -> list.map(doc.content, fn(_) { [] })
   }
-  list.map2(doc.content, indents, fn(c, lines) { container(c, lines).0 })
+  list.map2(doc.content, indents, fn(c, lines) {
+    container(c, lines, highlights).0
+  })
 }
 
 /// `lines` are the indents of the continuation lines still ahead in this
@@ -371,7 +381,20 @@ pub fn body(source: String) -> List(Element(msg)) {
 type Lines =
   List(Int)
 
-fn container(c: jot.Container, lines: Lines) -> #(Element(msg), Lines) {
+pub type Highlights =
+  Dict(CodeBlock, List(Token))
+
+fn container(
+  c: jot.Container,
+  lines: Lines,
+  highlights: Highlights,
+) -> #(Element(msg), Lines) {
+  let contained = fn(c, lines) { container(c, lines, highlights) }
+  let each_item = fn(items, list_layout, lines) {
+    each(items, lines, fn(blocks, lines) {
+      item(list_layout, blocks, lines, highlights)
+    })
+  }
   case c {
     jot.Paragraph(content:, ..) -> {
       let #(children, lines) = inlines(content, lines)
@@ -385,14 +408,13 @@ fn container(c: jot.Container, lines: Lines) -> #(Element(msg), Lines) {
       html.pre([], [
         html.code(
           option.values([option.map(language, attribute.data("language", _))]),
-          code(language, content),
+          code(language, content, highlights),
         ),
       ]),
       lines,
     )
     jot.BulletList(layout:, items:, ..) -> {
-      let #(items, lines) =
-        each(items, lines, fn(blocks, lines) { item(layout, blocks, lines) })
+      let #(items, lines) = each_item(items, layout, lines)
       #(html.ul([], items), lines)
     }
     jot.OrderedList(layout:, start:, items:, ..) -> {
@@ -400,32 +422,54 @@ fn container(c: jot.Container, lines: Lines) -> #(Element(msg), Lines) {
         1 -> []
         n -> [attribute("start", int.to_string(n))]
       }
-      let #(items, lines) =
-        each(items, lines, fn(blocks, lines) { item(layout, blocks, lines) })
+      let #(items, lines) = each_item(items, layout, lines)
       #(html.ol(start, items), lines)
     }
     jot.BlockQuote(items:, ..) -> {
-      let #(children, lines) = each(items, lines, container)
+      let #(children, lines) = each(items, lines, contained)
       #(html.blockquote([], children), lines)
     }
     jot.ThematicBreak -> #(html.hr([]), lines)
     jot.RawBlock(content:) -> #(html.pre([], [text(content)]), lines)
     jot.Div(items:, ..) -> {
-      let #(children, lines) = each(items, lines, container)
+      let #(children, lines) = each(items, lines, contained)
       #(html.div([], children), lines)
     }
   }
 }
 
-/// A code block's text, highlighted for its language (`highlight`).
-fn code(language: Option(String), content: String) -> List(Element(msg)) {
-  highlight.tokens(language, content)
-  |> list.map(fn(piece) {
-    case piece {
-      #(Some(kind), text) -> html.span([class(kind)], [element.text(text)])
-      #(None, text) -> element.text(text)
-    }
+/// A code block's text, with the tokens the server sent for it, if any.
+fn code(
+  language: Option(String),
+  content: String,
+  highlights: Highlights,
+) -> List(Element(msg)) {
+  let tokens =
+    option.then(language, fn(language) {
+      dict.get(highlights, CodeBlock(language, content))
+      |> option.from_result
+    })
+  case tokens {
+    None -> [text(content)]
+    Some(tokens) ->
+      list.map(tokens, fn(token) {
+        case token.kind {
+          Some(kind) ->
+            html.span([class(token_classes(kind))], [text(token.text)])
+          None -> text(token.text)
+        }
+      })
+  }
+}
+
+/// `punctuation.bracket` gives `zeno-tok-punctuation` and
+/// `zeno-tok-punctuation-bracket`, so a theme can style either.
+pub fn token_classes(kind: String) -> String {
+  let parts = string.split(kind, ".")
+  list.index_map(parts, fn(_, index) {
+    "zeno-tok-" <> string.join(list.take(parts, index + 1), "-")
   })
+  |> string.join(" ")
 }
 
 /// Renders each of `xs` in order, passing the remaining lines along.
@@ -448,7 +492,9 @@ fn item(
   list_layout: jot.ListLayout,
   blocks: List(jot.Container),
   lines: Lines,
+  highlights: Highlights,
 ) -> #(Element(msg), Lines) {
+  let contained = fn(c, lines) { container(c, lines, highlights) }
   case list_layout {
     jot.Tight -> {
       let #(children, lines) =
@@ -456,7 +502,7 @@ fn item(
           case block {
             jot.Paragraph(content:, ..) -> inlines(content, lines)
             other -> {
-              let #(element, lines) = container(other, lines)
+              let #(element, lines) = contained(other, lines)
               #([element], lines)
             }
           }
@@ -464,7 +510,7 @@ fn item(
       #(html.li([], list.flatten(children)), lines)
     }
     jot.Loose -> {
-      let #(children, lines) = each(blocks, lines, container)
+      let #(children, lines) = each(blocks, lines, contained)
       #(html.li([], children), lines)
     }
   }

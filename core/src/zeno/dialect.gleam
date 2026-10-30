@@ -231,6 +231,24 @@ fn scheme(url: String) -> Option(String) {
   }
 }
 
+// Code blocks ------------------------------------------------------------------
+
+/// The code blocks of a cell body that name a language, as pairs of language
+/// and text, at any depth.
+pub fn code_blocks(source: String) -> List(#(String, String)) {
+  list.flat_map(parse(source).content, block_code)
+}
+
+fn block_code(c: Container) -> List(#(String, String)) {
+  case c {
+    Codeblock(language: Some(language), content:, ..) -> [#(language, content)]
+    BlockQuote(items:, ..) | Div(items:, ..) -> list.flat_map(items, block_code)
+    BulletList(items:, ..) | OrderedList(items:, ..) ->
+      list.flat_map(items, list.flat_map(_, block_code))
+    _ -> []
+  }
+}
+
 // Line structure ---------------------------------------------------------------
 
 /// The indentation of the continuation lines of a cell body, one list per

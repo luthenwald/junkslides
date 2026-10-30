@@ -84,3 +84,11 @@ pub fn continuation_indents_test() {
   assert dialect.continuation_indents("a\n- b") == [[0]]
   assert dialect.continuation_indents("") == []
 }
+
+pub fn code_blocks_test() {
+  assert dialect.code_blocks("text\n\n```hs\nmain\n```\n\n```\nplain\n```")
+    == [#("hs", "main\n")]
+  assert dialect.code_blocks("> ```c\n> x\n> ```\n\n- ```zig\n  y\n  ```")
+    == [#("c", "x\n"), #("zig", "  y\n")]
+  assert dialect.code_blocks("no code") == []
+}

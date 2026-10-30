@@ -78,6 +78,12 @@ pub fn server_messages_round_trip_test() {
     Rejected(4, "unknown cell"),
     Notice("line 3"),
     ReloadTheme,
+    protocol.Highlights([
+      protocol.Highlight(protocol.CodeBlock("hs", "main = \"<\"\n"), [
+        protocol.Token(option.None, "main "),
+        protocol.Token(option.Some("punctuation.bracket"), "="),
+      ]),
+    ]),
   ]
   check_server(messages)
 }

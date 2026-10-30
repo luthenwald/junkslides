@@ -4,6 +4,7 @@
 import gleam/dynamic/decode.{type Decoder}
 import gleam/json
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import zeno/codec.{type Value, Arr, Num, Obj, Str}
 import zeno/deck.{type Deck}
 import zeno/dialect.{type Problem}
@@ -23,6 +24,22 @@ pub const default_view =
 
 pub type Diagnostic {
   Diagnostic(cell: Id(CellTag), problems: List(Problem))
+}
+
+/// A code block on a slide: the language written after its fence, and its
+/// text as jot gives it.
+pub type CodeBlock {
+  CodeBlock(language: String, code: String)
+}
+
+/// A piece of a code block's text; `kind` is a highlight name such as
+/// `keyword` or `punctuation.bracket`. Joined, the pieces give the text back.
+pub type Token {
+  Token(kind: Option(String), text: String)
+}
+
+pub type Highlight {
+  Highlight(block: CodeBlock, tokens: List(Token))
 }
 
 pub type ClientMsg {
@@ -46,6 +63,18 @@ pub type ServerMsg {
   Rejected(seq: Int, reason: String)
   Notice(text: String)
   ReloadTheme
+  /// The tokens of the deck's code blocks, as far as the server has them.
+  /// A block without an entry is drawn plain.
+  Highlights(blocks: List(Highlight))
+}
+
+/// The code blocks with a language in the deck's content cells, each once.
+pub fn code_blocks(deck: Deck) -> List(CodeBlock) {
+  deck.cells(deck)
+  |> list.filter(fn(cell) { cell.kind == deck.Content })
+  |> list.flat_map(fn(cell) { dialect.code_blocks(cell.source) })
+  |> list.map(fn(pair) { CodeBlock(pair.0, pair.1) })
+  |> list.unique
 }
 
 /// Diagnostics for every cell with at least one problem.
@@ -141,6 +170,10 @@ pub fn encode_server(msg: ServerMsg) -> String {
       tagged("rejected", [#("seq", Num(seq)), #("reason", Str(reason))])
     Notice(text:) -> tagged("notice", [#("text", Str(text))])
     ReloadTheme -> tagged("reload_theme", [])
+    Highlights(blocks:) ->
+      tagged("highlights", [
+        #("blocks", Arr(list.map(blocks, highlight_value))),
+      ])
   }
   |> codec.to_string
 }
@@ -174,6 +207,10 @@ fn server_decoder() -> Decoder(ServerMsg) {
       decode.success(Notice(text))
     }
     "reload_theme" -> decode.success(ReloadTheme)
+    "highlights" -> {
+      use blocks <- decode.field("blocks", decode.list(highlight_decoder()))
+      decode.success(Highlights(blocks))
+    }
     _ -> decode.failure(ReloadTheme, "ServerMsg")
   }
 }
@@ -196,6 +233,41 @@ pub fn view_decoder() -> Decoder(View) {
   // View files written before the snap setting existed have no `snap`.
   use snap <- decode.optional_field("snap", default_view.snap, decode.int)
   decode.success(View(cells_width, cells_hidden, slide_hidden, snap))
+}
+
+fn highlight_value(highlight: Highlight) -> Value {
+  Obj([
+    #("language", Str(highlight.block.language)),
+    #("code", Str(highlight.block.code)),
+    #(
+      "tokens",
+      Arr(
+        list.map(highlight.tokens, fn(token) {
+          Obj([
+            #("kind", case token.kind {
+              Some(kind) -> Str(kind)
+              None -> codec.Null
+            }),
+            #("text", Str(token.text)),
+          ])
+        }),
+      ),
+    ),
+  ])
+}
+
+fn highlight_decoder() -> Decoder(Highlight) {
+  use language <- decode.field("language", decode.string)
+  use code <- decode.field("code", decode.string)
+  use tokens <- decode.field(
+    "tokens",
+    decode.list({
+      use kind <- decode.field("kind", decode.optional(decode.string))
+      use text <- decode.field("text", decode.string)
+      decode.success(Token(kind, text))
+    }),
+  )
+  decode.success(Highlight(CodeBlock(language, code), tokens))
 }
 
 fn diagnostic_value(diagnostic: Diagnostic) -> Value {

@@ -16,7 +16,9 @@ import zeno/deck.{type Cell, type Deck}
 import zeno/id.{type CellTag, type Id}
 import zeno/layout.{type Area, type Layout}
 import zeno/op.{type EditProblem, type Op}
-import zeno/protocol.{type Diagnostic, type View, View}
+import zeno/protocol.{
+  type CodeBlock, type Diagnostic, type Token, type View, View,
+}
 import zeno_client/canvas.{type Box}
 import zeno_client/edit
 import zeno_client/keymap.{type CanvasCommand, type Command, type EditCommand}
@@ -40,6 +42,9 @@ pub type Model {
     /// Counts typing, so that only the last pause sends.
     typing: Int,
     dragging_divider: Bool,
+    /// The tokens of code blocks, from the server. A block without an entry
+    /// is drawn plain.
+    highlights: Dict(CodeBlock, List(Token)),
     /// A cell being moved or resized on the canvas.
     drag: Option(Drag),
     /// What each cell's overflow probe reported last; see `slide`.
@@ -161,6 +166,7 @@ pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
       focus: 0,
       typing: 0,
       dragging_divider: False,
+      highlights: dict.new(),
       drag: None,
       overflow: dict.new(),
       theme: 0,
@@ -408,6 +414,15 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
       effect.none(),
     )
     // A new URL makes the browser fetch the theme again.
+    protocol.Highlights(blocks) -> #(
+      Model(
+        ..model,
+        highlights: blocks
+          |> list.map(fn(h) { #(h.block, h.tokens) })
+          |> dict.from_list,
+      ),
+      effect.none(),
+    )
     protocol.ReloadTheme -> #(
       Model(..model, theme: model.theme + 1),
       effect.none(),

@@ -228,12 +228,10 @@ body {
   outline-color: var(--ze-ink);
 }
 
-/* The editor's layer: the same grid as the slide, above it. */
+/* The editor's layer above the slide, in the slide's design pixels. */
 .ze-layer {
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template: repeat(18, 60px) / repeat(32, 60px);
   pointer-events: none;
 }
 
@@ -249,7 +247,10 @@ body {
   pointer-events: auto;
 }
 
-.ze-target {
+/* The drag surface reaches twice the slide's size past each edge (slide.gleam). */
+.ze-drag {
+  position: absolute;
+  inset: -2160px -3840px;
   pointer-events: auto;
   cursor: grabbing;
 }

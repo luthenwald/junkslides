@@ -148,14 +148,6 @@ fn position(area: Area) -> List(Attribute(msg)) {
   ]
 }
 
-/// One cell of the 32x18 grid of drag targets.
-fn grid_cell(col: Int, row: Int) -> Attribute(msg) {
-  attribute.style(
-    "grid-area",
-    int.to_string(row + 1) <> " / " <> int.to_string(col + 1),
-  )
-}
-
 // Pointer --------------------------------------------------------------------
 
 /// A press on a drawn cell. `offsetX` and `offsetY` are in the cell's own,
@@ -208,9 +200,9 @@ fn offset_in_slide() -> Decoder(#(Int, Int)) {
   decode.success(#(left + parent.0, top + parent.1))
 }
 
-/// The editor's own layer, the same grid as the slide: the resize handle of
-/// the selected placed cell, and during a drag one target per grid cell
-/// that reports the pointer (spike S1).
+/// The editor's own layer over the slide: the resize handle of the
+/// selected placed cell, and during a drag the surface that reports the
+/// pointer.
 fn editor_layer(model: Model, placed: List(#(Cell, Area))) -> Element(app.Msg) {
   let handle =
     list.filter_map(placed, fn(pair) {
@@ -233,30 +225,39 @@ fn editor_layer(model: Model, placed: List(#(Cell, Area))) -> Element(app.Msg) {
         False -> Error(Nil)
       }
     })
-  let targets = case model.drag {
-    Some(Drag(released: None, ..)) ->
-      list.flat_map(range(0, 18), fn(row) {
-        list.map(range(0, 32), fn(col) {
-          // Placed explicitly, so that nothing else in the grid moves them.
-          // Each reports the centre of its 60 pixels.
-          let at = app.DragTo(col * 60 + 30, row * 60 + 30)
-          html.div(
-            [
-              class("ze-target"),
-              grid_cell(col, row),
-              event.on("pointerenter", decode.success(at)),
-            ],
-            [],
-          )
-        })
-      })
+  let surface = case model.drag {
+    Some(Drag(released: None, ..)) -> [drag_surface()]
     _ -> []
   }
-  html.div([class("ze-layer")], list.append(handle, targets))
+  html.div([class("ze-layer")], list.append(handle, surface))
 }
 
-fn range(from: Int, to: Int) -> List(Int) {
-  int.range(from:, to:, with: [], run: list.prepend) |> list.reverse
+/// How far the drag surface reaches past the slide on each side, in design
+/// pixels: twice the slide, so it covers the pane down to a fifth of the
+/// slide's size.
+const reach_x = 3840
+
+const reach_y = 2160
+
+/// One transparent surface over the slide and the pane's margin while a
+/// drag lasts. `offsetX` and `offsetY` are in its own unscaled pixels
+/// (spike S1), so the pointer is known in design pixels anywhere in the
+/// pane, also off the slide.
+fn drag_surface() -> Element(app.Msg) {
+  html.div(
+    [
+      class("ze-drag"),
+      event.on("pointermove", {
+        use x <- decode.field("offsetX", decode.float)
+        use y <- decode.field("offsetY", decode.float)
+        decode.success(app.DragTo(
+          float.truncate(x) - reach_x,
+          float.truncate(y) - reach_y,
+        ))
+      }),
+    ],
+    [],
+  )
 }
 
 // Probes ---------------------------------------------------------------------

@@ -13,11 +13,15 @@ fn id(n: String) -> Id(tag) {
 pub fn a_box_is_placed_as_drawn_test() {
   assert canvas.area_of_box(Box(left: 130, top: 120, width: 600, height: 61))
     == Area(x: 130, y: 120, w: 600, h: 61)
+  // At least a pixel, and ten pixels from the slide's far edges.
   assert canvas.area_of_box(Box(left: 0, top: 0, width: 0, height: 0))
-    == Area(x: 0, y: 0, w: 1, h: 1)
-  // A box hanging off the slide keeps its size and is pushed back in.
+    == Area(x: 9, y: 9, w: 1, h: 1)
+  // A box may hang off the slide; one too far off is pushed back until ten
+  // pixels show, and one larger than the slide is cut to its size.
   assert canvas.area_of_box(Box(left: 1800, top: 1000, width: 400, height: 400))
-    == Area(x: 1520, y: 680, w: 400, h: 400)
+    == Area(x: 1800, y: 1000, w: 400, h: 400)
+  assert canvas.area_of_box(Box(left: -900, top: 1075, width: 400, height: 2000))
+    == Area(x: -390, y: 1070, w: 400, h: 1080)
 }
 
 pub fn snapping_rounds_to_the_nearest_step_test() {
@@ -37,10 +41,15 @@ pub fn moves_follow_the_grab_and_snap_test() {
     == Area(x: 420, y: 360, w: 360, h: 120)
   assert canvas.moved(start, #(300, 200), #(490, 375), 10)
     == Area(x: 430, y: 360, w: 360, h: 120)
-  assert canvas.moved(start, #(300, 200), #(1910, 1070), 60)
-    == Area(x: 1560, y: 960, w: 360, h: 120)
+  // Past the edges, as far as ten pixels left on the slide.
+  assert canvas.moved(start, #(300, 200), #(560, 260), 60)
+    == Area(x: 480, y: 240, w: 360, h: 120)
   assert canvas.moved(start, #(560, 260), #(0, 0), 60)
-    == Area(x: 0, y: 0, w: 360, h: 120)
+    == Area(x: -300, y: -60, w: 360, h: 120)
+  assert canvas.moved(start, #(300, 200), #(5000, 5000), 60)
+    == Area(x: 1910, y: 1070, w: 360, h: 120)
+  assert canvas.moved(start, #(300, 200), #(-5000, -5000), 60)
+    == Area(x: -350, y: -110, w: 360, h: 120)
 }
 
 pub fn resizes_keep_one_step_and_the_slide_test() {
@@ -49,19 +58,29 @@ pub fn resizes_keep_one_step_and_the_slide_test() {
     == Area(x: 240, y: 180, w: 540, h: 420)
   assert canvas.resized(start, #(0, 0), 30)
     == Area(x: 240, y: 180, w: 30, h: 30)
+  // Past the right edge, up to the slide's size.
+  assert canvas.resized(start, #(2500, 300), 60)
+    == Area(x: 240, y: 180, w: 1920, h: 120)
+  // A box hanging off the left keeps ten pixels on the slide.
+  assert canvas.resized(Area(x: -300, y: 0, w: 360, h: 60), #(0, 0), 60)
+    == Area(x: -300, y: 0, w: 310, h: 60)
   assert canvas.grow(start, 1, -1, 60) == Area(x: 240, y: 180, w: 420, h: 60)
   assert canvas.grow(start, 0, -1, 60) |> canvas.grow(0, -1, 60)
     == Area(x: 240, y: 180, w: 360, h: 60)
   assert canvas.grow(Area(x: 1800, y: 0, w: 120, h: 60), 1, 0, 60)
-    == Area(x: 1800, y: 0, w: 120, h: 60)
+    == Area(x: 1800, y: 0, w: 180, h: 60)
+  assert canvas.grow(Area(x: 0, y: 0, w: 1920, h: 60), 1, 0, 60)
+    == Area(x: 0, y: 0, w: 1920, h: 60)
   // An edge off the step's lines moves onto the next one.
   assert canvas.grow(Area(x: 125, y: 0, w: 100, h: 60), 1, 0, 30)
     == Area(x: 125, y: 0, w: 115, h: 60)
 }
 
-pub fn nudges_move_onto_the_lines_and_stop_at_the_edge_test() {
+pub fn nudges_move_onto_the_lines_and_stop_off_the_edge_test() {
   assert canvas.nudge(Area(x: 0, y: 1020, w: 180, h: 60), -1, 1, 60)
-    == Area(x: 0, y: 1020, w: 180, h: 60)
+    == Area(x: -60, y: 1070, w: 180, h: 60)
+  assert canvas.nudge(Area(x: 1910, y: 0, w: 180, h: 60), 1, 0, 60)
+    == Area(x: 1910, y: 0, w: 180, h: 60)
   assert canvas.nudge(Area(x: 300, y: 300, w: 180, h: 60), 1, -1, 60)
     == Area(x: 360, y: 240, w: 180, h: 60)
   assert canvas.nudge(Area(x: 125, y: 125, w: 180, h: 60), 1, -1, 30)

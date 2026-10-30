@@ -74,21 +74,21 @@ pub fn tab_and_canvas_keys_change_the_layout_test() {
 pub fn click_selects_and_drag_moves_test() {
   let #(page, folder) = open("drag", 4923)
   // The heading of slide 1 is placed at (120, 180), 1680 by 180. Moved by
-  // five and two grid cells, it stops at x 240, where it ends at the edge.
-  let start = grid_point(page, #(4, 4))
-  let end = grid_point(page, #(9, 6))
+  // five grid cells left and two down, it hangs off the left edge.
+  let start = grid_point(page, #(9, 4))
+  let end = grid_point(page, #(4, 6))
   let assert Ok(_) = cdp.mouse(page, cdp.Press, start.0, start.1)
   glide(page, start, end)
   // A preview while the button is held, and nothing sent yet.
   assert eventually(fn() {
     let style = cdp.attribute(page, drawn_cell("02"), "style")
     let style = result.unwrap(style, "")
-    string.contains(style, "left:240px") && string.contains(style, "top:300px")
+    string.contains(style, "left:-180px") && string.contains(style, "top:300px")
   })
   assert place(folder, "02") == Some(Area(120, 180, 1680, 180))
   let assert Ok(_) = cdp.mouse(page, cdp.Release, end.0, end.1)
   assert eventually(fn() {
-    place(folder, "02") == Some(Area(240, 300, 1680, 180))
+    place(folder, "02") == Some(Area(-180, 300, 1680, 180))
   })
   assert string.contains(status(page), "canvas")
   assert selected(page) == cell("02")
@@ -100,15 +100,15 @@ pub fn click_selects_and_drag_moves_test() {
   let #(x, y) = grid_point(page, #(20, 10))
   let assert Ok(_) = cdp.mouse(page, cdp.Release, x, y)
   assert eventually(fn() {
-    place(folder, "02") == Some(Area(240, 300, 1020, 360))
+    place(folder, "02") == Some(Area(-180, 300, 1440, 360))
   })
   // A click without a move changes nothing.
   drag(page, #(8, 6), #(8, 6))
-  assert place(folder, "02") == Some(Area(240, 300, 1020, 360))
+  assert place(folder, "02") == Some(Area(-180, 300, 1440, 360))
   // One undo step per drag.
   press(page, "u")
   assert eventually(fn() {
-    place(folder, "02") == Some(Area(240, 300, 1680, 180))
+    place(folder, "02") == Some(Area(-180, 300, 1680, 180))
   })
 }
 
@@ -172,6 +172,50 @@ pub fn theme_reloads_test() {
 }
 
 // Helpers ----------------------------------------------------------------------
+
+pub fn dragging_past_the_edges_test() {
+  let #(page, folder) = open("drag-edges", 4927)
+  let assert Ok(slide) = cdp.box(page, ".ze-fit .zeno-slide")
+  // The heading moves sixteen grid cells right, with the pointer let go in
+  // the pane's margin below the slide: it hangs off the right and bottom
+  // edges, ten pixels of it left on the slide at the bottom.
+  let start = grid_point(page, #(4, 4))
+  let end = #(start.0 +. 16.0 *. slide.w /. 32.0, slide.y +. slide.h +. 40.0)
+  let assert Ok(_) = cdp.mouse(page, cdp.Press, start.0, start.1)
+  glide(page, start, end)
+  let assert Ok(_) = cdp.mouse(page, cdp.Release, end.0, end.1)
+  assert eventually(fn() {
+    place(folder, "02") == Some(Area(1080, 1070, 1680, 180))
+  })
+  // Drawn over the margin, past the slide's edges.
+  let assert Ok(box) = cdp.box(page, drawn_cell("02"))
+  assert box.x +. box.w >. slide.x +. slide.w
+  assert box.y +. box.h >. slide.y +. slide.h
+  // Opened again, it is drawn where it was left.
+  let assert Ok(_) = cdp.open(page, "http://127.0.0.1:4927/", ".ze-selected")
+  assert eventually(fn() {
+    let style = cdp.attribute(page, drawn_cell("02"), "style")
+    let style = result.unwrap(style, "")
+    string.contains(style, "left:1080px")
+    && string.contains(style, "top:1070px")
+  })
+  // Its visible strip can be grabbed and brought back.
+  let assert Ok(box) = cdp.box(page, drawn_cell("02"))
+  let grab = #(box.x +. 20.0, box.y +. 2.0)
+  let back = #(
+    grab.0 -. 16.0 *. slide.w /. 32.0,
+    grab.1 -. 14.0 *. slide.w /. 32.0,
+  )
+  let assert Ok(_) = cdp.mouse(page, cdp.Press, grab.0, grab.1)
+  glide(page, grab, back)
+  let assert Ok(_) = cdp.mouse(page, cdp.Release, back.0, back.1)
+  assert eventually(fn() {
+    case place(folder, "02") {
+      Some(Area(x: 120, y:, w: 1680, h: 180)) -> y >= 180 && y <= 300
+      _ -> False
+    }
+  })
+}
 
 fn drawn(page: Page) -> Int {
   cdp.count(page, ".ze-fit .zeno-cell")

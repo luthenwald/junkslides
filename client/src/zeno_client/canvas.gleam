@@ -56,14 +56,23 @@ fn ceil(px: Int, step: Int) -> Int {
   0 - floor(0 - px, step)
 }
 
-/// At least one pixel each way, at most the slide, and on the slide: the
-/// size is cut to fit first, then the area is pushed back in.
+/// At least one pixel each way, at most the slide's size, and with
+/// `layout.min_visible` pixels on the slide each way (03-data-model.md,
+/// Layout): the size is cut to fit first, then the area is pushed back.
 pub fn clamp(area: Area) -> Area {
   let w = int.clamp(area.w, 1, layout.width)
   let h = int.clamp(area.h, 1, layout.height)
   Area(
-    x: int.clamp(area.x, 0, layout.width - w),
-    y: int.clamp(area.y, 0, layout.height - h),
+    x: int.clamp(
+      area.x,
+      layout.min_visible - w,
+      layout.width - layout.min_visible,
+    ),
+    y: int.clamp(
+      area.y,
+      layout.min_visible - h,
+      layout.height - layout.min_visible,
+    ),
     w:,
     h:,
   )
@@ -87,14 +96,23 @@ pub fn moved(
 }
 
 /// A resize: the snapped point becomes the bottom-right corner, at least
-/// one step from the top left one.
+/// one step from the top left one, and the top left corner stays.
 pub fn resized(start: Area, at: #(Int, Int), step: Int) -> Area {
   let least = int.max(step, 1)
   Area(
     ..start,
-    w: int.clamp(snap(at.0, step) - start.x, least, layout.width - start.x),
-    h: int.clamp(snap(at.1, step) - start.y, least, layout.height - start.y),
+    w: size(snap(at.0, step) - start.x, least, start.x, layout.width),
+    h: size(snap(at.1, step) - start.y, least, start.y, layout.height),
   )
+}
+
+/// A size from `from`, at least `least`, long enough to reach
+/// `layout.min_visible` pixels onto the slide, at most the slide's `most`.
+fn size(wanted: Int, least: Int, from: Int, most: Int) -> Int {
+  wanted
+  |> int.max(least)
+  |> int.max(layout.min_visible - from)
+  |> int.min(most)
 }
 
 /// A move by whole steps, onto the step's lines.
@@ -105,20 +123,16 @@ pub fn nudge(area: Area, dx: Int, dy: Int, step: Int) -> Area {
 }
 
 /// Grows or shrinks from the bottom-right corner by whole steps, onto the
-/// step's lines, never past the slide. A shrink stops one step from the top
-/// left corner.
+/// step's lines, never larger than the slide. A shrink stops one step from
+/// the top left corner.
 pub fn grow(area: Area, dw: Int, dh: Int, step: Int) -> Area {
   let least = int.max(step, 1)
   let right = step_from(area.x + area.w, dw, step)
   let bottom = step_from(area.y + area.h, dh, step)
   Area(
     ..area,
-    w: int.clamp(right - area.x, int.min(least, area.w), layout.width - area.x),
-    h: int.clamp(
-      bottom - area.y,
-      int.min(least, area.h),
-      layout.height - area.y,
-    ),
+    w: size(right - area.x, int.min(least, area.w), area.x, layout.width),
+    h: size(bottom - area.y, int.min(least, area.h), area.y, layout.height),
   )
 }
 

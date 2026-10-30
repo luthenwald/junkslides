@@ -26,8 +26,8 @@ recognise.
 
 ## Running it
 
-Zeno is written in Gleam. With Gleam, Erlang and `just` installed, from
-this folder:
+Zeno is written in Gleam. With Gleam, Erlang and `just` installed, and
+optionally the `tree-sitter` command for highlighting, from this folder:
 
 ```sh
 just zeno init ~/talks/lenses     # a new deck with the default theme
@@ -63,8 +63,13 @@ dashed outline, and the status line counts them.
 
 Slides keep the lines of your text: a heading or paragraph written over
 several lines shows over several lines, with the indentation you gave the
-continued lines. Code blocks are highlighted for the language named after
-the opening fence, such as `haskell`, `gleam` or `python`.
+continued lines.
+
+Code blocks are highlighted by [tree-sitter](https://tree-sitter.github.io/),
+using the command and the grammars you have installed. Name the language after
+the opening fence, such as `haskell` or `hs`: a grammar's name or one of its
+file types both work. Without the command or a matching grammar, code is drawn
+plain.
 
 ## Themes
 
@@ -72,7 +77,8 @@ theme.css is plain CSS. Slides are 1920 by 1080 pixels and are drawn as
 `.zeno-slide`; the flowing cells sit in `.zeno-body` and every cell is a
 `.zeno-cell`, with `data-variant` and `data-align` attributes for its style.
 The slide number is `.zeno-page`, and code tokens carry classes such as
-`.zeno-tok-keyword`, `.zeno-tok-string` and `.zeno-tok-comment`.
+`.zeno-tok-keyword`, `.zeno-tok-string` and `.zeno-tok-comment`, named after
+tree-sitter's highlight names.
 List the theme's variants on `:root`:
 
 ```css

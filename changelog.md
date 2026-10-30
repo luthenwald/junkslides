@@ -1,5 +1,12 @@
 ## Unreleased
 
+## Highlighting with tree-sitter
+
+2026-10-30 · `vvzpnppq::xnqlxrou`
+
+- Improved: code blocks are now highlighted by your own `tree-sitter` command and grammars, which parse your code rather than matching patterns. Name the language after the opening fence, such as `haskell` or `hs`.
+- Improved: without the command or a matching grammar, code is drawn plain, and `zeno serve` tells you once if the command is missing.
+
 ## Free placement, slide numbers and highlighting
 
 2026-10-30 · `xnysvoyw::xokqnvtm`

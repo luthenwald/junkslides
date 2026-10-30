@@ -172,6 +172,17 @@ pub fn source_lines_are_kept_test() {
   )
 }
 
+pub fn code_is_highlighted_test() {
+  let #(page, _) = open("code", 4930)
+  // Slide 4 holds a Gleam code block.
+  list.each([1, 2, 3], fn(_) { press(page, "}") })
+  assert eventually(fn() { cdp.count(page, ".ze-fit pre code") == 1 })
+  assert cdp.count(page, ".ze-fit pre .zeno-tok-keyword") > 2
+  // The block starts with `pub type`, so `pub` is its first keyword.
+  let assert Ok(html) = cdp.html(page, ".ze-fit pre .zeno-tok-keyword")
+  assert string.contains(html, "pub")
+}
+
 pub fn theme_reloads_test() {
   let #(page, folder) = open("theme", 4926)
   let assert Ok(_) =

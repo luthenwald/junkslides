@@ -18,7 +18,7 @@ pub fn lines_and_indentation_are_kept_test() {
   // List items count from their text.
   assert render("- a\n    b\n- c")
     == "<ul><li>a<br><span class=\"zeno-indent\">  </span>b</li><li>c</li></ul>"
-  // Code keeps its own lines.
+  // Code keeps its own lines, highlighted for its language.
   assert render("```hs\nmain =\n  pure ()\n```")
-    == "<pre><code data-language=\"hs\">main =\n  pure ()\n</code></pre>"
+    == "<pre><code data-language=\"hs\">main <span class=\"zeno-tok-operator\">=</span>\n  pure <span class=\"zeno-tok-punctuation\">()</span>\n</code></pre>"
 }

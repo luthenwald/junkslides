@@ -33,6 +33,7 @@ import zeno/id
 import zeno/layout.{type Area, type CellRecord}
 import zeno_client/app.{type Drag, type Model, type Shared, Canvas, Drag}
 import zeno_client/canvas.{type Box, Box}
+import zeno_client/highlight
 import zeno_client/nav.{OnCell}
 
 /// The slide of the selection, scaled to fit the pane, with the editor
@@ -384,7 +385,7 @@ fn container(c: jot.Container, lines: Lines) -> #(Element(msg), Lines) {
       html.pre([], [
         html.code(
           option.values([option.map(language, attribute.data("language", _))]),
-          [text(content)],
+          code(language, content),
         ),
       ]),
       lines,
@@ -414,6 +415,17 @@ fn container(c: jot.Container, lines: Lines) -> #(Element(msg), Lines) {
       #(html.div([], children), lines)
     }
   }
+}
+
+/// A code block's text, highlighted for its language (`highlight`).
+fn code(language: Option(String), content: String) -> List(Element(msg)) {
+  highlight.tokens(language, content)
+  |> list.map(fn(piece) {
+    case piece {
+      #(Some(kind), text) -> html.span([class(kind)], [element.text(text)])
+      #(None, text) -> element.text(text)
+    }
+  })
 }
 
 /// Renders each of `xs` in order, passing the remaining lines along.

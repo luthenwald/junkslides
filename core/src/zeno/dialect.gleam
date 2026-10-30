@@ -7,6 +7,7 @@
 //// the AST, never through `jot.to_html`.
 
 import gleam/dict.{type Dict}
+import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
@@ -17,6 +18,7 @@ import jot.{
   NumericOrdinal, OrderedList, Paragraph, RawBlock, Reference, Span, Strong,
   Subscript, Superscript, Symbol, Text, ThematicBreak, Url,
 }
+import zeno/blocks
 
 pub type Problem {
   ThematicBreakUsed
@@ -226,5 +228,150 @@ fn scheme(url: String) -> Option(String) {
         True -> None
         False -> Some(string.lowercase(before))
       }
+  }
+}
+
+// Line structure ---------------------------------------------------------------
+
+/// The indentation of the continuation lines of a cell body, one list per
+/// top-level block (split as `blocks.split` does, which matches jot's
+/// top-level blocks), in source order (04-layout.md, Line structure).
+///
+/// A continuation line is a line of text that follows another in the same
+/// paragraph, heading or list item; jot turns each into a soft break or,
+/// after a trailing backslash, a hard one, and drops its leading spaces.
+/// Its indent here counts from the content column of the line that started
+/// the text: for `# ( forward` that is 2, so `    execution` on the next
+/// line is indented by 2. Block quote markers count as part of the margin,
+/// and so do the `#`s a heading's continuation may repeat. Lines inside
+/// code fences are never continuations.
+pub fn continuation_indents(source: String) -> List(List(Int)) {
+  blocks.split(source)
+  |> list.map(fn(block) {
+    let lines = string.split(block, "\n")
+    let first = case lines {
+      [first, ..] -> margin(first).1
+      [] -> ""
+    }
+    let kind = case heading_marker(first), item_marker(first) {
+      Some(_), _ -> HeadingBlock
+      None, Some(_) -> ListBlock
+      None, None -> OtherBlock
+    }
+    let scan =
+      list.fold(lines, Scan([], None, False), fn(scan, line) {
+        scan_line(scan, line, kind)
+      })
+    list.reverse(scan.indents)
+  })
+}
+
+type BlockKind {
+  HeadingBlock
+  ListBlock
+  OtherBlock
+}
+
+type Scan {
+  /// `column` is the content column of the text being continued, if any.
+  Scan(indents: List(Int), column: Option(Int), fence: Bool)
+}
+
+fn scan_line(scan: Scan, line: String, kind: BlockKind) -> Scan {
+  let #(margin, rest) = margin(line)
+  let fence = string.starts_with(rest, "```")
+  case scan.fence, fence, rest, scan.column {
+    True, True, _, _ -> Scan(..scan, fence: False, column: None)
+    True, False, _, _ -> scan
+    False, True, _, _ -> Scan(..scan, fence: True, column: None)
+    False, False, "", _ -> Scan(..scan, column: None)
+    False, False, _, None ->
+      Scan(..scan, column: Some(start_column(margin, rest)))
+    False, False, _, Some(column) ->
+      case kind, item_marker(rest) {
+        // Only in a list does a marker start a new item.
+        ListBlock, Some(_) ->
+          Scan(..scan, column: Some(start_column(margin, rest)))
+        // A heading's continuation may repeat its `#`s.
+        HeadingBlock, _ -> continued(scan, start_column(margin, rest), column)
+        _, _ -> continued(scan, margin, column)
+      }
+  }
+}
+
+fn continued(scan: Scan, at: Int, column: Int) -> Scan {
+  Scan(..scan, indents: [int.max(0, at - column), ..scan.indents])
+}
+
+/// Leading spaces and block quote markers, and the rest of the line.
+fn margin(line: String) -> #(Int, String) {
+  margin_loop(line, 0)
+}
+
+fn margin_loop(line: String, width: Int) -> #(Int, String) {
+  case line {
+    " " <> rest -> margin_loop(rest, width + 1)
+    "> " <> rest -> margin_loop(rest, width + 2)
+    ">" <> rest -> margin_loop(rest, width + 1)
+    _ -> #(width, line)
+  }
+}
+
+/// Where the text of a line that starts a paragraph, heading or list item
+/// begins: after its margin and any heading or list marker.
+fn start_column(margin: Int, rest: String) -> Int {
+  let marker =
+    heading_marker(rest)
+    |> option.lazy_or(fn() { item_marker(rest) })
+    |> option.unwrap(0)
+  let #(spaces, _) = margin_loop(string.drop_start(rest, marker), 0)
+  margin + marker + spaces
+}
+
+/// The width of `#`s and the space after them.
+fn heading_marker(rest: String) -> Option(Int) {
+  let hashes = count_prefix(rest, "#", 0)
+  case hashes > 0 && string.starts_with(string.drop_start(rest, hashes), " ") {
+    True -> Some(hashes + 1)
+    False -> None
+  }
+}
+
+/// The width of a list marker and the space after it: `- `, `* `, `+ `,
+/// `1. ` or `1) `.
+fn item_marker(rest: String) -> Option(Int) {
+  case rest {
+    "- " <> _ | "* " <> _ | "+ " <> _ -> Some(2)
+    _ -> {
+      let digits = count_digits(rest, 0)
+      let after = string.drop_start(rest, digits)
+      case
+        digits > 0
+        && {
+          string.starts_with(after, ". ") || string.starts_with(after, ") ")
+        }
+      {
+        True -> Some(digits + 2)
+        False -> None
+      }
+    }
+  }
+}
+
+fn count_prefix(text: String, prefix: String, n: Int) -> Int {
+  case string.starts_with(text, prefix) {
+    True -> count_prefix(string.drop_start(text, 1), prefix, n + 1)
+    False -> n
+  }
+}
+
+fn count_digits(text: String, n: Int) -> Int {
+  case string.pop_grapheme(text) {
+    Ok(#(c, rest)) ->
+      case string.contains("0123456789", c) {
+        True -> count_digits(rest, n + 1)
+        False -> n
+      }
+    Error(Nil) -> n
   }
 }

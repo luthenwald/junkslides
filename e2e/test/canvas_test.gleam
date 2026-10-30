@@ -157,6 +157,21 @@ pub fn overflow_is_flagged_test() {
   assert !string.contains(status(page), "overflow")
 }
 
+pub fn source_lines_are_kept_test() {
+  let #(page, _) = open("lines", 4929)
+  // The heading gets a second line, indented under its first word.
+  press(page, "Enter")
+  let assert Ok(_) = cdp.type_text(page, "\n    and why not")
+  press(page, "Escape")
+  assert eventually(fn() { cdp.count(page, ".ze-fit h1 br") == 1 })
+  assert cdp.count(page, ".ze-fit h1 .zeno-indent") == 1
+  let assert Ok(heading) = cdp.html(page, ".ze-fit h1")
+  assert string.contains(
+    heading,
+    "<span class=\"zeno-indent\">  </span>and why not",
+  )
+}
+
 pub fn theme_reloads_test() {
   let #(page, folder) = open("theme", 4926)
   let assert Ok(_) =

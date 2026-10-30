@@ -57,3 +57,30 @@ pub fn safe_url_test() {
   assert dialect.safe_url(" JavaScript:alert(1)") == None
   assert dialect.safe_url("data:text/html,x") == None
 }
+
+pub fn continuation_indents_test() {
+  // The heading's text starts after `# `, at column 2; its next lines start
+  // at column 4, two further in.
+  assert dialect.continuation_indents(
+      "# ( forward symbolic \n    execution for bounded GCL \n    verification )",
+    )
+    == [[2, 2]]
+  // Paragraphs count from their first line; less indented lines count 0.
+  assert dialect.continuation_indents("one\n  two\nthree\n\n  four\n      five")
+    == [[2, 0], [4]]
+  // List items count from their text, and a marker starts a new item.
+  assert dialect.continuation_indents(
+      "- first\n    more\n- second\n  same\n\n  - nested\n      deep",
+    )
+    == [[2, 0, 2]]
+  assert dialect.continuation_indents("1. one\n     two") == [[2]]
+  // Quote markers belong to the margin.
+  assert dialect.continuation_indents("> a\n>   b\n> c") == [[2, 0]]
+  // A heading may repeat its hashes on the next line.
+  assert dialect.continuation_indents("## a\n##   b") == [[2]]
+  // Code fences have no continuations; a paragraph line starting with a
+  // dash is text, not an item.
+  assert dialect.continuation_indents("```\na\n  b\n```") == [[]]
+  assert dialect.continuation_indents("a\n- b") == [[0]]
+  assert dialect.continuation_indents("") == []
+}

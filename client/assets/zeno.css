@@ -335,6 +335,11 @@ body {
   min-width: 0;
 }
 
+/* The indentation of a continued line, kept from the source. */
+:where(.zeno-indent) {
+  white-space: pre;
+}
+
 :where(.zeno-page) {
   position: absolute;
   right: 60px;

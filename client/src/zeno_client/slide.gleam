@@ -350,94 +350,186 @@ fn on_probe(cell: Cell) -> Attribute(app.Msg) {
 /// A cell body from its jot AST, never through `jot.to_html`. Constructs the
 /// dialect forbids still render harmlessly: no attributes are passed on, raw
 /// blocks show as text, and URLs go through `dialect.safe_url`.
+///
+/// The source's lines are kept (04-layout.md, Line structure): every soft
+/// or hard break is a line break, followed by the indentation its line had
+/// in the source, from `dialect.continuation_indents`. Should the blocks not
+/// match up, breaks are kept without indentation.
 pub fn body(source: String) -> List(Element(msg)) {
-  list.map(dialect.parse(source).content, container)
+  let doc = dialect.parse(source)
+  let indents = dialect.continuation_indents(source)
+  let indents = case list.length(indents) == list.length(doc.content) {
+    True -> indents
+    False -> list.map(doc.content, fn(_) { [] })
+  }
+  list.map2(doc.content, indents, fn(c, lines) { container(c, lines).0 })
 }
 
-fn container(c: jot.Container) -> Element(msg) {
+/// `lines` are the indents of the continuation lines still ahead in this
+/// block; each break takes the first one.
+type Lines =
+  List(Int)
+
+fn container(c: jot.Container, lines: Lines) -> #(Element(msg), Lines) {
   case c {
-    jot.Paragraph(content:, ..) -> html.p([], inlines(content))
-    jot.Heading(level:, content:, ..) ->
-      element.element("h" <> int.to_string(level), [], inlines(content))
-    jot.Codeblock(language:, content:, ..) ->
+    jot.Paragraph(content:, ..) -> {
+      let #(children, lines) = inlines(content, lines)
+      #(html.p([], children), lines)
+    }
+    jot.Heading(level:, content:, ..) -> {
+      let #(children, lines) = inlines(content, lines)
+      #(element.element("h" <> int.to_string(level), [], children), lines)
+    }
+    jot.Codeblock(language:, content:, ..) -> #(
       html.pre([], [
         html.code(
           option.values([option.map(language, attribute.data("language", _))]),
-          [
-            text(content),
-          ],
+          [text(content)],
         ),
-      ])
-    jot.BulletList(layout:, items:, ..) ->
-      html.ul([], list.map(items, item(layout, _)))
+      ]),
+      lines,
+    )
+    jot.BulletList(layout:, items:, ..) -> {
+      let #(items, lines) =
+        each(items, lines, fn(blocks, lines) { item(layout, blocks, lines) })
+      #(html.ul([], items), lines)
+    }
     jot.OrderedList(layout:, start:, items:, ..) -> {
       let start = case start {
         1 -> []
         n -> [attribute("start", int.to_string(n))]
       }
-      html.ol(start, list.map(items, item(layout, _)))
+      let #(items, lines) =
+        each(items, lines, fn(blocks, lines) { item(layout, blocks, lines) })
+      #(html.ol(start, items), lines)
     }
-    jot.BlockQuote(items:, ..) ->
-      html.blockquote([], list.map(items, container))
-    jot.ThematicBreak -> html.hr([])
-    jot.RawBlock(content:) -> html.pre([], [text(content)])
-    jot.Div(items:, ..) -> html.div([], list.map(items, container))
+    jot.BlockQuote(items:, ..) -> {
+      let #(children, lines) = each(items, lines, container)
+      #(html.blockquote([], children), lines)
+    }
+    jot.ThematicBreak -> #(html.hr([]), lines)
+    jot.RawBlock(content:) -> #(html.pre([], [text(content)]), lines)
+    jot.Div(items:, ..) -> {
+      let #(children, lines) = each(items, lines, container)
+      #(html.div([], children), lines)
+    }
   }
+}
+
+/// Renders each of `xs` in order, passing the remaining lines along.
+fn each(
+  xs: List(a),
+  lines: Lines,
+  render: fn(a, Lines) -> #(b, Lines),
+) -> #(List(b), Lines) {
+  let #(done, lines) =
+    list.fold(xs, #([], lines), fn(acc, x) {
+      let #(done, lines) = acc
+      let #(one, lines) = render(x, lines)
+      #([one, ..done], lines)
+    })
+  #(list.reverse(done), lines)
 }
 
 /// Items of a tight list hold their text without a paragraph around it.
 fn item(
   list_layout: jot.ListLayout,
   blocks: List(jot.Container),
-) -> Element(msg) {
+  lines: Lines,
+) -> #(Element(msg), Lines) {
   case list_layout {
-    jot.Tight ->
-      html.li(
-        [],
-        list.flat_map(blocks, fn(block) {
+    jot.Tight -> {
+      let #(children, lines) =
+        each(blocks, lines, fn(block, lines) {
           case block {
-            jot.Paragraph(content:, ..) -> inlines(content)
-            other -> [container(other)]
+            jot.Paragraph(content:, ..) -> inlines(content, lines)
+            other -> {
+              let #(element, lines) = container(other, lines)
+              #([element], lines)
+            }
           }
-        }),
-      )
-    jot.Loose -> html.li([], list.map(blocks, container))
+        })
+      #(html.li([], list.flatten(children)), lines)
+    }
+    jot.Loose -> {
+      let #(children, lines) = each(blocks, lines, container)
+      #(html.li([], children), lines)
+    }
   }
 }
 
-fn inlines(content: List(jot.Inline)) -> List(Element(msg)) {
-  list.map(content, inline)
+fn inlines(
+  content: List(jot.Inline),
+  lines: Lines,
+) -> #(List(Element(msg)), Lines) {
+  let #(children, lines) = each(content, lines, inline)
+  #(list.flatten(children), lines)
 }
 
-fn inline(i: jot.Inline) -> Element(msg) {
+fn inline(i: jot.Inline, lines: Lines) -> #(List(Element(msg)), Lines) {
+  let wrap = fn(content, make) {
+    let #(children, lines) = inlines(content, lines)
+    #([make(children)], lines)
+  }
   case i {
-    jot.Text(t) -> text(t)
-    jot.Linebreak -> html.br([])
-    jot.NonBreakingSpace -> text("\u{a0}")
-    jot.Emphasis(content) -> html.em([], inlines(content))
-    jot.Strong(content) -> html.strong([], inlines(content))
-    jot.Code(content) -> html.code([], [text(content)])
+    jot.Text(t) -> soft_breaks(t, lines)
+    jot.Linebreak -> line_break(lines)
+    jot.NonBreakingSpace -> #([text("\u{a0}")], lines)
+    jot.Emphasis(content) -> wrap(content, html.em([], _))
+    jot.Strong(content) -> wrap(content, html.strong([], _))
+    jot.Code(content) -> #([html.code([], [text(content)])], lines)
     jot.Link(content:, destination:, ..) ->
       case url(destination) {
-        Some(href) -> html.a([attribute.href(href)], inlines(content))
-        None -> html.span([], inlines(content))
+        Some(href) -> wrap(content, html.a([attribute.href(href)], _))
+        None -> wrap(content, html.span([], _))
       }
     jot.Image(content:, destination:, ..) ->
       case url(destination) {
-        Some(src) ->
-          html.img([attribute.src(src), attribute.alt(plain(content))])
-        None -> html.span([], [text(plain(content))])
+        Some(src) -> #(
+          [html.img([attribute.src(src), attribute.alt(plain(content))])],
+          lines,
+        )
+        None -> #([html.span([], [text(plain(content))])], lines)
       }
-    jot.Span(content:, ..) -> html.span([], inlines(content))
-    jot.Delete(content) -> html.del([], inlines(content))
-    jot.Insert(content) -> html.ins([], inlines(content))
-    jot.Mark(content) -> html.mark([], inlines(content))
-    jot.Superscript(content) -> html.sup([], inlines(content))
-    jot.Subscript(content) -> html.sub([], inlines(content))
-    jot.Footnote(reference) -> html.sup([], [text(reference)])
-    jot.MathInline(content) | jot.MathDisplay(content) ->
-      html.code([], [text(content)])
-    jot.Symbol(content) -> text(":" <> content <> ":")
+    jot.Span(content:, ..) -> wrap(content, html.span([], _))
+    jot.Delete(content) -> wrap(content, html.del([], _))
+    jot.Insert(content) -> wrap(content, html.ins([], _))
+    jot.Mark(content) -> wrap(content, html.mark([], _))
+    jot.Superscript(content) -> wrap(content, html.sup([], _))
+    jot.Subscript(content) -> wrap(content, html.sub([], _))
+    jot.Footnote(reference) -> #([html.sup([], [text(reference)])], lines)
+    jot.MathInline(content) | jot.MathDisplay(content) -> #(
+      [html.code([], [text(content)])],
+      lines,
+    )
+    jot.Symbol(content) -> #([text(":" <> content <> ":")], lines)
+  }
+}
+
+/// jot keeps a soft break as a newline in the text.
+fn soft_breaks(t: String, lines: Lines) -> #(List(Element(msg)), Lines) {
+  case string.split(t, "\n") {
+    [first, ..rest] ->
+      list.fold(rest, #([text(first)], lines), fn(acc, part) {
+        let #(done, lines) = acc
+        let #(break, lines) = line_break(lines)
+        #(list.flatten([done, break, [text(part)]]), lines)
+      })
+    [] -> #([], lines)
+  }
+}
+
+/// A line break, then the next line's indentation.
+fn line_break(lines: Lines) -> #(List(Element(msg)), Lines) {
+  case lines {
+    [0, ..rest] | [] as rest -> #([html.br([])], rest)
+    [n, ..rest] -> #(
+      [
+        html.br([]),
+        html.span([class("zeno-indent")], [text(string.repeat(" ", n))]),
+      ],
+      rest,
+    )
   }
 }
 

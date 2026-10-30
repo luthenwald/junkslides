@@ -2,16 +2,20 @@
 //// undo, view state, the theme, static files, `zeno init` and the store.
 
 import filepath
+import gleam/dict
 import gleam/http/request
 import gleam/httpc
+import gleam/list
+import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import simplifile
 import support/harness.{example_id}
 import zeno/file
 import zeno/op
-import zeno/protocol.{View}
+import zeno/protocol.{Token, View}
 import zeno_server
+import zeno_server/highlighter
 import zeno_server/state
 import zeno_server/store
 import zeno_server/theme
@@ -250,4 +254,77 @@ pub fn own_write_is_not_an_outside_edit_test() {
     harness.read(h.folder, "deck.md") == original
   })
   assert harness.quiet(h, 200)
+}
+
+pub fn dump_languages_names_the_grammars_test() {
+  let languages =
+    highlighter.parse_languages(
+      "name: c\nscope: source.c\nparser: \"/x\"\nfile_types: [\"c\", \"h\"]\ncontent_regex: None\n\n"
+      <> "name: clojure\nscope: \nfile_types: []\n\n"
+      <> "name: haskell\nscope: haskell\nfile_types: [\"hs\", \"hs-boot\"]\n",
+    )
+  assert dict.get(languages, "c") == Ok("source.c")
+  assert dict.get(languages, "source.c") == Ok("source.c")
+  assert dict.get(languages, "h") == Ok("source.c")
+  assert dict.get(languages, "hs") == Ok("haskell")
+  assert dict.get(languages, "haskell") == Ok("haskell")
+  // A grammar without a scope cannot be asked for.
+  assert dict.get(languages, "clojure") == Error(Nil)
+}
+
+/// The shape of the real command's output, from tree-sitter 0.26.1.
+const sample =
+  "<!doctype HTML>
+<table>
+<tr><td class=line-number>1</td><td class=line><span class='comment'>-- a &lt; b</span>
+</td></tr>
+<tr><td class=line-number>2</td><td class=line><span class='function'><span class='function'><span class='type'>f</span> <span class='operator'>::</span></span></span> <span class='string special'><span class='punctuation bracket'>(</span><span class='punctuation bracket'>)</span></span>
+</td></tr>
+<tr><td class=line-number>3</td><td class=line>  <span class='string'>&quot;&amp;&#39;&quot;</span>
+</td></tr>
+</table>
+</body>"
+
+pub fn highlight_output_becomes_tokens_test() {
+  let code = "-- a < b\nf :: ()\n  \"&'\"\n"
+  let assert Ok(tokens) = highlighter.tokens_of(sample, code)
+  assert tokens
+    == [
+      Token(Some("comment"), "-- a < b"),
+      Token(None, "\n"),
+      Token(Some("type"), "f"),
+      Token(None, " "),
+      Token(Some("operator"), "::"),
+      Token(None, " "),
+      Token(Some("punctuation.bracket"), "()"),
+      Token(None, "\n  "),
+      Token(Some("string"), "\"&'\""),
+      Token(None, "\n"),
+    ]
+  // Output that does not give the code back is not trusted.
+  assert highlighter.tokens_of(sample, "other") == Error(Nil)
+  assert highlighter.tokens_of("no table", code) == Error(Nil)
+}
+
+pub fn code_blocks_are_highlighted_for_clients_test() {
+  let h =
+    harness.serve_with_tree_sitter(
+      harness.folder("highlights"),
+      4879,
+      "test/fixtures/fake-tree-sitter",
+    )
+  // The example's Gleam block arrives after the state; a block in a language
+  // without a grammar stays out.
+  let assert protocol.Highlights([protocol.Highlight(block, tokens)]) =
+    harness.next_highlights(h)
+  assert block.language == "gleam"
+  assert string.starts_with(block.code, "pub type Lens")
+  assert list.first(tokens) == Ok(Token(Some("keyword"), "pub"))
+  // A new client gets them with its state.
+  let other = harness.connect(h.folder, 4879)
+  let assert protocol.Highlights([_]) = harness.next_highlights(other)
+}
+
+pub fn a_missing_command_leaves_code_plain_test() {
+  assert highlighter.languages("zeno-no-such-command") == Error(Nil)
 }

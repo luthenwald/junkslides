@@ -19,6 +19,7 @@ import zeno/deck.{Cell, Content, Deck, Slide}
 import zeno/file
 import zeno/id
 import zeno/layout
+import zeno_server/highlighter
 import zeno_server/state
 import zeno_server/store
 import zeno_server/theme
@@ -94,6 +95,11 @@ fn write_new(path: String, contents: String) -> Result(Nil, String) {
 pub fn serve(folder: String, port: Int) -> Result(Nil, String) {
   let folder = absolute(folder)
   use owner <- result.try(state.start(state.config(folder, view_file())))
+  case highlighter.languages("tree-sitter") {
+    Ok(_) -> Nil
+    Error(Nil) ->
+      io.println("tree-sitter was not found, so code blocks are drawn plain.")
+  }
   use client <- result.try(
     application.priv_directory("zeno_server")
     |> result.map(filepath.join(_, "static"))

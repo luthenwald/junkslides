@@ -11,8 +11,8 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import harness.{
-  cell, eventually, key, open, press, problem, record, saved_view, selected,
-  status,
+  cell, deck, eventually, key, open, press, problem, record, saved_view,
+  selected, status,
 }
 import simplifile
 import zeno/layout.{Area}
@@ -173,14 +173,29 @@ pub fn source_lines_are_kept_test() {
 }
 
 pub fn code_is_highlighted_test() {
-  let #(page, _) = open("code", 4930)
-  // Slide 4 holds a Gleam code block.
+  let #(page, folder) = open("code", 4930)
+  // Slide 4 holds a Gleam code block; the fake tree-sitter of these checks
+  // makes the first word of each line a keyword.
   list.each([1, 2, 3], fn(_) { press(page, "}") })
   assert eventually(fn() { cdp.count(page, ".ze-fit pre code") == 1 })
-  assert cdp.count(page, ".ze-fit pre .zeno-tok-keyword") > 2
-  // The block starts with `pub type`, so `pub` is its first keyword.
+  assert eventually(fn() {
+    cdp.count(page, ".ze-fit pre .zeno-tok-keyword") > 2
+  })
   let assert Ok(html) = cdp.html(page, ".ze-fit pre .zeno-tok-keyword")
   assert string.contains(html, "pub")
+  // A changed block is highlighted again.
+  press(page, "j")
+  assert selected(page) == cell("0e")
+  press(page, "Enter")
+  let assert Ok(_) = cdp.key(page, "ArrowUp", [])
+  let assert Ok(_) = cdp.type_text(page, "extra ")
+  press(page, "Escape")
+  assert eventually(fn() { string.contains(deck(folder), "extra ") })
+  assert eventually(fn() {
+    let assert Ok(code) = cdp.html(page, ".ze-fit pre code")
+    string.contains(code, "extra")
+    && cdp.count(page, ".ze-fit pre .zeno-tok-keyword") > 2
+  })
 }
 
 pub fn theme_reloads_test() {

@@ -54,8 +54,38 @@ pub fn serve_with(
   poll: Int,
   debounce: Int,
 ) -> Harness {
-  let config =
-    state.Config(folder:, view_file: folder <> ".view.json", poll:, debounce:)
+  serve_config(
+    state.Config(
+      folder:,
+      view_file: folder <> ".view.json",
+      poll:,
+      debounce:,
+      tree_sitter: "zeno-no-such-command",
+    ),
+    port,
+  )
+}
+
+pub fn serve_with_tree_sitter(
+  folder: String,
+  port: Int,
+  command: String,
+) -> Harness {
+  let assert Ok(cwd) = simplifile.current_directory()
+  serve_config(
+    state.Config(
+      folder:,
+      view_file: folder <> ".view.json",
+      poll: 50,
+      debounce: 100,
+      tree_sitter: filepath.join(cwd, command),
+    ),
+    port,
+  )
+}
+
+fn serve_config(config: state.Config, port: Int) -> Harness {
+  let folder = config.folder
   let assert Ok(owner) = state.start(config)
   let assert Ok(_) =
     web.start(web.Config(port:, folder:, client: folder), owner)
@@ -106,6 +136,14 @@ pub fn next_state(harness: Harness) -> #(Deck, Layout) {
   case next(harness) {
     protocol.State(deck:, layout:, ..) -> #(deck, layout)
     _ -> next_state(harness)
+  }
+}
+
+/// Skips messages up to the next highlights.
+pub fn next_highlights(harness: Harness) -> ServerMsg {
+  case next(harness) {
+    protocol.Highlights(_) as msg -> msg
+    _ -> next_highlights(harness)
   }
 }
 

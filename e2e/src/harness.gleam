@@ -65,12 +65,17 @@ pub fn open_folder(
   Subject(state.Message),
   actor.Started(static_supervisor.Supervisor),
 ) {
+  let assert Ok(cwd) = simplifile.current_directory()
   let config =
     state.Config(
       folder:,
       view_file: folder <> ".view.json",
       poll: 50,
       debounce: 100,
+      tree_sitter: filepath.join(
+        cwd,
+        "../server/test/fixtures/fake-tree-sitter",
+      ),
     )
   let assert Ok(owner) = state.start(config)
   let assert Ok(web) = serve(folder, port, owner)

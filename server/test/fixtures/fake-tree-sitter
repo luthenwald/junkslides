@@ -1,0 +1,17 @@
+#!/bin/sh
+# Stands in for the tree-sitter command in tests, so they do not depend on the
+# machine's grammars: `gleam` and `hs` are known, and the first word of each
+# line of code is a keyword, inside the table the real command prints.
+case "$1" in
+dump-languages)
+  printf 'name: gleam\nscope: source.gleam\nfile_types: ["gleam"]\n\n'
+  printf 'name: haskell\nscope: haskell\nfile_types: ["hs", "hs-boot"]\n'
+  ;;
+highlight)
+  printf '<!doctype HTML>\n<body>\n<table>\n'
+  sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' "$2" |
+    sed -E "s/^( *)([^ ]+)/\1<span class='keyword'>\2<\/span>/" |
+    awk '{ printf "<tr><td class=line-number>%d</td><td class=line>%s\n</td></tr>\n", NR, $0 }'
+  printf '</table>\n</body>\n'
+  ;;
+esac

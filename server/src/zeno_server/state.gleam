@@ -20,7 +20,8 @@ import zeno/history.{type History}
 import zeno/id.{type IdSupply}
 import zeno/layout.{type Layout}
 import zeno/op.{type Op}
-import zeno/protocol.{type ClientMsg, type ServerMsg, type View}
+import zeno/protocol.{type ClientMsg, type Highlight, type ServerMsg, type View}
+import zeno_server/highlighter
 import zeno_server/store
 import zeno_server/theme
 import zeno_server/view
@@ -34,11 +35,19 @@ pub type Config {
     poll: Int,
     /// Quiet period before writing, in ms (300).
     debounce: Int,
+    /// The tree-sitter command that highlights code blocks.
+    tree_sitter: String,
   )
 }
 
 pub fn config(folder: String, view_file: String) -> Config {
-  Config(folder:, view_file:, poll: 250, debounce: 300)
+  Config(
+    folder:,
+    view_file:,
+    poll: 250,
+    debounce: 300,
+    tree_sitter: "tree-sitter",
+  )
 }
 
 pub type Message {
@@ -48,6 +57,8 @@ pub type Message {
   FromClient(client: Subject(ServerMsg), msg: ClientMsg)
   Poll
   Flush(generation: Int)
+  /// The highlighter's answer for the deck's code blocks.
+  Highlighted(blocks: List(Highlight))
 }
 
 /// Ops applied since deck.md was last read or written, kept to rebase them
@@ -88,6 +99,9 @@ type State {
     theme_seen: String,
     /// Only the flush with the latest generation writes.
     generation: Int,
+    /// Absent if it could not be started; code blocks then stay plain.
+    highlighter: Option(Subject(highlighter.Message)),
+    highlights: List(Highlight),
   )
 }
 
@@ -142,7 +156,11 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
         layout_file:,
         theme_seen:,
         generation: 0,
+        highlighter: highlighter.start(config.tree_sitter)
+          |> option.from_result,
+        highlights: [],
       )
+    request_highlights(state)
     actor.initialised(state) |> actor.returning(self) |> Ok
   }
   actor.new_with_initialiser(1000, initialise)
@@ -239,6 +257,10 @@ fn handle(state: State, message: Message) -> actor.Next(State, Message) {
     Flush(generation) if generation == state.generation ->
       actor.continue(state |> poll_files |> write_files)
     Flush(_) -> actor.continue(state)
+    Highlighted(blocks) -> {
+      broadcast(state, protocol.Highlights(blocks))
+      actor.continue(State(..state, highlights: blocks))
+    }
   }
 }
 
@@ -333,7 +355,23 @@ fn step(
 fn changed(state: State) -> State {
   let state = State(..state, version: state.version + 1)
   broadcast(state, state_msg(state))
+  request_highlights(state)
   schedule_flush(state)
+}
+
+/// Asks for the tokens of the deck's code blocks; the answer comes back as
+/// `Highlighted`, so a slow command never holds up the owner.
+fn request_highlights(state: State) -> Nil {
+  case state.highlighter {
+    Some(subject) ->
+      process.send(
+        subject,
+        highlighter.Request(protocol.code_blocks(state.deck), fn(blocks) {
+          process.send(state.self, Highlighted(blocks))
+        }),
+      )
+    None -> Nil
+  }
 }
 
 fn schedule_flush(state: State) -> State {
@@ -589,6 +627,10 @@ fn state_msg(state: State) -> ServerMsg {
 /// The state, then the problems still open, so a new client sees them too.
 fn greet(state: State, client: Subject(ServerMsg)) -> Nil {
   send(client, state_msg(state))
+  case state.highlights {
+    [] -> Nil
+    blocks -> send(client, protocol.Highlights(blocks))
+  }
   [state.deck_file.problem, state.layout_file.problem]
   |> option.values
   |> list.each(fn(problem) { send(client, protocol.Notice(problem)) })

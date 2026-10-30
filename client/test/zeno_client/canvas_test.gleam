@@ -89,6 +89,21 @@ pub fn nudges_move_onto_the_lines_and_stop_off_the_edge_test() {
     == Area(x: 126, y: 125, w: 180, h: 60)
 }
 
+pub fn snap_steps_go_finer_and_coarser_test() {
+  assert canvas.finer(120) == 60
+  assert canvas.finer(30) == 20
+  assert canvas.finer(10) == 0
+  assert canvas.finer(0) == 0
+  assert canvas.coarser(0) == 10
+  assert canvas.coarser(30) == 60
+  assert canvas.coarser(120) == 120
+  // A step from an older or hand-edited view file joins the list.
+  assert canvas.finer(45) == 30
+  assert canvas.coarser(45) == 60
+  assert canvas.describe_snap(20) == "20 px"
+  assert canvas.describe_snap(0) == "off"
+}
+
 pub fn variants_cycle_through_none_test() {
   let variants = ["large", "small"]
   assert canvas.next_variant(variants, None) == Some("large")

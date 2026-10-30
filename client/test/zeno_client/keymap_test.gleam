@@ -45,6 +45,8 @@ pub fn canvas_keys_test() {
   assert keymap.canvas(Key(..key("ArrowLeft"), shift: True))
     == Ok(keymap.Resize(-1, 0))
   assert keymap.canvas(key("J")) == Ok(keymap.Resize(0, 1))
+  assert keymap.canvas(key("g")) == Ok(keymap.SnapFiner)
+  assert keymap.canvas(key("G")) == Ok(keymap.SnapCoarser)
   assert keymap.canvas(key("Tab")) == Ok(keymap.ToCells)
   assert keymap.canvas(key("Escape")) == Ok(keymap.ToCells)
   assert keymap.canvas(key("x")) == Error(Nil)

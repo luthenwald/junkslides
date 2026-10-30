@@ -43,7 +43,7 @@ pub fn client_messages_round_trip_test() {
     ApplyLayout(13, layout.PurgeOrphans),
     Undo,
     Redo,
-    SaveView(View(55, True, False)),
+    SaveView(View(55, True, False, 0)),
   ]
   check_client(messages)
 }

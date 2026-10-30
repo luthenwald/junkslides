@@ -53,6 +53,8 @@ pub type CanvasCommand {
   ReturnToFlow
   CycleVariant
   CycleAlign
+  SnapFiner
+  SnapCoarser
   CanvasUndo
   CanvasRedo
   ToCells
@@ -126,6 +128,8 @@ pub fn canvas(key: Key) -> Result(CanvasCommand, Nil) {
         "f", _ -> Ok(ReturnToFlow)
         "v", _ -> Ok(CycleVariant)
         "a", _ -> Ok(CycleAlign)
+        "g", _ -> Ok(SnapFiner)
+        "G", _ -> Ok(SnapCoarser)
         "u", _ -> Ok(CanvasUndo)
         "U", _ -> Ok(CanvasRedo)
         "Tab", _ | "Escape", _ -> Ok(ToCells)

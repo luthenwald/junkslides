@@ -214,7 +214,7 @@ pub fn panes_hide_and_the_view_is_saved_test() {
   assert eventually(fn() { cdp.count(page, ".ze-slide-pane") == 0 })
   assert cdp.count(page, ".ze-cells-pane") == 1
   assert eventually(fn() {
-    saved_view(folder) == protocol.View(40, False, True)
+    saved_view(folder) == protocol.View(40, False, True, 30)
   })
   key(page, "]", [cdp.Ctrl])
   assert eventually(fn() { cdp.count(page, ".ze-slide-pane") == 1 })
@@ -223,7 +223,7 @@ pub fn panes_hide_and_the_view_is_saved_test() {
 pub fn a_view_with_both_panes_hidden_shows_the_cells_test() {
   let folder = prepare("both-hidden")
   let assert Ok(Nil) =
-    view.save(folder <> ".view.json", folder, protocol.View(40, True, True))
+    view.save(folder <> ".view.json", folder, protocol.View(40, True, True, 30))
   let #(page, _, _, _) = open_folder(folder, 4914)
   assert cdp.count(page, ".ze-cells-pane") == 1
   assert cdp.count(page, ".ze-slide-pane") == 0

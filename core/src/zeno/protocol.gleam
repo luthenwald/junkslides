@@ -11,14 +11,15 @@ import zeno/id.{type CellTag, type Id}
 import zeno/layout.{type Layout, type LayoutOp}
 import zeno/op.{type Op, type OpError}
 
-/// Per-user pane state (05-editor.md, View state).
+/// Per-user view state of one deck (05-editor.md, View state).
 pub type View {
   /// `cells_width` is the cells pane's share of the window in percent.
-  View(cells_width: Int, cells_hidden: Bool, slide_hidden: Bool)
+  /// `snap` is the canvas's snap step in design pixels; 0 is off.
+  View(cells_width: Int, cells_hidden: Bool, slide_hidden: Bool, snap: Int)
 }
 
 pub const default_view =
-  View(cells_width: 40, cells_hidden: False, slide_hidden: False)
+  View(cells_width: 40, cells_hidden: False, slide_hidden: False, snap: 30)
 
 pub type Diagnostic {
   Diagnostic(cell: Id(CellTag), problems: List(Problem))
@@ -184,6 +185,7 @@ pub fn view_value(view: View) -> Value {
     #("cells_width", Num(view.cells_width)),
     #("cells_hidden", codec.Bool(view.cells_hidden)),
     #("slide_hidden", codec.Bool(view.slide_hidden)),
+    #("snap", Num(view.snap)),
   ])
 }
 
@@ -191,7 +193,9 @@ pub fn view_decoder() -> Decoder(View) {
   use cells_width <- decode.field("cells_width", decode.int)
   use cells_hidden <- decode.field("cells_hidden", decode.bool)
   use slide_hidden <- decode.field("slide_hidden", decode.bool)
-  decode.success(View(cells_width, cells_hidden, slide_hidden))
+  // View files written before the snap setting existed have no `snap`.
+  use snap <- decode.optional_field("snap", default_view.snap, decode.int)
+  decode.success(View(cells_width, cells_hidden, slide_hidden, snap))
 }
 
 fn diagnostic_value(diagnostic: Diagnostic) -> Value {

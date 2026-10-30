@@ -469,7 +469,31 @@ fn status(model: Model, parts: List(String)) -> Element(app.Msg) {
       list.map([mode, ..list.append(parts, connection)], fn(part) {
         html.span([], [text(part)])
       }),
+      [snap_choice(model.view.snap)],
       notice,
     ]),
   )
+}
+
+/// The canvas's snap step, a native select so that no script is needed.
+fn snap_choice(snap: Int) -> Element(app.Msg) {
+  html.label([class("ze-snap")], [
+    text("snap"),
+    html.select(
+      [
+        event.on_change(fn(value) {
+          int.parse(value) |> result.unwrap(snap) |> app.SnapChosen
+        }),
+      ],
+      list.map(canvas.snap_steps, fn(step) {
+        html.option(
+          [
+            attribute.value(int.to_string(step)),
+            attribute.selected(step == snap),
+          ],
+          canvas.describe_snap(step),
+        )
+      }),
+    ),
+  ])
 }

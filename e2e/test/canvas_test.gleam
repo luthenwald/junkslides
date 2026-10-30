@@ -11,7 +11,8 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import harness.{
-  cell, eventually, key, open, press, problem, record, selected, status,
+  cell, eventually, key, open, press, problem, record, saved_view, selected,
+  status,
 }
 import simplifile
 import zeno/layout.{Area}
@@ -46,16 +47,17 @@ pub fn tab_and_canvas_keys_change_the_layout_test() {
   press(page, "Enter")
   assert eventually(fn() { place(folder, "09") != None })
   let assert Some(Area(x: 120, y: y, w: 1680, h: h)) = place(folder, "09")
-  // Nudges and resizes move edges onto the next line of the 60 pixel step.
+  // Nudges and resizes move edges onto the next line of the snap step,
+  // 30 pixels unless the view says otherwise.
   key(page, "l", [cdp.Alt])
-  assert eventually(fn() { place(folder, "09") == Some(Area(180, y, 1680, h)) })
+  assert eventually(fn() { place(folder, "09") == Some(Area(150, y, 1680, h)) })
   press(page, "ArrowDown")
-  let y = next_line(y)
-  assert eventually(fn() { place(folder, "09") == Some(Area(180, y, 1680, h)) })
+  let y = next_line(y, 30)
+  assert eventually(fn() { place(folder, "09") == Some(Area(150, y, 1680, h)) })
   press(page, "H")
   key(page, "ArrowDown", [cdp.Shift])
-  let h = next_line(y + h) - y
-  assert eventually(fn() { place(folder, "09") == Some(Area(180, y, 1620, h)) })
+  let h = next_line(y + h, 30) - y
+  assert eventually(fn() { place(folder, "09") == Some(Area(150, y, 1650, h)) })
   press(page, "f")
   assert eventually(fn() { place(folder, "09") == None })
   press(page, "v")
@@ -92,7 +94,8 @@ pub fn click_selects_and_drag_moves_test() {
   })
   assert string.contains(status(page), "canvas")
   assert selected(page) == cell("02")
-  // Its handle resizes it, the snapped pointer becoming the corner.
+  // Its handle resizes it, the pointer snapped to 30 pixels becoming the
+  // corner.
   let assert Ok(handle) = cdp.box(page, ".ze-handle")
   let #(x, y) = #(handle.x +. handle.w /. 2.0, handle.y +. handle.h /. 2.0)
   let assert Ok(_) = cdp.mouse(page, cdp.Press, x, y)
@@ -100,11 +103,11 @@ pub fn click_selects_and_drag_moves_test() {
   let #(x, y) = grid_point(page, #(20, 10))
   let assert Ok(_) = cdp.mouse(page, cdp.Release, x, y)
   assert eventually(fn() {
-    place(folder, "02") == Some(Area(-180, 300, 1440, 360))
+    place(folder, "02") == Some(Area(-180, 300, 1410, 330))
   })
   // A click without a move changes nothing.
   drag(page, #(8, 6), #(8, 6))
-  assert place(folder, "02") == Some(Area(-180, 300, 1440, 360))
+  assert place(folder, "02") == Some(Area(-180, 300, 1410, 330))
   // One undo step per drag.
   press(page, "u")
   assert eventually(fn() {
@@ -125,7 +128,7 @@ pub fn dragging_a_flowing_cell_places_it_test() {
   assert eventually(fn() { place(folder, "09") != None })
   let assert Some(Area(x:, w:, h:, ..)) = place(folder, "09")
   // Its rendered size, moved by the drag: the body starts at 120 pixels
-  // and spans 1680, and the move snaps to the 60 pixel step.
+  // and spans 1680, and the move snaps to the step.
   assert x == 60
   assert w == 1680
   assert h > 60 && h <= 300
@@ -217,6 +220,45 @@ pub fn dragging_past_the_edges_test() {
   })
 }
 
+pub fn snap_step_is_chosen_and_kept_test() {
+  let #(page, folder) = open("snap", 4928)
+  assert string.contains(status(page), "snap")
+  assert cdp.attribute(page, ".ze-snap option[selected]", "value") == Ok("30")
+  press(page, "Tab")
+  // Finer, then back to coarser twice: 20, then 30, then 60.
+  press(page, "g")
+  assert eventually(fn() { saved_view(folder).snap == 20 })
+  assert string.contains(status(page), "snap 20 px")
+  press(page, "G")
+  press(page, "G")
+  assert eventually(fn() { saved_view(folder).snap == 60 })
+  assert eventually(fn() {
+    cdp.attribute(page, ".ze-snap option[selected]", "value") == Ok("60")
+  })
+  // Keys still reach the canvas, and nudges use the new step.
+  press(page, "ArrowRight")
+  assert eventually(fn() {
+    place(folder, "02") == Some(Area(180, 180, 1680, 180))
+  })
+  // Off: every pixel. A drag of a little more than one grid cell keeps
+  // the odd pixels.
+  list.each([1, 2, 3, 4, 5, 6], fn(_) { press(page, "g") })
+  assert eventually(fn() { saved_view(folder).snap == 0 })
+  assert eventually(fn() { string.contains(status(page), "snap off") })
+  let assert Ok(slide) = cdp.box(page, ".ze-fit .zeno-slide")
+  let start = grid_point(page, #(6, 4))
+  let end = #(start.0 +. slide.w /. 32.0 *. 1.3, start.1)
+  let assert Ok(_) = cdp.mouse(page, cdp.Press, start.0, start.1)
+  glide(page, start, end)
+  let assert Ok(_) = cdp.mouse(page, cdp.Release, end.0, end.1)
+  assert eventually(fn() {
+    case place(folder, "02") {
+      Some(Area(x:, y: 180, ..)) -> x > 240 && x % 30 != 0
+      _ -> False
+    }
+  })
+}
+
 fn drawn(page: Page) -> Int {
   cdp.count(page, ".ze-fit .zeno-cell")
 }
@@ -225,9 +267,9 @@ fn drawn_cell(suffix: String) -> String {
   ".ze-fit .zeno-cell[data-cell=\"" <> cell(suffix) <> "\"]"
 }
 
-/// The next line of the 60 pixel step after `px`.
-fn next_line(px: Int) -> Int {
-  px / 60 * 60 + 60
+/// The next line of the snap step after `px`.
+fn next_line(px: Int, step: Int) -> Int {
+  px / step * step + step
 }
 
 fn place(folder: String, suffix: String) -> option.Option(layout.Area) {

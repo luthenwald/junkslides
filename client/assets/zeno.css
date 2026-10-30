@@ -376,6 +376,21 @@ body {
   overflow: hidden;
 }
 
+.ze-snap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ze-snap select {
+  font: inherit;
+  color: var(--ze-ink);
+  background: transparent;
+  border: 1px solid var(--ze-rule);
+  border-radius: 0;
+  padding: 0 4px;
+}
+
 .ze-notice {
   color: var(--ze-ink);
   overflow: hidden;

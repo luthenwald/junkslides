@@ -132,6 +132,8 @@ pub type Msg {
   DragEnd
   Probe(cell: Id(CellTag), overflows: Bool)
   ThemeLoaded(Int)
+  /// A snap step picked in the status line.
+  SnapChosen(Int)
   /// The time a released drag waits for its state is up.
   DragSettled(seq: Int)
 }
@@ -247,9 +249,10 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
     DragTo(x:, y:) ->
       case model.drag {
         Some(Drag(released: None, how:, start:, area: before, ..) as drag) -> {
+          let step = canvas.step_of(model.view.snap)
           let area = case how {
-            Moving(grab) -> canvas.moved(start, grab, #(x, y), canvas.snap_step)
-            Resizing -> canvas.resized(start, #(x, y), canvas.snap_step)
+            Moving(grab) -> canvas.moved(start, grab, #(x, y), step)
+            Resizing -> canvas.resized(start, #(x, y), step)
           }
           case area == before {
             True -> #(model, effect.none())
@@ -296,6 +299,8 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
         )
         _ -> #(model, effect.none())
       }
+    // Focus goes back to the selection, so keys work again at once.
+    SnapChosen(snap) -> snap_to(Model(..model, focus: model.focus + 1), snap)
     ThemeLoaded(n) -> #(
       Model(..model, theme_loaded: int.max(model.theme_loaded, n)),
       effect.none(),
@@ -635,6 +640,17 @@ fn save_view(model: Model, view: View) -> #(Model, Effect(Msg)) {
   send(Model(..model, view:), protocol.SaveView(view))
 }
 
+/// A new snap step, kept with the view state and said in the status line.
+/// At either end of the list it only says so.
+fn snap_to(model: Model, snap: Int) -> #(Model, Effect(Msg)) {
+  let model =
+    Model(..model, notice: Some("snap " <> canvas.describe_snap(snap)))
+  case snap == model.view.snap {
+    True -> #(model, effect.none())
+    False -> save_view(model, View(..model.view, snap:))
+  }
+}
+
 // Edit mode ------------------------------------------------------------------
 
 fn enter_edit(model: Model, deck: Deck, cell: Id(CellTag)) -> Model {
@@ -798,6 +814,7 @@ fn canvas_key(
 ) -> #(Model, Effect(Msg)) {
   let model = Model(..model, focus: model.focus + 1)
   let deck = shared.deck
+  let step = canvas.step_of(model.view.snap)
   let select = fn(selection) { #(Model(..model, selection:), effect.none()) }
   // Keys that change a drawn cell. An unplaced cell's area is where it is
   // drawn, read from the focused element when the key was pressed.
@@ -842,11 +859,11 @@ fn canvas_key(
       })
     keymap.Nudge(dx:, dy:) ->
       on_drawn(fn(cell, area) {
-        place(cell, area, canvas.nudge(_, dx, dy, canvas.snap_step))
+        place(cell, area, canvas.nudge(_, dx, dy, step))
       })
     keymap.Resize(dw:, dh:) ->
       on_drawn(fn(cell, area) {
-        place(cell, area, canvas.grow(_, dw, dh, canvas.snap_step))
+        place(cell, area, canvas.grow(_, dw, dh, step))
       })
     keymap.ReturnToFlow ->
       on_drawn(fn(cell, _) {
@@ -866,6 +883,8 @@ fn canvas_key(
         let align = canvas.next_align(layout.record(shared.layout, cell).align)
         apply_layout(model, layout.SetAlign(cell, align))
       })
+    keymap.SnapFiner -> snap_to(model, canvas.finer(model.view.snap))
+    keymap.SnapCoarser -> snap_to(model, canvas.coarser(model.view.snap))
     keymap.CanvasUndo -> send(model, protocol.Undo)
     keymap.CanvasRedo -> send(model, protocol.Redo)
     keymap.ToCells -> #(Model(..model, mode: Command), effect.none())

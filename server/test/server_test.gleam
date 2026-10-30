@@ -61,7 +61,8 @@ pub fn undo_restores_and_writes_test() {
 pub fn view_is_stored_per_deck_test() {
   let h = harness.start("view", 4893)
   let _ = harness.next_state(h)
-  let wide = View(cells_width: 55, cells_hidden: True, slide_hidden: False)
+  let wide =
+    View(cells_width: 55, cells_hidden: True, slide_hidden: False, snap: 10)
   harness.send(h, protocol.SaveView(wide))
   // The next client of this deck gets it.
   assert harness.eventually(fn() {
@@ -74,14 +75,27 @@ pub fn view_is_stored_per_deck_test() {
 
 pub fn view_file_keeps_other_decks_test() {
   let file = filepath.join(scratch("views"), "zeno/view.json")
-  let a = View(30, False, False)
-  let b = View(70, False, True)
+  let a = View(30, False, False, 30)
+  let b = View(70, False, True, 120)
   assert view.load(file, "/a") == protocol.default_view
   let assert Ok(Nil) = view.save(file, "/a", a)
   let assert Ok(Nil) = view.save(file, "/b", b)
   assert view.load(file, "/a") == a
   assert view.load(file, "/b") == b
   assert view.default_file("/home/u") == "/home/u/.config/zeno/view.json"
+}
+
+pub fn view_file_without_snap_loads_test() {
+  let file = filepath.join(scratch("old-views"), "zeno/view.json")
+  let assert Ok(Nil) =
+    simplifile.create_directory_all(filepath.directory_name(file))
+  let assert Ok(Nil) =
+    simplifile.write(
+      file,
+      "{\"version\": 1, \"decks\": {\"/a\": {\"cells_width\": 30, \"cells_hidden\": false, \"slide_hidden\": true}}}",
+    )
+  assert view.load(file, "/a")
+    == View(cells_width: 30, cells_hidden: False, slide_hidden: True, snap: 30)
 }
 
 pub fn theme_change_reloads_and_updates_variants_test() {

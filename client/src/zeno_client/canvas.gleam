@@ -7,13 +7,41 @@ import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order
+import gleam/result
 import zeno/deck.{type Deck}
 import zeno/id.{type CellTag, type Id}
 import zeno/layout.{type Align, type Area, type Layout, Area}
 import zeno_client/nav.{type Selection, OnCell}
 
-/// The snap step in design pixels.
-pub const snap_step = 60
+/// The snap steps the editor offers in design pixels, coarse to fine; 0 is
+/// off (05-editor.md, Canvas mode). The step is part of the view state.
+pub const snap_steps = [120, 60, 30, 20, 10, 0]
+
+/// The step the arithmetic below uses: off snaps to every pixel.
+pub fn step_of(snap: Int) -> Int {
+  int.max(snap, 1)
+}
+
+/// The next finer snap step; off stays off.
+pub fn finer(snap: Int) -> Int {
+  list.find(snap_steps, fn(s) { step_of(s) < step_of(snap) })
+  |> result.unwrap(snap)
+}
+
+/// The next coarser snap step; the coarsest stays.
+pub fn coarser(snap: Int) -> Int {
+  list.reverse(snap_steps)
+  |> list.find(fn(s) { step_of(s) > step_of(snap) })
+  |> result.unwrap(snap)
+}
+
+/// How a snap step reads in the status line.
+pub fn describe_snap(snap: Int) -> String {
+  case snap > 1 {
+    True -> int.to_string(snap) <> " px"
+    False -> "off"
+  }
+}
 
 /// A drawn cell's box in design pixels, relative to the slide.
 pub type Box {

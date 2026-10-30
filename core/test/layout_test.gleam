@@ -7,7 +7,7 @@ import zeno/layout.{
   Area, CellOrphan, CellRecord, Center, Place, PurgeOrphans, SetAlign,
   SetVariant, Unplace,
 }
-import zeno/op.{AreaOutsideGrid, Fresh, Retired, Revived, UnknownCell}
+import zeno/op.{AreaOffSlide, Fresh, Retired, Revived, UnknownCell}
 
 const now = timestamp.unix_epoch
 
@@ -15,7 +15,7 @@ fn styled() {
   let #(deck, supply) = fixture.deck()
   let a = cell(deck, 0, 0)
   let assert Ok(layout) =
-    layout.apply(layout.empty(), deck, Place(a.id, Area(1, 1, 4, 2)))
+    layout.apply(layout.empty(), deck, Place(a.id, Area(60, 60, 240, 120)))
   let assert Ok(layout) =
     layout.apply(layout, deck, SetVariant(a.id, Some("large")))
   let assert Ok(layout) =
@@ -26,11 +26,20 @@ fn styled() {
 pub fn layout_ops_test() {
   let #(deck, _, layout, a) = styled()
   assert layout.record(layout, a.id)
-    == CellRecord(Some(Area(1, 1, 4, 2)), Some("large"), Some(Center))
-  assert layout.apply(layout, deck, Place(a.id, Area(30, 0, 3, 1)))
-    == Error(AreaOutsideGrid)
-  assert layout.apply(layout, deck, Place(a.id, Area(0, 0, 0, 1)))
-    == Error(AreaOutsideGrid)
+    == CellRecord(Some(Area(60, 60, 240, 120)), Some("large"), Some(Center))
+  // Parts may lie off the slide, as long as ten pixels stay on it each way.
+  let assert Ok(_) =
+    layout.apply(layout, deck, Place(a.id, Area(-190, -50, 200, 60)))
+  let assert Ok(_) =
+    layout.apply(layout, deck, Place(a.id, Area(1910, 1070, 300, 300)))
+  assert layout.apply(layout, deck, Place(a.id, Area(-191, 0, 200, 60)))
+    == Error(AreaOffSlide)
+  assert layout.apply(layout, deck, Place(a.id, Area(0, 1071, 200, 60)))
+    == Error(AreaOffSlide)
+  assert layout.apply(layout, deck, Place(a.id, Area(0, 0, 0, 60)))
+    == Error(AreaOffSlide)
+  assert layout.apply(layout, deck, Place(a.id, Area(0, 0, 1921, 60)))
+    == Error(AreaOffSlide)
   // An empty record is not stored.
   let assert Ok(cleared) = layout.apply(layout, deck, Unplace(a.id))
   let assert Ok(cleared) = layout.apply(cleared, deck, SetVariant(a.id, None))

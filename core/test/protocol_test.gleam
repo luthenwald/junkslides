@@ -35,7 +35,7 @@ pub fn client_messages_round_trip_test() {
   let messages = [
     Hello,
     Apply(7, ops),
-    ApplyLayout(8, layout.Place(a.id, Area(0, 0, 32, 18))),
+    ApplyLayout(8, layout.Place(a.id, Area(-40, 0, 1920, 1080))),
     ApplyLayout(9, layout.Unplace(a.id)),
     ApplyLayout(10, layout.SetVariant(a.id, Some("large"))),
     ApplyLayout(11, layout.SetVariant(a.id, None)),

@@ -45,7 +45,7 @@ pub type OpError {
   NoNextCell
   RemoveFirstBreak
   DeleteOnlySlide
-  AreaOutsideGrid
+  AreaOffSlide
   /// The source of an `EditText` or `Paste` breaks deck invariant 3 or 4,
   /// or a `Split` would cut a line into a structural one (` ---` cut after
   /// the space).

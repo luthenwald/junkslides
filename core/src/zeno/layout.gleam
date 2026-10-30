@@ -8,16 +8,23 @@ import gleam/time/timestamp.{type Timestamp}
 import zeno/deck.{type Deck}
 import zeno/id.{type CellTag, type Id, type SlideTag}
 import zeno/op.{
-  type Effect, type OpError, AreaOutsideGrid, Fresh, Retired, Revived,
-  SlideFresh, SlideRetired, UnknownCell,
+  type Effect, type OpError, AreaOffSlide, Fresh, Retired, Revived, SlideFresh,
+  SlideRetired, UnknownCell,
 }
 
-pub const columns = 32
+/// The slide's design space in pixels (04-layout.md, The slide).
+pub const width = 1920
 
-pub const rows = 18
+pub const height = 1080
 
+/// How much of a placed cell stays on the slide each way, in pixels, so
+/// that it can always be grabbed again.
+pub const min_visible = 10
+
+/// A placed cell's box in design pixels, relative to the slide's top left
+/// corner. Parts of it may lie off the slide.
 pub type Area {
-  Area(col: Int, row: Int, w: Int, h: Int)
+  Area(x: Int, y: Int, w: Int, h: Int)
 }
 
 pub type Align {
@@ -69,14 +76,17 @@ pub fn record(layout: Layout, cell: Id(CellTag)) -> CellRecord {
   }
 }
 
-/// Inside the 32x18 grid, at least one unit in each direction.
+/// At least one pixel each way and at most the slide's size, with at least
+/// `min_visible` pixels on the slide in each direction.
 pub fn valid_area(area: Area) -> Bool {
-  area.col >= 0
-  && area.row >= 0
-  && area.w >= 1
+  area.w >= 1
   && area.h >= 1
-  && area.col + area.w <= columns
-  && area.row + area.h <= rows
+  && area.w <= width
+  && area.h <= height
+  && area.x + area.w >= min_visible
+  && area.y + area.h >= min_visible
+  && area.x <= width - min_visible
+  && area.y <= height - min_visible
 }
 
 /// A record with no fields is not stored.
@@ -282,7 +292,7 @@ pub fn apply(
     PurgeOrphans -> Ok(Layout(..layout, orphans: []))
     Place(cell:, area:) ->
       case valid_area(area) {
-        False -> Error(AreaOutsideGrid)
+        False -> Error(AreaOffSlide)
         True ->
           update(layout, deck, cell, fn(r) {
             CellRecord(..r, place: Some(area))

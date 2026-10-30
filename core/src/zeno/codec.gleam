@@ -273,8 +273,8 @@ pub fn op_decoder() -> Decoder(Op) {
 
 pub fn area_value(area: Area) -> Value {
   Obj([
-    #("col", Num(area.col)),
-    #("row", Num(area.row)),
+    #("x", Num(area.x)),
+    #("y", Num(area.y)),
     #("w", Num(area.w)),
     #("h", Num(area.h)),
   ])
@@ -322,7 +322,7 @@ fn orphan_value(orphan: Orphan) -> Value {
 /// The layout.json document. Records are sorted by ID so diffs stay small.
 pub fn layout_value(layout: Layout) -> Value {
   Obj([
-    #("version", Num(1)),
+    #("version", Num(2)),
     #("cells", sorted(layout.cells, record_value)),
     #("slides", sorted(layout.slides, fn(_) { Obj([]) })),
     #("orphans", Arr(list.map(layout.orphans, orphan_value))),
@@ -336,15 +336,29 @@ fn sorted(records: Dict(Id(tag), a), value: fn(a) -> Value) -> Value {
   |> Obj
 }
 
+/// An area in design pixels, as layout.json version 2 and the protocol
+/// write it.
 pub fn area_decoder() -> Decoder(Area) {
+  use x <- decode.field("x", decode.int)
+  use y <- decode.field("y", decode.int)
+  use w <- decode.field("w", decode.int)
+  use h <- decode.field("h", decode.int)
+  checked_area(Area(x, y, w, h))
+}
+
+/// The grid units of layout.json version 1: 60 pixels each.
+fn area_v1_decoder() -> Decoder(Area) {
   use col <- decode.field("col", decode.int)
   use row <- decode.field("row", decode.int)
   use w <- decode.field("w", decode.int)
   use h <- decode.field("h", decode.int)
-  let area = Area(col, row, w, h)
+  checked_area(Area(col * 60, row * 60, w * 60, h * 60))
+}
+
+fn checked_area(area: Area) -> Decoder(Area) {
   case layout.valid_area(area) {
     True -> decode.success(area)
-    False -> decode.failure(area, "Area inside the grid")
+    False -> decode.failure(area, "Area on the slide")
   }
 }
 
@@ -359,11 +373,11 @@ pub fn align_decoder() -> Decoder(Align) {
 }
 
 pub fn record_decoder() -> Decoder(CellRecord) {
-  use place <- decode.optional_field(
-    "place",
-    None,
-    decode.map(area_decoder(), Some),
-  )
+  record_decoder_with(area_decoder())
+}
+
+fn record_decoder_with(area: Decoder(Area)) -> Decoder(CellRecord) {
+  use place <- decode.optional_field("place", None, decode.map(area, Some))
   use variant <- decode.optional_field(
     "variant",
     None,
@@ -385,13 +399,13 @@ fn timestamp_decoder() -> Decoder(Timestamp) {
   }
 }
 
-fn orphan_decoder() -> Decoder(Orphan) {
+fn orphan_decoder(record_decoder: Decoder(CellRecord)) -> Decoder(Orphan) {
   use kind <- decode.field("kind", decode.string)
   use retired_at <- decode.field("retired_at", timestamp_decoder())
   case kind {
     "cell" -> {
       use cell <- decode.field("id", id.decoder())
-      use record <- decode.field("record", record_decoder())
+      use record <- decode.field("record", record_decoder)
       decode.success(CellOrphan(cell, record, retired_at))
     }
     "slide" -> {
@@ -408,14 +422,20 @@ fn orphan_decoder() -> Decoder(Orphan) {
   }
 }
 
-/// The layout.json document, version 1 only.
+/// The layout.json document. Version 2 is written; version 1, in grid units
+/// of 60 pixels, is still read.
 pub fn layout_decoder() -> Decoder(Layout) {
   use version <- decode.field("version", decode.int)
-  case version {
-    1 -> {
+  let records = case version {
+    1 -> Ok(record_decoder_with(area_v1_decoder()))
+    2 -> Ok(record_decoder())
+    _ -> Error(Nil)
+  }
+  case records {
+    Ok(record_decoder) -> {
       use cells <- decode.field(
         "cells",
-        decode.dict(id.decoder(), record_decoder()),
+        decode.dict(id.decoder(), record_decoder),
       )
       use slides <- decode.optional_field(
         "slides",
@@ -425,14 +445,14 @@ pub fn layout_decoder() -> Decoder(Layout) {
       use orphans <- decode.optional_field(
         "orphans",
         [],
-        decode.list(orphan_decoder()),
+        decode.list(orphan_decoder(record_decoder)),
       )
       decode.success(Layout(cells, slides, orphans))
     }
-    _ ->
+    Error(Nil) ->
       decode.failure(
         layout.empty(),
-        "layout.json version 1, got " <> int.to_string(version),
+        "layout.json version 1 or 2, got " <> int.to_string(version),
       )
   }
 }

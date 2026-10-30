@@ -1,84 +1,125 @@
-//// Canvas arithmetic (04-layout.md, Placing and moving): grid areas from
-//// drawn boxes, moves, resizes and nudges clamped to the 32x18 grid, and
-//// the cycles of variant and alignment. Pure, so it is unit tested.
+//// Canvas arithmetic (04-layout.md, Placing and moving): areas from drawn
+//// boxes, and moves, resizes and nudges in design pixels that snap to a
+//// step and stay on the slide, and the cycles of variant and alignment.
+//// Pure, so it is unit tested.
 
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/order
 import zeno/deck.{type Deck}
 import zeno/id.{type CellTag, type Id}
 import zeno/layout.{type Align, type Area, type Layout, Area}
 import zeno_client/nav.{type Selection, OnCell}
 
-/// One grid unit in design pixels.
-pub const unit = 60
+/// The snap step in design pixels.
+pub const snap_step = 60
 
 /// A drawn cell's box in design pixels, relative to the slide.
 pub type Box {
   Box(left: Int, top: Int, width: Int, height: Int)
 }
 
-/// The grid area a drawn box covers, its size rounded up to whole units.
+/// The area a drawn box covers, exactly as drawn.
 pub fn area_of_box(box: Box) -> Area {
-  let col = box.left / unit
-  let row = box.top / unit
-  let right = ceil_units(box.left + box.width)
-  let bottom = ceil_units(box.top + box.height)
-  clamp(Area(col:, row:, w: right - col, h: bottom - row))
+  clamp(Area(x: box.left, y: box.top, w: box.width, h: box.height))
 }
 
-fn ceil_units(px: Int) -> Int {
-  { px + unit - 1 } / unit
+/// The nearest multiple of the step; a step of one or less is no snapping.
+pub fn snap(px: Int, step: Int) -> Int {
+  case step > 1 {
+    True -> floor(px + step / 2, step)
+    False -> px
+  }
 }
 
-/// The grid cell under a point given in design pixels.
-pub fn cell_at(x: Int, y: Int) -> #(Int, Int) {
-  #(
-    int.clamp(x / unit, 0, layout.columns - 1),
-    int.clamp(y / unit, 0, layout.rows - 1),
-  )
+/// The multiple of the step `by` steps from `px`, counting the first line
+/// in that direction as one: from 125 with a step of 30, one step on is 150
+/// and one step back is 120.
+fn step_from(px: Int, by: Int, step: Int) -> Int {
+  let step = int.max(step, 1)
+  case int.compare(by, 0) {
+    order.Eq -> px
+    order.Gt -> floor(px, step) + by * step
+    order.Lt -> ceil(px, step) + by * step
+  }
 }
 
-/// At least one unit each way, and inside the grid: the size is cut to fit
-/// first, then the area is pushed back in.
+fn floor(px: Int, step: Int) -> Int {
+  case int.floor_divide(px, step) {
+    Ok(n) -> n * step
+    Error(Nil) -> px
+  }
+}
+
+fn ceil(px: Int, step: Int) -> Int {
+  0 - floor(0 - px, step)
+}
+
+/// At least one pixel each way, at most the slide, and on the slide: the
+/// size is cut to fit first, then the area is pushed back in.
 pub fn clamp(area: Area) -> Area {
-  let w = int.clamp(area.w, 1, layout.columns)
-  let h = int.clamp(area.h, 1, layout.rows)
+  let w = int.clamp(area.w, 1, layout.width)
+  let h = int.clamp(area.h, 1, layout.height)
   Area(
-    col: int.clamp(area.col, 0, layout.columns - w),
-    row: int.clamp(area.row, 0, layout.rows - h),
+    x: int.clamp(area.x, 0, layout.width - w),
+    y: int.clamp(area.y, 0, layout.height - h),
     w:,
     h:,
   )
 }
 
-/// A move: the area follows the pointer from the grabbed grid cell.
-pub fn moved(start: Area, grab: #(Int, Int), at: #(Int, Int)) -> Area {
+/// A move: the area follows the pointer from the grabbed point, and its
+/// top left corner snaps.
+pub fn moved(
+  start: Area,
+  grab: #(Int, Int),
+  at: #(Int, Int),
+  step: Int,
+) -> Area {
   clamp(
     Area(
       ..start,
-      col: start.col + at.0 - grab.0,
-      row: start.row + at.1 - grab.1,
+      x: snap(start.x + at.0 - grab.0, step),
+      y: snap(start.y + at.1 - grab.1, step),
     ),
   )
 }
 
-/// A resize: the hovered grid cell becomes the bottom-right corner.
-pub fn resized(start: Area, at: #(Int, Int)) -> Area {
+/// A resize: the snapped point becomes the bottom-right corner, at least
+/// one step from the top left one.
+pub fn resized(start: Area, at: #(Int, Int), step: Int) -> Area {
+  let least = int.max(step, 1)
   Area(
     ..start,
-    w: int.clamp(at.0 - start.col + 1, 1, layout.columns - start.col),
-    h: int.clamp(at.1 - start.row + 1, 1, layout.rows - start.row),
+    w: int.clamp(snap(at.0, step) - start.x, least, layout.width - start.x),
+    h: int.clamp(snap(at.1, step) - start.y, least, layout.height - start.y),
   )
 }
 
-pub fn nudge(area: Area, dx: Int, dy: Int) -> Area {
-  clamp(Area(..area, col: area.col + dx, row: area.row + dy))
+/// A move by whole steps, onto the step's lines.
+pub fn nudge(area: Area, dx: Int, dy: Int, step: Int) -> Area {
+  clamp(
+    Area(..area, x: step_from(area.x, dx, step), y: step_from(area.y, dy, step)),
+  )
 }
 
-/// Grows or shrinks from the bottom-right corner, never past the grid.
-pub fn grow(area: Area, dw: Int, dh: Int) -> Area {
-  resized(area, #(area.col + area.w - 1 + dw, area.row + area.h - 1 + dh))
+/// Grows or shrinks from the bottom-right corner by whole steps, onto the
+/// step's lines, never past the slide. A shrink stops one step from the top
+/// left corner.
+pub fn grow(area: Area, dw: Int, dh: Int, step: Int) -> Area {
+  let least = int.max(step, 1)
+  let right = step_from(area.x + area.w, dw, step)
+  let bottom = step_from(area.y + area.h, dh, step)
+  Area(
+    ..area,
+    w: int.clamp(right - area.x, int.min(least, area.w), layout.width - area.x),
+    h: int.clamp(
+      bottom - area.y,
+      int.min(least, area.h),
+      layout.height - area.y,
+    ),
+  )
 }
 
 /// None, then each variant in the theme's order, then none again. A variant

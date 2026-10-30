@@ -66,7 +66,7 @@ pub fn describe_error(error: OpError) -> String {
     op.NoNextCell -> "no next cell in this slide"
     op.RemoveFirstBreak -> "the first slide has no break to remove"
     op.DeleteOnlySlide -> "the only slide cannot be deleted"
-    op.AreaOutsideGrid -> "area outside the grid"
+    op.AreaOffSlide -> "area too far off the slide"
     op.Unnormalised -> "text contains a structural line or blank edges"
   }
 }

@@ -222,7 +222,7 @@ pub fn s8_pending_ops_are_rebased_onto_an_outside_edit_test() {
   let #(deck, _) = harness.next_state(h)
   let assert Ok(last) = list.last(deck.slides)
   let assert [new] = last.cells
-  let area = Area(col: 1, row: 1, w: 4, h: 4)
+  let area = Area(x: 60, y: 60, w: 240, h: 240)
   harness.send(h, protocol.ApplyLayout(4, layout.Place(new.id, area)))
   let _ = harness.next_state(h)
   // Nothing written yet; now the outside edit.

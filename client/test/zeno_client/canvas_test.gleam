@@ -10,44 +10,64 @@ fn id(n: String) -> Id(tag) {
   id
 }
 
-pub fn a_box_covers_whole_units_test() {
-  // 130 px from the left starts in column 2; its right edge at 730 px ends
-  // inside column 12, so it covers columns 2 to 12.
+pub fn a_box_is_placed_as_drawn_test() {
   assert canvas.area_of_box(Box(left: 130, top: 120, width: 600, height: 61))
-    == Area(col: 2, row: 2, w: 11, h: 2)
+    == Area(x: 130, y: 120, w: 600, h: 61)
   assert canvas.area_of_box(Box(left: 0, top: 0, width: 0, height: 0))
-    == Area(col: 0, row: 0, w: 1, h: 1)
+    == Area(x: 0, y: 0, w: 1, h: 1)
   // A box hanging off the slide keeps its size and is pushed back in.
   assert canvas.area_of_box(Box(left: 1800, top: 1000, width: 400, height: 400))
-    == Area(col: 25, row: 10, w: 7, h: 8)
+    == Area(x: 1520, y: 680, w: 400, h: 400)
 }
 
-pub fn moves_follow_the_grab_and_stay_in_the_grid_test() {
-  let start = Area(col: 4, row: 3, w: 6, h: 2)
-  assert canvas.moved(start, #(5, 3), #(8, 6))
-    == Area(col: 7, row: 6, w: 6, h: 2)
-  assert canvas.moved(start, #(5, 3), #(31, 17))
-    == Area(col: 26, row: 16, w: 6, h: 2)
-  assert canvas.moved(start, #(9, 4), #(0, 0))
-    == Area(col: 0, row: 0, w: 6, h: 2)
+pub fn snapping_rounds_to_the_nearest_step_test() {
+  assert canvas.snap(44, 30) == 30
+  assert canvas.snap(45, 30) == 60
+  assert canvas.snap(-44, 30) == -30
+  assert canvas.snap(127, 10) == 130
+  // Off: every pixel.
+  assert canvas.snap(127, 1) == 127
 }
 
-pub fn resizes_keep_one_unit_and_the_grid_test() {
-  let start = Area(col: 4, row: 3, w: 6, h: 2)
-  assert canvas.resized(start, #(12, 9)) == Area(col: 4, row: 3, w: 9, h: 7)
-  assert canvas.resized(start, #(0, 0)) == Area(col: 4, row: 3, w: 1, h: 1)
-  assert canvas.grow(start, 1, -1) == Area(col: 4, row: 3, w: 7, h: 1)
-  assert canvas.grow(start, 0, -1) |> canvas.grow(0, -1)
-    == Area(col: 4, row: 3, w: 6, h: 1)
-  assert canvas.grow(Area(col: 30, row: 0, w: 2, h: 1), 1, 0)
-    == Area(col: 30, row: 0, w: 2, h: 1)
+pub fn moves_follow_the_grab_and_snap_test() {
+  let start = Area(x: 240, y: 180, w: 360, h: 120)
+  // The pointer moves by (190, 175): the corner lands at (430, 355), which
+  // snaps to (420, 360) with a step of 60 and (430, 360) with 10.
+  assert canvas.moved(start, #(300, 200), #(490, 375), 60)
+    == Area(x: 420, y: 360, w: 360, h: 120)
+  assert canvas.moved(start, #(300, 200), #(490, 375), 10)
+    == Area(x: 430, y: 360, w: 360, h: 120)
+  assert canvas.moved(start, #(300, 200), #(1910, 1070), 60)
+    == Area(x: 1560, y: 960, w: 360, h: 120)
+  assert canvas.moved(start, #(560, 260), #(0, 0), 60)
+    == Area(x: 0, y: 0, w: 360, h: 120)
 }
 
-pub fn nudges_stop_at_the_edge_test() {
-  assert canvas.nudge(Area(col: 0, row: 17, w: 3, h: 1), -1, 1)
-    == Area(col: 0, row: 17, w: 3, h: 1)
-  assert canvas.nudge(Area(col: 5, row: 5, w: 3, h: 1), 1, -1)
-    == Area(col: 6, row: 4, w: 3, h: 1)
+pub fn resizes_keep_one_step_and_the_slide_test() {
+  let start = Area(x: 240, y: 180, w: 360, h: 120)
+  assert canvas.resized(start, #(770, 590), 60)
+    == Area(x: 240, y: 180, w: 540, h: 420)
+  assert canvas.resized(start, #(0, 0), 30)
+    == Area(x: 240, y: 180, w: 30, h: 30)
+  assert canvas.grow(start, 1, -1, 60) == Area(x: 240, y: 180, w: 420, h: 60)
+  assert canvas.grow(start, 0, -1, 60) |> canvas.grow(0, -1, 60)
+    == Area(x: 240, y: 180, w: 360, h: 60)
+  assert canvas.grow(Area(x: 1800, y: 0, w: 120, h: 60), 1, 0, 60)
+    == Area(x: 1800, y: 0, w: 120, h: 60)
+  // An edge off the step's lines moves onto the next one.
+  assert canvas.grow(Area(x: 125, y: 0, w: 100, h: 60), 1, 0, 30)
+    == Area(x: 125, y: 0, w: 115, h: 60)
+}
+
+pub fn nudges_move_onto_the_lines_and_stop_at_the_edge_test() {
+  assert canvas.nudge(Area(x: 0, y: 1020, w: 180, h: 60), -1, 1, 60)
+    == Area(x: 0, y: 1020, w: 180, h: 60)
+  assert canvas.nudge(Area(x: 300, y: 300, w: 180, h: 60), 1, -1, 60)
+    == Area(x: 360, y: 240, w: 180, h: 60)
+  assert canvas.nudge(Area(x: 125, y: 125, w: 180, h: 60), 1, -1, 30)
+    == Area(x: 150, y: 120, w: 180, h: 60)
+  assert canvas.nudge(Area(x: 125, y: 125, w: 180, h: 60), 1, 0, 1)
+    == Area(x: 126, y: 125, w: 180, h: 60)
 }
 
 pub fn variants_cycle_through_none_test() {

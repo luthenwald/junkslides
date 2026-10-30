@@ -1,17 +1,17 @@
 {
-  "version": 1,
+  "version": 2,
   "cells": {
     "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e02": {
-      "place": { "col": 2, "row": 3, "w": 28, "h": 3 },
+      "place": { "x": 120, "y": 180, "w": 1680, "h": 180 },
       "variant": "large",
       "align": "start"
     },
     "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e03": {
-      "place": { "col": 2, "row": 7, "w": 28, "h": 1 },
+      "place": { "x": 120, "y": 420, "w": 1680, "h": 60 },
       "variant": "quiet"
     },
     "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e06": {
-      "place": { "col": 8, "row": 3, "w": 16, "h": 12 },
+      "place": { "x": 480, "y": 180, "w": 960, "h": 720 },
       "align": "center"
     }
   },

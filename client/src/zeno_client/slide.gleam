@@ -114,7 +114,7 @@ fn cell_box(
   extra: List(Attribute(msg)),
 ) -> Element(msg) {
   let placement = case area {
-    Some(area) -> [attribute("data-placed", ""), grid_area(area)]
+    Some(area) -> [attribute("data-placed", ""), ..position(area)]
     None -> []
   }
   let style =
@@ -135,16 +135,24 @@ fn cell_box(
   )
 }
 
-fn grid_area(area: Area) -> Attribute(msg) {
+/// A placed cell's box on the slide, in design pixels. Inline styles win
+/// over any stylesheet, the theme's and the probes' alike.
+fn position(area: Area) -> List(Attribute(msg)) {
+  let px = fn(n) { int.to_string(n) <> "px" }
+  [
+    attribute.style("position", "absolute"),
+    attribute.style("left", px(area.x)),
+    attribute.style("top", px(area.y)),
+    attribute.style("width", px(area.w)),
+    attribute.style("height", px(area.h)),
+  ]
+}
+
+/// One cell of the 32x18 grid of drag targets.
+fn grid_cell(col: Int, row: Int) -> Attribute(msg) {
   attribute.style(
     "grid-area",
-    int.to_string(area.row + 1)
-      <> " / "
-      <> int.to_string(area.col + 1)
-      <> " / span "
-      <> int.to_string(area.h)
-      <> " / span "
-      <> int.to_string(area.w),
+    int.to_string(row + 1) <> " / " <> int.to_string(col + 1),
   )
 }
 
@@ -212,29 +220,31 @@ fn editor_layer(model: Model, placed: List(#(Cell, Area))) -> Element(app.Msg) {
         model.mode == Canvas && model.selection == OnCell(cell.id) && !dragging
       {
         True ->
-          Ok(
-            html.div(
-              [
-                class("ze-handle"),
-                grid_area(area),
-                event.on("pointerdown", decode.success(app.GrabHandle(cell.id))),
-              ],
-              [],
-            ),
-          )
+          Ok(html.div(
+            [
+              class("ze-handle"),
+              // On the bottom-right corner; its size and offset are in zeno.css.
+              attribute.style("left", int.to_string(area.x + area.w) <> "px"),
+              attribute.style("top", int.to_string(area.y + area.h) <> "px"),
+              event.on("pointerdown", decode.success(app.GrabHandle(cell.id))),
+            ],
+            [],
+          ))
         False -> Error(Nil)
       }
     })
   let targets = case model.drag {
     Some(Drag(released: None, ..)) ->
-      list.flat_map(range(0, layout.rows), fn(row) {
-        list.map(range(0, layout.columns), fn(col) {
+      list.flat_map(range(0, 18), fn(row) {
+        list.map(range(0, 32), fn(col) {
           // Placed explicitly, so that nothing else in the grid moves them.
+          // Each reports the centre of its 60 pixels.
+          let at = app.DragTo(col * 60 + 30, row * 60 + 30)
           html.div(
             [
               class("ze-target"),
-              grid_area(layout.Area(col:, row:, w: 1, h: 1)),
-              event.on("pointerenter", decode.success(app.DragAt(col, row))),
+              grid_cell(col, row),
+              event.on("pointerenter", decode.success(at)),
             ],
             [],
           )

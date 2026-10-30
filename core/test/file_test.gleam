@@ -1,4 +1,6 @@
+import gleam/dict
 import gleam/list
+import gleam/option.{Some}
 import gleam/string
 import simplifile
 import zeno/deck.{type Deck, Cell, Content, Deck, Notes, Slide}
@@ -7,6 +9,7 @@ import zeno/file.{
   MisplacedHeader, ParseError, SlideMarkerWithoutBreak, UnknownVersion,
 }
 import zeno/id
+import zeno/layout
 import zeno/line
 
 const example = "../examples/talk/deck.md"
@@ -181,12 +184,30 @@ pub fn layout_example_round_trips_test() {
 }
 
 pub fn layout_rejects_bad_files_test() {
-  let assert Error(_) = file.parse_layout("{\"version\": 2, \"cells\": {}}")
+  let assert Error(_) = file.parse_layout("{\"version\": 3, \"cells\": {}}")
   let assert Error(_) =
     file.parse_layout(
-      "{\"version\": 1, \"cells\": {\"019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e02\": {\"place\": {\"col\": 30, \"row\": 0, \"w\": 3, \"h\": 1}}}}",
+      "{\"version\": 1, \"cells\": {\"019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e02\": {\"place\": {\"col\": 32, \"row\": 0, \"w\": 3, \"h\": 1}}}}",
+    )
+  let assert Error(_) =
+    file.parse_layout(
+      "{\"version\": 2, \"cells\": {\"019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e02\": {\"place\": {\"col\": 2, \"row\": 0, \"w\": 3, \"h\": 1}}}}",
     )
   let assert Error(_) =
     file.parse_layout("{\"version\": 1, \"cells\": {\"nope\": {}}}")
   let assert Ok(_) = file.parse_layout("{\"version\": 1, \"cells\": {}}")
+}
+
+/// Version 1 counted grid units of 60 pixels; it reads as pixels, in live
+/// records and orphans alike, and prints as version 2.
+pub fn layout_version_1_reads_as_pixels_test() {
+  let assert Ok(layout) =
+    file.parse_layout(
+      "{\"version\": 1, \"cells\": {\"019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e02\": {\"place\": {\"col\": 2, \"row\": 1, \"w\": 28, \"h\": 3}}}, \"orphans\": [{\"kind\": \"cell\", \"id\": \"019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e07\", \"record\": {\"place\": {\"col\": 0, \"row\": 17, \"w\": 1, \"h\": 1}}, \"retired_at\": \"2026-10-27T14:03:00Z\"}]}",
+    )
+  let assert [record] = dict.values(layout.cells)
+  assert record.place == Some(layout.Area(120, 60, 1680, 180))
+  let assert [layout.CellOrphan(record: orphan, ..)] = layout.orphans
+  assert orphan.place == Some(layout.Area(0, 1020, 60, 60))
+  assert string.starts_with(file.print_layout(layout), "{\n  \"version\": 2,")
 }

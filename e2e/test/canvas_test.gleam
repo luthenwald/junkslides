@@ -42,21 +42,20 @@ pub fn tab_and_canvas_keys_change_the_layout_test() {
   assert eventually(fn() { string.contains(status(page), "canvas") })
   press(page, "j")
   assert selected(page) == cell("09")
-  // Placed where it is drawn: the body spans 28 columns from column 2.
+  // Placed where it is drawn: the theme's body spans 1680 pixels from 120.
   press(page, "Enter")
   assert eventually(fn() { place(folder, "09") != None })
-  let assert Some(Area(col: 2, row: row, w: 28, h: h)) = place(folder, "09")
+  let assert Some(Area(x: 120, y: y, w: 1680, h: h)) = place(folder, "09")
+  // Nudges and resizes move edges onto the next line of the 60 pixel step.
   key(page, "l", [cdp.Alt])
-  assert eventually(fn() { place(folder, "09") == Some(Area(3, row, 28, h)) })
+  assert eventually(fn() { place(folder, "09") == Some(Area(180, y, 1680, h)) })
   press(page, "ArrowDown")
-  assert eventually(fn() {
-    place(folder, "09") == Some(Area(3, row + 1, 28, h))
-  })
+  let y = next_line(y)
+  assert eventually(fn() { place(folder, "09") == Some(Area(180, y, 1680, h)) })
   press(page, "H")
   key(page, "ArrowDown", [cdp.Shift])
-  assert eventually(fn() {
-    place(folder, "09") == Some(Area(3, row + 1, 27, h + 1))
-  })
+  let h = next_line(y + h) - y
+  assert eventually(fn() { place(folder, "09") == Some(Area(180, y, 1620, h)) })
   press(page, "f")
   assert eventually(fn() { place(folder, "09") == None })
   press(page, "v")
@@ -74,37 +73,43 @@ pub fn tab_and_canvas_keys_change_the_layout_test() {
 
 pub fn click_selects_and_drag_moves_test() {
   let #(page, folder) = open("drag", 4923)
-  // The heading of slide 1 is placed at col 2, row 3, 28 by 3. Moved by
-  // (5, 2), it stops at col 4, where its 28 columns end at the edge.
+  // The heading of slide 1 is placed at (120, 180), 1680 by 180. Moved by
+  // five and two grid cells, it stops at x 240, where it ends at the edge.
   let start = grid_point(page, #(4, 4))
   let end = grid_point(page, #(9, 6))
   let assert Ok(_) = cdp.mouse(page, cdp.Press, start.0, start.1)
   glide(page, start, end)
   // A preview while the button is held, and nothing sent yet.
   assert eventually(fn() {
-    cdp.attribute(page, drawn_cell("02"), "style")
-    |> result.unwrap("")
-    |> string.contains("grid-area:6 / 5 / span 3 / span 28")
+    let style = cdp.attribute(page, drawn_cell("02"), "style")
+    let style = result.unwrap(style, "")
+    string.contains(style, "left:240px") && string.contains(style, "top:300px")
   })
-  assert place(folder, "02") == Some(Area(2, 3, 28, 3))
+  assert place(folder, "02") == Some(Area(120, 180, 1680, 180))
   let assert Ok(_) = cdp.mouse(page, cdp.Release, end.0, end.1)
-  assert eventually(fn() { place(folder, "02") == Some(Area(4, 5, 28, 3)) })
+  assert eventually(fn() {
+    place(folder, "02") == Some(Area(240, 300, 1680, 180))
+  })
   assert string.contains(status(page), "canvas")
   assert selected(page) == cell("02")
-  // Its handle resizes it, the hovered cell becoming the corner.
+  // Its handle resizes it, the snapped pointer becoming the corner.
   let assert Ok(handle) = cdp.box(page, ".ze-handle")
   let #(x, y) = #(handle.x +. handle.w /. 2.0, handle.y +. handle.h /. 2.0)
   let assert Ok(_) = cdp.mouse(page, cdp.Press, x, y)
   glide(page, #(x, y), grid_point(page, #(20, 10)))
   let #(x, y) = grid_point(page, #(20, 10))
   let assert Ok(_) = cdp.mouse(page, cdp.Release, x, y)
-  assert eventually(fn() { place(folder, "02") == Some(Area(4, 5, 17, 6)) })
+  assert eventually(fn() {
+    place(folder, "02") == Some(Area(240, 300, 1020, 360))
+  })
   // A click without a move changes nothing.
   drag(page, #(8, 6), #(8, 6))
-  assert place(folder, "02") == Some(Area(4, 5, 17, 6))
+  assert place(folder, "02") == Some(Area(240, 300, 1020, 360))
   // One undo step per drag.
   press(page, "u")
-  assert eventually(fn() { place(folder, "02") == Some(Area(4, 5, 28, 3)) })
+  assert eventually(fn() {
+    place(folder, "02") == Some(Area(240, 300, 1680, 180))
+  })
 }
 
 pub fn dragging_a_flowing_cell_places_it_test() {
@@ -118,12 +123,12 @@ pub fn dragging_a_flowing_cell_places_it_test() {
   let row = float.truncate({ list.y -. slide.y } /. { slide.w /. 32.0 }) + 1
   drag(page, #(3, row), #(2, row + 2))
   assert eventually(fn() { place(folder, "09") != None })
-  let assert Some(Area(col:, w:, h:, ..)) = place(folder, "09")
-  // Its rendered size, rounded up to whole units, moved by the drag: the
-  // body starts at col 2 and spans 28 columns.
-  assert col == 1
-  assert w == 28
-  assert h >= 2 && h <= 5
+  let assert Some(Area(x:, w:, h:, ..)) = place(folder, "09")
+  // Its rendered size, moved by the drag: the body starts at 120 pixels
+  // and spans 1680, and the move snaps to the 60 pixel step.
+  assert x == 60
+  assert w == 1680
+  assert h > 60 && h <= 300
   assert drawn(page) == 3
   assert cdp.count(page, ".ze-fit .zeno-cell[data-placed]") == 1
 }
@@ -174,6 +179,11 @@ fn drawn(page: Page) -> Int {
 
 fn drawn_cell(suffix: String) -> String {
   ".ze-fit .zeno-cell[data-cell=\"" <> cell(suffix) <> "\"]"
+}
+
+/// The next line of the 60 pixel step after `px`.
+fn next_line(px: Int) -> Int {
+  px / 60 * 60 + 60
 }
 
 fn place(folder: String, suffix: String) -> option.Option(layout.Area) {

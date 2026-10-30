@@ -98,7 +98,7 @@ pub type Drag {
 }
 
 pub type DragKind {
-  /// `grab` is the grid cell the pointer pressed.
+  /// `grab` is the point the pointer pressed, in design pixels.
   Moving(grab: #(Int, Int))
   Resizing
 }
@@ -127,7 +127,8 @@ pub type Msg {
   /// A press on a drawn cell at a point of the slide, in design pixels.
   Grab(cell: Id(CellTag), x: Int, y: Int, box: Box)
   GrabHandle(Id(CellTag))
-  DragAt(col: Int, row: Int)
+  /// The pointer during a drag, at a point of the slide in design pixels.
+  DragTo(x: Int, y: Int)
   DragEnd
   Probe(cell: Id(CellTag), overflows: Bool)
   ThemeLoaded(Int)
@@ -233,9 +234,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
       grab(
         model,
         cell,
-        fn(start) {
-          Drag(cell, Moving(canvas.cell_at(x, y)), start, start, None)
-        },
+        fn(start) { Drag(cell, Moving(#(x, y)), start, start, None) },
         Some(box),
       )
     GrabHandle(cell) ->
@@ -245,14 +244,20 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
         fn(start) { Drag(cell, Resizing, start, start, None) },
         None,
       )
-    DragAt(col:, row:) ->
+    DragTo(x:, y:) ->
       case model.drag {
-        Some(Drag(released: None, how:, start:, ..) as drag) -> {
+        Some(Drag(released: None, how:, start:, area: before, ..) as drag) -> {
           let area = case how {
-            Moving(grab) -> canvas.moved(start, grab, #(col, row))
-            Resizing -> canvas.resized(start, #(col, row))
+            Moving(grab) -> canvas.moved(start, grab, #(x, y), canvas.snap_step)
+            Resizing -> canvas.resized(start, #(x, y), canvas.snap_step)
           }
-          #(Model(..model, drag: Some(Drag(..drag, area:))), effect.none())
+          case area == before {
+            True -> #(model, effect.none())
+            False -> #(
+              Model(..model, drag: Some(Drag(..drag, area:))),
+              effect.none(),
+            )
+          }
         }
         _ -> #(model, effect.none())
       }
@@ -836,9 +841,13 @@ fn canvas_key(
         }
       })
     keymap.Nudge(dx:, dy:) ->
-      on_drawn(fn(cell, area) { place(cell, area, canvas.nudge(_, dx, dy)) })
+      on_drawn(fn(cell, area) {
+        place(cell, area, canvas.nudge(_, dx, dy, canvas.snap_step))
+      })
     keymap.Resize(dw:, dh:) ->
-      on_drawn(fn(cell, area) { place(cell, area, canvas.grow(_, dw, dh)) })
+      on_drawn(fn(cell, area) {
+        place(cell, area, canvas.grow(_, dw, dh, canvas.snap_step))
+      })
     keymap.ReturnToFlow ->
       on_drawn(fn(cell, _) {
         case canvas.placed(shared.layout, cell) {

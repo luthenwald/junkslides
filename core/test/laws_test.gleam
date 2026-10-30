@@ -192,7 +192,13 @@ fn action(model: Model, step: Step) -> Action {
     }
     15 -> {
       let area =
-        layout.Area(step.a % 34 - 1, step.b % 19, step.b % 33, step.a % 19)
+        // Pixels, some of them too far off the slide or too large.
+        layout.Area(
+          step.a * 97 % 2000 - 60,
+          step.b * 53 % 1150 - 60,
+          step.b * 89 % 2000,
+          step.a * 61 % 1150,
+        )
       LayoutAction(layout.Place(cell_id, area))
     }
     16 ->
@@ -402,7 +408,7 @@ pub fn law_cut_and_paste_test() {
         layout.apply(
           layout.empty(),
           deck,
-          layout.Place(cut.id, layout.Area(1, 2, 3, 4)),
+          layout.Place(cut.id, layout.Area(60, 120, 180, 240)),
         )
       let assert Ok(styled) =
         layout.apply(styled, deck, layout.SetVariant(cut.id, Some("quiet")))

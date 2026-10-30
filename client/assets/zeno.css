@@ -238,11 +238,11 @@ body {
 }
 
 .ze-handle {
-  justify-self: end;
-  align-self: end;
+  position: absolute;
   width: 24px;
   height: 24px;
-  margin: -12px;
+  /* Mostly inside the cell, so it stays reachable at the slide's edge. */
+  translate: -18px -18px;
   background: var(--ze-paper);
   border: 3px solid var(--ze-ink);
   cursor: nwse-resize;

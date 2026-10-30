@@ -1,5 +1,16 @@
 ## Unreleased
 
+## Free placement, slide numbers and highlighting
+
+2026-10-30 · `xnysvoyw::xokqnvtm`
+
+- New: drag a cell anywhere, also partly off the slide and with the pointer in the margin around it.
+- New: choose how drags and nudges snap, from 120 down to 10 pixels or not at all, in the status line or with `g` and `G` in canvas mode. Zeno remembers your choice for each deck.
+- New: every slide shows its number, such as `01/26`, at the bottom right; your theme can move, restyle or hide it.
+- New: code blocks are highlighted for their language, in shades of gray with the default theme.
+- Improved: headings, paragraphs and list items keep the line breaks and indentation you wrote.
+- Improved: placements are stored in pixels; layout files from earlier versions are read and converted when Zeno next saves.
+
 ## Smoother editing
 
 2026-10-27 · `zzolprty::lzrnuotz`

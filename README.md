@@ -52,16 +52,27 @@ The keys are modal:
   slide; `Alt-Enter` splits the cell at the cursor.
 - Canvas mode (`Tab` from the cells pane): drag a cell to place it, drag its
   corner to resize, arrows nudge, `Shift` with arrows resize, `f` returns it
-  to the flow, `v` cycles the style variant, `a` the alignment.
+  to the flow, `v` cycles the style variant, `a` the alignment, `g` and `G`
+  make the snap step finer or coarser.
 
-Cells that are not placed stack in the theme's body area. Cells that do not
-fit their box get a dashed outline, and the status line counts them.
+Cells that are not placed stack in the theme's body area. Placed cells can
+go anywhere, even partly off the slide. Drags and nudges snap to a step of
+120, 60, 30, 20 or 10 pixels on the 1920 by 1080 slide, or to nothing at
+all; pick it in the status line. Cells that do not fit their box get a
+dashed outline, and the status line counts them.
+
+Slides keep the lines of your text: a heading or paragraph written over
+several lines shows over several lines, with the indentation you gave the
+continued lines. Code blocks are highlighted for the language named after
+the opening fence, such as `haskell`, `gleam` or `python`.
 
 ## Themes
 
 theme.css is plain CSS. Slides are 1920 by 1080 pixels and are drawn as
 `.zeno-slide`; the flowing cells sit in `.zeno-body` and every cell is a
 `.zeno-cell`, with `data-variant` and `data-align` attributes for its style.
+The slide number is `.zeno-page`, and code tokens carry classes such as
+`.zeno-tok-keyword`, `.zeno-tok-string` and `.zeno-tok-comment`.
 List the theme's variants on `:root`:
 
 ```css

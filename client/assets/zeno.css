@@ -206,7 +206,8 @@ body {
   outline: none;
 }
 
-.ze-fit .zeno-cell * {
+.ze-fit .zeno-cell *,
+.ze-fit .zeno-page {
   pointer-events: none;
 }
 
@@ -332,6 +333,16 @@ body {
 
 :where(.zeno-cell) {
   min-width: 0;
+}
+
+:where(.zeno-page) {
+  position: absolute;
+  right: 60px;
+  bottom: 36px;
+  font-size: 20px;
+  line-height: 1;
+  color: #999;
+  font-variant-numeric: tabular-nums;
 }
 
 :where(.zeno-cell) > :first-child {

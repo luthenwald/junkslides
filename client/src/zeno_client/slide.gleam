@@ -19,6 +19,7 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 import jot
 import lustre/attribute.{type Attribute, attribute, class}
@@ -74,18 +75,33 @@ pub fn view(
     )
   }
   html.div([class("ze-fit")], [
-    keyed.div([class("zeno-slide")], [
-      #(
-        "body",
-        keyed.div(
-          [class("zeno-body")],
-          list.map(unplaced, fn(cell) { drawn_cell(cell, None) }),
-        ),
-      ),
-      ..list.map(placed, fn(pair) { drawn_cell(pair.0, Some(pair.1)) })
-    ]),
+    keyed.div(
+      [class("zeno-slide")],
+      list.flatten([
+        [
+          #(
+            "body",
+            keyed.div(
+              [class("zeno-body")],
+              list.map(unplaced, fn(cell) { drawn_cell(cell, None) }),
+            ),
+          ),
+        ],
+        list.map(placed, fn(pair) { drawn_cell(pair.0, Some(pair.1)) }),
+        [#("page", page_number(shared, slide))],
+      ]),
+    ),
     editor_layer(model, placed),
   ])
+}
+
+/// The slide's number, `01/26`, for the theme to place or hide (04-layout.md,
+/// Theme contract). Not a cell, so it is not in the probes.
+fn page_number(shared: Shared, slide: Slide) -> Element(msg) {
+  let total = list.length(shared.deck.slides)
+  let index =
+    nav.slide_index(shared.deck, nav.OnSlide(slide.id)) |> result.unwrap(0)
+  html.div([class("zeno-page")], [text(nav.number(index, total))])
 }
 
 /// Where a cell is drawn: a drag in progress shows its preview.

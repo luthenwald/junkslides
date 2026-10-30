@@ -1,4 +1,4 @@
-//// The external edit scenarios of docs/08-roadmap.md, M2, numbered as there.
+//// The external edit scenarios of 08-roadmap.md, M2, numbered as there.
 //// Each runs on a copy of examples/talk, edited the way an outside editor
 //// would, while a client is connected over the WebSocket.
 

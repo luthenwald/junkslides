@@ -6,3 +6,4 @@ server/priv/static/
 dist/
 .lustre/
 erl_crash.dump
+/.claude

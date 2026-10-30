@@ -2,8 +2,7 @@
 
 The local server of Zeno, on the Erlang target: the `zeno` command, one
 owner actor per deck holding the canonical state, the WebSocket protocol,
-debounced atomic writes, polling for outside edits, and static files. See
-docs/06-runtime.md.
+debounced atomic writes, polling for outside edits, and static files.
 
 ```sh
 just zeno init <folder>     # a minimal deck with the default theme

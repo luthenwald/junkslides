@@ -8,49 +8,64 @@ visually in a browser. Zeno remembers every layout edit in a separate file,
 keyed by stable cell IDs, so content edits never lose layout and layout edits
 never touch content.
 
-Status: the design for the first prototype is complete. No code exists yet.
-
-## The idea in one page
-
-- Two owners. The text file owns content. The layout file owns placement and
-  style. The theme CSS owns the default look.
-- Cells. A cell is a piece of markdown that becomes one component on a slide.
-  You choose cell boundaries, so they are also layout boundaries.
-- Identity by operation. Cells are edited in Zeno's own two-pane editor, so
-  every edit knows which cell it touches. Nothing is guessed from text diffs.
-- Machine-maintained markers. Each cell and slide carries a UUIDv7 in an HTML
-  comment. The editor writes and hides them. Markers are optional when reading
-  (a hand-written file works) and always present when writing.
-- Layout follows identity. If an ID survives an operation, the cell's layout
-  survives with it.
-- A 32x18 grid on a fixed 16:9 slide. Unplaced cells flow in a body area;
-  placed cells sit at explicit grid coordinates.
-- Gleam everywhere. A Gleam server (Erlang target) owns the state and the
-  files; a Lustre client (JavaScript target) is the editor. They share one
-  core package. No handwritten JavaScript or TypeScript.
-
 ## A deck on disk
 
 ```
 talk/
   deck.md        content: slides and cells, with ID markers
-  layout.json    placement and style per cell, plus orphans
+  layout.json    placement and style per cell
   theme.css      the default look
   assets/        images, referenced by paths relative to the deck
 ```
 
-## Documents
+deck.md stays readable in any markdown viewer. Slides are separated by a
+`---` line, and each cell and slide carries an ID in an HTML comment that
+Zeno writes for you. You can edit deck.md in another editor while Zeno runs;
+it picks up the change and keeps the layout of every cell it can still
+recognise.
 
-| File | Contents |
-|---|---|
-| [CLAUDE.md](CLAUDE.md) | Instructions for coding agents working on Zeno |
-| [docs/01-overview.md](docs/01-overview.md) | Goals, non-goals, principles, glossary |
-| [docs/02-file-format.md](docs/02-file-format.md) | Deck folder, deck.md grammar, the dialect, layout.json |
-| [docs/03-data-model.md](docs/03-data-model.md) | Types, operations, effects, identity rules, laws |
-| [docs/04-layout.md](docs/04-layout.md) | Grid, flow area, placement, variants, overflow, orphans, theme contract |
-| [docs/05-editor.md](docs/05-editor.md) | Panes, modes, keymap, undo, selection, visual style |
-| [docs/06-runtime.md](docs/06-runtime.md) | Server, protocol, writes, watching, external edits |
-| [docs/07-stack.md](docs/07-stack.md) | Gleam, packages, project layout, testing |
-| [docs/08-roadmap.md](docs/08-roadmap.md) | Prototype scope, spikes, milestones, later work |
-| [docs/09-decisions.md](docs/09-decisions.md) | Decision log and open questions |
-| [docs/10-references.md](docs/10-references.md) | Related work and reading |
+## Running it
+
+Zeno is written in Gleam. With Gleam, Erlang and `just` installed, from
+this folder:
+
+```sh
+just zeno init ~/talks/lenses     # a new deck with the default theme
+just zeno serve ~/talks/lenses    # then open http://127.0.0.1:4870/
+```
+
+The editor targets Chromium-based browsers for now.
+
+## The editor
+
+The cells pane on the left holds the source of every cell; the slide pane on
+the right draws the slide of the selected cell. Drag the divider to resize
+them; `Ctrl-[` and `Ctrl-]` hide either one.
+
+The keys are modal:
+
+- Command mode: `j` and `k` move between cells, `o` adds a cell, `Enter`
+  edits it, `J` and `K` move it, `b` starts a new slide, `t` turns a cell
+  into speaker notes, `d`, `y` and `p` cut, copy and paste, `u` and `U` undo
+  and redo.
+- Edit mode: type, then `Esc`. A line that is exactly `---` starts a new
+  slide; `Alt-Enter` splits the cell at the cursor.
+- Canvas mode (`Tab` from the cells pane): drag a cell to place it, drag its
+  corner to resize, arrows nudge, `Shift` with arrows resize, `f` returns it
+  to the flow, `v` cycles the style variant, `a` the alignment.
+
+Cells that are not placed stack in the theme's body area. Cells that do not
+fit their box get a dashed outline, and the status line counts them.
+
+## Themes
+
+theme.css is plain CSS. Slides are 1920 by 1080 pixels and are drawn as
+`.zeno-slide`; the flowing cells sit in `.zeno-body` and every cell is a
+`.zeno-cell`, with `data-variant` and `data-align` attributes for its style.
+List the theme's variants on `:root`:
+
+```css
+:root { --zeno-variants: "large small quiet emphasis"; }
+```
+
+Zeno reloads the theme when the file changes.

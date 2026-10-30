@@ -2,8 +2,7 @@
 
 The Zeno editor in the browser, on the JavaScript target with Lustre: the
 cells pane with command and edit modes, the slide pane with canvas mode,
-the panes and divider, and the status line. See docs/05-editor.md and
-docs/04-layout.md.
+the panes and divider, and the status line.
 
 ```sh
 just client         # bundle into ../server/priv/static

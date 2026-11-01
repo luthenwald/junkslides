@@ -1,5 +1,13 @@
 ## Unreleased
 
+## Export to PDF
+
+2026-11-01 · `rmklpwsu::pvwrmorp`
+
+- New: press `F` or run `zeno export --pdf` to get a PDF of your deck, one slide per page, next to the exported page and named after your deck's folder.
+- New: Zeno prints with Chrome, Chromium, Edge or Brave, whichever it finds first. Set `ZENO_CHROME` to choose a program.
+- Improved: if printing fails, Zeno says why and your last PDF stays as it was.
+
 ## New default fonts
 
 2026-11-01 · `wutumzxl::ztxqruvq`

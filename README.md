@@ -95,9 +95,12 @@ Press `E` in command mode, or run:
 ```sh
 just zeno export ~/talks/lenses                     # into ~/talks/lenses/export
 just zeno export ~/talks/lenses --out ~/site/lenses
+just zeno export ~/talks/lenses --pdf               # and ~/talks/lenses/export/lenses.pdf
 ```
 
-You get a folder with `index.html`, your `theme.css`, a copy of `assets/` and the default fonts in `fonts/`, ready to open, host or zip. The page has no scripts. Arrow keys, space and Page Down step between slides, `#3` at the end of the address opens the third, and printing gives one slide per page, which is how you make a PDF. Speaker notes stay out.
+You get a folder with `index.html`, your `theme.css`, a copy of `assets/` and the default fonts in `fonts/`, ready to open, host or zip. The page has no scripts. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.
+
+For a PDF with one slide per page, add `--pdf` or press `F` in command mode. Zeno prints the exported page with Chrome, Chromium, Edge or Brave, whichever it finds first; set `ZENO_CHROME` to choose a program. If printing fails, your last PDF stays as it was. A CSS `filter` in your theme makes that element an image in the PDF, so its text can't be searched or copied.
 
 Exporting again replaces those files and deletes nothing. Zeno tells you about images it could not find, and leaves out images outside the deck's folder. Anything your theme loads with `url()`, such as a font, belongs in `assets/`. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
 

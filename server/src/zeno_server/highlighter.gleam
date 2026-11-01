@@ -49,16 +49,31 @@ pub fn languages(command: String) -> Result(Dict(String, String), Nil) {
 
 pub fn start(command: String) -> Result(Subject(Message), Nil) {
   let scopes = languages(command) |> result.unwrap(dict.new())
-  let suffix = crypto.strong_random_bytes(8) |> bit_array.base16_encode
-  let temporary =
-    envoy.get("TMPDIR")
-    |> result.unwrap("/tmp")
-    |> filepath.join("zeno-highlight-" <> suffix)
-  actor.new(State(command, temporary, scopes, dict.new(), []))
+  actor.new(State(command, temporary_file(), scopes, dict.new(), []))
   |> actor.on_message(handle)
   |> actor.start
   |> result.map(fn(started) { started.data })
   |> result.replace_error(Nil)
+}
+
+/// Highlights for these blocks at once, for a caller that can wait. A block
+/// that stays plain has no entry.
+pub fn highlight(command: String, blocks: List(CodeBlock)) -> List(Highlight) {
+  let scopes = languages(command) |> result.unwrap(dict.new())
+  let state = State(command, temporary_file(), scopes, dict.new(), [])
+  list.filter_map(blocks, fn(block) {
+    case run(state, block) {
+      [] -> Error(Nil)
+      tokens -> Ok(Highlight(block, tokens))
+    }
+  })
+}
+
+fn temporary_file() -> String {
+  let suffix = crypto.strong_random_bytes(8) |> bit_array.base16_encode
+  envoy.get("TMPDIR")
+  |> result.unwrap("/tmp")
+  |> filepath.join("zeno-highlight-" <> suffix)
 }
 
 fn handle(state: State, message: Message) -> actor.Next(State, Message) {

@@ -8,17 +8,16 @@ import gleam/bytes_tree
 import gleam/erlang/process.{type Subject}
 import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
-import gleam/list
 import gleam/option.{None, Some}
 import gleam/otp/actor
 import gleam/otp/static_supervisor
 import gleam/result
 import gleam/string
-import gleam/uri
 import mist.{type Connection, type ResponseData}
 import zeno/protocol.{type ServerMsg}
 import zeno/render/styles
 import zeno_server/state
+import zeno_server/store
 
 pub type Config {
   Config(port: Int, folder: String, client: String)
@@ -110,7 +109,7 @@ fn base_styles() -> Response(ResponseData) {
 
 fn serve(root: String, segments: List(String)) -> Response(ResponseData) {
   let file = {
-    use relative <- result.try(resolve(segments))
+    use relative <- result.try(store.resolve(segments))
     let path = filepath.join(root, relative)
     mist.send_file(path, offset: 0, limit: None)
     |> result.replace_error(Nil)
@@ -125,25 +124,6 @@ fn serve(root: String, segments: List(String)) -> Response(ResponseData) {
     Error(Nil) ->
       response.new(404)
       |> response.set_body(mist.Bytes(bytes_tree.from_string("Not found")))
-  }
-}
-
-/// A relative path that stays inside the folder it is joined to. Segments
-/// are percent-decoded first, then checked: no empty, `.` or `..` segments,
-/// no hidden files (such as the temporary files of atomic writes), no
-/// separators or NUL inside a segment.
-pub fn resolve(segments: List(String)) -> Result(String, Nil) {
-  use segments <- result.try(list.try_map(segments, uri.percent_decode))
-  let allowed = fn(segment) {
-    segment != ""
-    && !string.starts_with(segment, ".")
-    && !string.contains(segment, "/")
-    && !string.contains(segment, "\\")
-    && !string.contains(segment, "\u{0}")
-  }
-  case segments != [] && list.all(segments, allowed) {
-    True -> Ok(string.join(segments, "/"))
-    False -> Error(Nil)
   }
 }
 

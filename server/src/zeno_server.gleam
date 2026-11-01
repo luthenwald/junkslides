@@ -2,6 +2,7 @@
 ////
 ////     zeno init <folder>                 a minimal deck and the default theme
 ////     zeno serve <folder> [--port N]     serve the deck on 127.0.0.1
+////     zeno export <folder> [--out path]  write the deck as a static folder
 
 import argv
 import envoy
@@ -12,6 +13,8 @@ import gleam/erlang/application
 import gleam/erlang/process
 import gleam/int
 import gleam/io
+import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import logging
 import simplifile
@@ -19,6 +22,7 @@ import zeno/deck.{Cell, Content, Deck, Slide}
 import zeno/file
 import zeno/id
 import zeno/layout
+import zeno_server/export
 import zeno_server/highlighter
 import zeno_server/state
 import zeno_server/store
@@ -29,7 +33,8 @@ import zeno_server/web
 const usage =
   "Usage:
   zeno init <folder>               create a deck with the default theme
-  zeno serve <folder> [--port N]   serve the deck (default port 4870)"
+  zeno serve <folder> [--port N]   serve the deck (default port 4870)
+  zeno export <folder> [--out P]   write a static page (default <folder>/export)"
 
 pub fn main() -> Nil {
   let result = case argv.load().arguments {
@@ -40,6 +45,10 @@ pub fn main() -> Nil {
         Ok(port) -> serve(folder, port)
         Error(Nil) -> Error("Not a port number: " <> port)
       }
+    ["export", folder] ->
+      export_deck(folder, None, "tree-sitter") |> result.map(print_report)
+    ["export", folder, "--out", out] ->
+      export_deck(folder, Some(out), "tree-sitter") |> result.map(print_report)
     _ -> Error(usage)
   }
   case result {
@@ -125,6 +134,39 @@ pub fn serve(folder: String, port: Int) -> Result(Nil, String) {
   io.println("http://127.0.0.1:" <> int.to_string(port) <> "/")
   process.sleep_forever()
   Ok(Nil)
+}
+
+/// Exports what is on disk, and writes nothing in the deck itself. A deck.md
+/// or layout.json that does not read stops it before anything is written.
+pub fn export_deck(
+  folder: String,
+  out: Option(String),
+  tree_sitter: String,
+) -> Result(export.Report, String) {
+  let folder = absolute(folder)
+  let out =
+    option.map(out, absolute) |> option.unwrap(export.default_out(folder))
+  use #(bytes, _) <- result.try(
+    store.read(filepath.join(folder, "deck.md"))
+    |> result.replace_error("There is no deck.md in " <> folder <> "."),
+  )
+  use deck <- result.try(state.parse_deck(bytes))
+  use layout <- result.try(
+    case store.read(filepath.join(folder, "layout.json")) {
+      Error(Nil) -> Ok(layout.empty())
+      Ok(#(bytes, _)) ->
+        state.parse_layout(bytes)
+        |> result.replace_error(
+          "layout.json is not valid, so nothing was exported.",
+        )
+    },
+  )
+  export.write(folder:, out:, deck:, layout:, tree_sitter:)
+}
+
+fn print_report(report: export.Report) -> Nil {
+  list.each(report.warnings, io.println)
+  io.println("Exported to " <> report.page)
 }
 
 fn view_file() -> String {

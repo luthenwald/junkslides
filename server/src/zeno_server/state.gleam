@@ -174,7 +174,7 @@ fn path(config: Config, name: String) -> String {
   filepath.join(config.folder, name)
 }
 
-fn parse_deck(bytes: BitArray) -> Result(Deck, String) {
+pub fn parse_deck(bytes: BitArray) -> Result(Deck, String) {
   use text <- result.try(
     bit_array.to_string(bytes)
     |> result.replace_error("deck.md is not valid UTF-8."),
@@ -201,7 +201,7 @@ fn describe_problem(problem: file.Problem) -> String {
   }
 }
 
-fn parse_layout(bytes: BitArray) -> Result(Layout, String) {
+pub fn parse_layout(bytes: BitArray) -> Result(Layout, String) {
   bit_array.to_string(bytes)
   |> result.replace_error(Nil)
   |> result.try(fn(text) {

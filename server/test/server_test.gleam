@@ -21,7 +21,6 @@ import zeno_server/state
 import zeno_server/store
 import zeno_server/theme
 import zeno_server/view
-import zeno_server/web
 
 pub fn failed_op_is_rejected_and_changes_nothing_test() {
   let h = harness.start("rejected", 4891)
@@ -177,15 +176,15 @@ pub fn serve_says_when_the_port_is_taken_test() {
 }
 
 pub fn resolve_refuses_paths_leaving_the_folder_test() {
-  assert web.resolve(["assets", "lens.png"]) == Ok("assets/lens.png")
-  assert web.resolve(["a%20b.png"]) == Ok("a b.png")
-  assert web.resolve([]) == Error(Nil)
-  assert web.resolve([".."]) == Error(Nil)
-  assert web.resolve(["%2e%2e", "x"]) == Error(Nil)
-  assert web.resolve(["a%2F..%2F..%2Fx"]) == Error(Nil)
-  assert web.resolve([".hidden"]) == Error(Nil)
-  assert web.resolve(["a%00b"]) == Error(Nil)
-  assert web.resolve(["a\\..\\b"]) == Error(Nil)
+  assert store.resolve(["assets", "lens.png"]) == Ok("assets/lens.png")
+  assert store.resolve(["a%20b.png"]) == Ok("a b.png")
+  assert store.resolve([]) == Error(Nil)
+  assert store.resolve([".."]) == Error(Nil)
+  assert store.resolve(["%2e%2e", "x"]) == Error(Nil)
+  assert store.resolve(["a%2F..%2F..%2Fx"]) == Error(Nil)
+  assert store.resolve([".hidden"]) == Error(Nil)
+  assert store.resolve(["a%00b"]) == Error(Nil)
+  assert store.resolve(["a\\..\\b"]) == Error(Nil)
 }
 
 pub fn init_creates_a_deck_and_never_replaces_one_test() {
@@ -330,4 +329,130 @@ pub fn code_blocks_are_highlighted_for_clients_test() {
 
 pub fn a_missing_command_leaves_code_plain_test() {
   assert highlighter.languages("zeno-no-such-command") == Error(Nil)
+}
+
+// Export ---------------------------------------------------------------------
+
+/// A copy of the example deck to export, with images and a file or two that
+/// must stay behind. The name is unique to a test.
+fn export_deck(name: String) -> String {
+  let folder = harness.folder(name)
+  let write = fn(relative, contents) {
+    let path = filepath.join(folder, relative)
+    let assert Ok(Nil) =
+      simplifile.create_directory_all(filepath.directory_name(path))
+    let assert Ok(Nil) = simplifile.write(path, contents)
+  }
+  write("assets/lens.png", "lens")
+  write("assets/icon.png", "icon")
+  write("assets/sub/font.woff2", "font")
+  write("assets/.hidden", "hidden")
+  write("side.png", "side")
+  write("../" <> name <> "-secret.png", "secret")
+  let assert Ok(deck) = simplifile.read(filepath.join(folder, "deck.md"))
+  write(
+    "deck.md",
+    deck
+      <> "\n---\n\n<!-- cell -->\n![s](side.png) ![m](gone.png) ![u](../"
+      <> name
+      <> "-secret.png)\n\n<!-- notes -->\n![n](notes.png)\n",
+  )
+  write("notes.png", "only in notes")
+  folder
+}
+
+fn exists(folder: String, relative: String) -> Bool {
+  simplifile.is_file(filepath.join(folder, relative)) == Ok(True)
+}
+
+pub fn export_writes_a_folder_and_leaves_the_deck_alone_test() {
+  let folder = export_deck("export-folder")
+  let deck = harness.read(folder, "deck.md")
+  let layout = harness.read(folder, "layout.json")
+  let assert Ok(report) =
+    zeno_server.export_deck(folder, None, "no-such-command")
+  let out = filepath.join(folder, "export")
+  assert report.page == filepath.join(out, "index.html")
+  assert harness.read(out, "theme.css") == harness.read(folder, "theme.css")
+  assert exists(out, "assets/lens.png")
+  assert exists(out, "assets/sub/font.woff2")
+  assert exists(out, "side.png")
+  assert !exists(out, "assets/.hidden")
+  assert !exists(out, "notes.png")
+  // Nothing from outside the deck, whichever way it is reached.
+  assert !exists(out, "../export-folder-secret.png")
+  assert report.warnings
+    == [
+      "Missing image: gone.png",
+      "Left out an image outside the deck: ../export-folder-secret.png",
+    ]
+  let page = harness.read(out, "index.html")
+  assert string.contains(page, "<title>export-folder</title>")
+  assert string.contains(page, "href=\"theme.css\"")
+  assert string.contains(page, "src=\"side.png\"")
+  assert !string.contains(page, "Mention Boomerang here.")
+  assert harness.read(folder, "deck.md") == deck
+  assert harness.read(folder, "layout.json") == layout
+}
+
+pub fn export_again_replaces_and_deletes_nothing_test() {
+  let folder = export_deck("export-again")
+  let out = filepath.join(folder, "elsewhere")
+  let assert Ok(Nil) = simplifile.create_directory_all(out)
+  let assert Ok(Nil) = simplifile.write(filepath.join(out, "mine.txt"), "mine")
+  let assert Ok(_) =
+    zeno_server.export_deck(folder, Some(out), "no-such-command")
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(folder, "theme.css"), "new")
+  let assert Ok(_) =
+    zeno_server.export_deck(folder, Some(out), "no-such-command")
+  assert harness.read(out, "theme.css") == "new"
+  assert harness.read(out, "mine.txt") == "mine"
+}
+
+pub fn export_refuses_the_deck_folder_and_its_assets_test() {
+  let folder = export_deck("export-refuses")
+  let assert Error(_) =
+    zeno_server.export_deck(folder, Some(folder), "no-such-command")
+  let assert Error(_) =
+    zeno_server.export_deck(
+      folder,
+      Some(filepath.join(folder, "assets/out")),
+      "no-such-command",
+    )
+  assert !exists(folder, "index.html")
+  assert !exists(folder, "assets/out/index.html")
+}
+
+pub fn export_writes_nothing_when_a_file_does_not_read_test() {
+  let folder = export_deck("export-broken-deck")
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(folder, "deck.md"), "<!-- deck v99 -->\n")
+  let assert Error(_) = zeno_server.export_deck(folder, None, "no-such-command")
+  assert simplifile.is_directory(filepath.join(folder, "export")) == Ok(False)
+  let folder = export_deck("export-broken-layout")
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(folder, "layout.json"), "{")
+  let assert Error(_) = zeno_server.export_deck(folder, None, "no-such-command")
+  assert simplifile.is_directory(filepath.join(folder, "export")) == Ok(False)
+}
+
+pub fn export_highlights_code_test() {
+  let folder = export_deck("export-highlight")
+  let assert Ok(Nil) =
+    simplifile.append(
+      filepath.join(folder, "deck.md"),
+      "\n---\n\n<!-- cell -->\n```hs\nmain\n```\n",
+    )
+  let assert Ok(cwd) = simplifile.current_directory()
+  let assert Ok(report) =
+    zeno_server.export_deck(
+      folder,
+      None,
+      filepath.join(cwd, "test/fixtures/fake-tree-sitter"),
+    )
+  assert string.contains(
+    harness.read(filepath.directory_name(report.page), "index.html"),
+    "zeno-tok-",
+  )
 }

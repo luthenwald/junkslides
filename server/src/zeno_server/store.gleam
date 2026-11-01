@@ -4,8 +4,30 @@
 import filepath
 import gleam/bit_array
 import gleam/crypto
+import gleam/list
 import gleam/result
+import gleam/string
+import gleam/uri
 import simplifile
+
+/// A relative path that stays inside the folder it is joined to. Segments
+/// are percent-decoded first, then checked: no empty, `.` or `..` segments,
+/// no hidden files (such as the temporary files of atomic writes), no
+/// separators or NUL inside a segment.
+pub fn resolve(segments: List(String)) -> Result(String, Nil) {
+  use segments <- result.try(list.try_map(segments, uri.percent_decode))
+  let allowed = fn(segment) {
+    segment != ""
+    && !string.starts_with(segment, ".")
+    && !string.contains(segment, "/")
+    && !string.contains(segment, "\\")
+    && !string.contains(segment, "\u{0}")
+  }
+  case segments != [] && list.all(segments, allowed) {
+    True -> Ok(string.join(segments, "/"))
+    False -> Error(Nil)
+  }
+}
 
 /// The hex sha256 of some bytes. Hashes tell the server's own writes apart
 /// from outside edits.

@@ -43,6 +43,14 @@ zeno *args: client
    cd "{{justfile_directory()}}/server" && gleam export erlang-shipment > /dev/null
    "{{justfile_directory()}}/server/build/erlang-shipment/entrypoint.sh" run {{args}}
 
+# The zeno command as last built, without compiling: `just run serve <folder>`
+[no-cd]
+run *args:
+   #!/usr/bin/env bash
+   entry="{{justfile_directory()}}/server/build/erlang-shipment/entrypoint.sh"
+   [ -x "$entry" ] || { echo "No build yet. Run just zeno once first." >&2; exit 1; }
+   exec "$entry" run {{args}}
+
 # S5: jot coverage and the block splitter, on both targets
 s5:
    cd spikes/s5_jot && gleam test --target erlang && gleam test --target javascript

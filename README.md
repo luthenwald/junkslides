@@ -34,6 +34,8 @@ just zeno init ~/talks/lenses     # a new deck with the default theme
 just zeno serve ~/talks/lenses    # then open http://127.0.0.1:4870/
 ```
 
+`just zeno` builds Zeno first. `just run serve ~/talks/lenses` starts the last build straight away.
+
 The editor targets Chromium-based browsers for now.
 
 ## The editor

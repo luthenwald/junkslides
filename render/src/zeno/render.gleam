@@ -1,5 +1,6 @@
 //// Slides as Lustre elements (04-layout.md, Theme contract), on both targets:
 //// the editor draws them in the browser and export writes them on the server.
+//// `document` is the exported page (04-layout.md, Export).
 
 import gleam/dict.{type Dict}
 import gleam/int
@@ -10,10 +11,82 @@ import jot
 import lustre/attribute.{type Attribute, attribute, class}
 import lustre/element.{type Element, text}
 import lustre/element/html
-import zeno/deck.{type Cell, type Slide}
+import zeno/deck.{type Cell, type Deck, type Slide}
 import zeno/dialect
-import zeno/layout.{type Area, type CellRecord}
+import zeno/layout.{type Area, type CellRecord, type Layout}
 import zeno/protocol.{type CodeBlock, type Token, CodeBlock}
+import zeno/render/styles
+
+/// The whole deck as one static page, without any script. Each slide is the
+/// theme contract's structure in a frame whose ID is the slide's number. The
+/// theme comes last, as `theme.css` beside the page, so that it wins.
+pub fn document(
+  deck deck: Deck,
+  layout layout: Layout,
+  highlights highlights: Highlights,
+  title title: String,
+  has_theme has_theme: Bool,
+) -> String {
+  let total = list.length(deck.slides)
+  let theme = case has_theme {
+    True -> [
+      html.link([attribute.rel("stylesheet"), attribute.href("theme.css")]),
+    ]
+    False -> []
+  }
+  html.html([], [
+    html.head(
+      [],
+      list.append(
+        [
+          html.meta([attribute("charset", "utf-8")]),
+          html.meta([
+            attribute.name("viewport"),
+            attribute("content", "width=device-width, initial-scale=1"),
+          ]),
+          html.title([], title),
+          html.style([], styles.base_css),
+          html.style([], styles.page_css),
+        ],
+        theme,
+      ),
+    ),
+    html.body(
+      [],
+      list.index_map(deck.slides, fn(slide, index) {
+        frame(slide, index, total, layout, highlights)
+      }),
+    ),
+  ])
+  |> element.to_document_string
+}
+
+fn frame(
+  slide: Slide,
+  index: Int,
+  total: Int,
+  layout: Layout,
+  highlights: Highlights,
+) -> Element(msg) {
+  let drawn =
+    drawn_cells(slide)
+    |> list.map(fn(cell) { #(cell, layout.record(layout, cell.id)) })
+  let box = fn(pair: #(Cell, CellRecord), area) {
+    cell_box(pair.0, pair.1, area, [], highlights)
+  }
+  let #(placed, unplaced) =
+    list.partition(drawn, fn(pair) { option.is_some({ pair.1 }.place) })
+  html.section([class("zeno-frame"), attribute.id(int.to_string(index + 1))], [
+    html.div(
+      [class("zeno-slide")],
+      list.flatten([
+        [html.div([class("zeno-body")], list.map(unplaced, box(_, None)))],
+        list.map(placed, fn(pair) { box(pair, { pair.1 }.place) }),
+        [page_number(index, total)],
+      ]),
+    ),
+  ])
+}
 
 /// The cells a slide draws: notes are never on the slide.
 pub fn drawn_cells(slide: Slide) -> List(Cell) {

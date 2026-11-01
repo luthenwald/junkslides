@@ -1,6 +1,7 @@
 //// The server apart from the outside edit scenarios: protocol replies,
 //// undo, view state, the theme, static files, `zeno init` and the store.
 
+import envoy
 import filepath
 import gleam/dict
 import gleam/http/request
@@ -18,6 +19,7 @@ import zeno/protocol.{Token, View}
 import zeno/render/styles
 import zeno_server
 import zeno_server/highlighter
+import zeno_server/pdf
 import zeno_server/state
 import zeno_server/store
 import zeno_server/theme
@@ -369,6 +371,94 @@ fn export_deck(name: String) -> String {
   )
   write("notes.png", "only in notes")
   folder
+}
+
+/// A program that stands in for the browser, so these tests need none. `$out`
+/// is where it was told to print.
+fn fake_browser(name: String, body: String) -> String {
+  let path = filepath.join(harness.folder(name), "fake-browser")
+  let assert Ok(Nil) =
+    simplifile.write(
+      path,
+      "#!/bin/sh\n"
+        <> "for a in \"$@\"; do case \"$a\" in --print-to-pdf=*) out=\"${a#*=}\";; esac; done\n"
+        <> body
+        <> "\n",
+    )
+  let assert Ok(Nil) = simplifile.set_permissions_octal(path, 0o755)
+  path
+}
+
+pub fn a_pdf_is_written_beside_the_page_named_after_the_deck_test() {
+  let folder = export_deck("export-pdf")
+  let deck = harness.read(folder, "deck.md")
+  let browser =
+    fake_browser("export-pdf-browser", "printf '%%PDF-1.7 x' > \"$out\"")
+  let assert Ok(report) =
+    zeno_server.export_pdf(folder, None, "no-such-command", browser)
+  let out = filepath.join(folder, "export")
+  assert report.page == filepath.join(out, "export-pdf.pdf")
+  assert harness.read(out, "export-pdf.pdf") == "%PDF-1.7 x"
+  assert exists(out, "index.html")
+  assert report.warnings != []
+  assert harness.read(folder, "deck.md") == deck
+  assert simplifile.read_directory(out)
+    |> result.map(list.filter(_, string.ends_with(_, ".zeno-tmp")))
+    == Ok([])
+}
+
+pub fn a_failed_pdf_leaves_the_last_one_alone_test() {
+  let folder = export_deck("export-pdf-fails")
+  let out = filepath.join(folder, "export")
+  let assert Ok(Nil) = simplifile.create_directory_all(out)
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(out, "export-pdf-fails.pdf"), "the last one")
+  let attempt = fn(name, body) {
+    zeno_server.export_pdf(
+      folder,
+      None,
+      "no-such-command",
+      fake_browser("export-pdf-fails-" <> name, body),
+    )
+  }
+  let assert Error(not_a_pdf) = attempt("junk", "echo oops > \"$out\"")
+  assert string.contains(not_a_pdf, "not a PDF")
+  let assert Error(no_file) = attempt("silent", "exit 0")
+  assert string.contains(no_file, "did not write")
+  let assert Error(stopped) = attempt("stops", "echo broken; exit 3")
+  assert string.contains(stopped, "code 3")
+  assert string.contains(stopped, "broken")
+  assert harness.read(out, "export-pdf-fails.pdf") == "the last one"
+}
+
+pub fn a_deck_that_does_not_read_makes_no_pdf_test() {
+  let folder = export_deck("export-pdf-broken")
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(folder, "layout.json"), "not json")
+  let browser = fake_browser("export-pdf-broken-browser", "echo x > \"$out\"")
+  let assert Error(_) =
+    zeno_server.export_pdf(folder, None, "no-such-command", browser)
+  assert !exists(folder, "export/export-pdf-broken.pdf")
+}
+
+pub fn the_browser_named_by_the_environment_comes_first_test() {
+  let browser = fake_browser("export-pdf-find", "exit 0")
+  let before = envoy.get("ZENO_CHROME")
+  envoy.set("ZENO_CHROME", browser)
+  let found = pdf.find()
+  envoy.set("ZENO_CHROME", "/no/such/browser")
+  let missing = pdf.find()
+  case before {
+    Ok(value) -> envoy.set("ZENO_CHROME", value)
+    Error(Nil) -> envoy.unset("ZENO_CHROME")
+  }
+  assert found == Ok(browser)
+  assert missing == Error("ZENO_CHROME names no program: /no/such/browser")
+}
+
+pub fn a_file_address_escapes_what_would_break_it_test() {
+  assert pdf.file_url("/talks/my talk #2/index.html")
+    == "file:///talks/my%20talk%20%232/index.html"
 }
 
 fn exists(folder: String, relative: String) -> Bool {

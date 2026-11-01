@@ -23,6 +23,7 @@ import zeno/op.{type Op}
 import zeno/protocol.{type ClientMsg, type Highlight, type ServerMsg, type View}
 import zeno_server/export
 import zeno_server/highlighter
+import zeno_server/pdf
 import zeno_server/store
 import zeno_server/theme
 import zeno_server/view
@@ -336,6 +337,27 @@ fn from_client(
             layout:,
             tree_sitter: config.tree_sitter,
           )
+        process.send(self, Exported(client, outcome))
+      })
+      state
+    }
+    protocol.ExportPdf -> {
+      // A browser takes seconds, so this too runs on its own process.
+      let State(config:, deck:, layout:, self:, ..) = state
+      send(client, protocol.Notice("Making a PDF..."))
+      process.spawn_unlinked(fn() {
+        let outcome =
+          pdf.find()
+          |> result.try(fn(browser) {
+            export.write_pdf(
+              folder: config.folder,
+              out: export.default_out(config.folder),
+              deck:,
+              layout:,
+              tree_sitter: config.tree_sitter,
+              browser:,
+            )
+          })
         process.send(self, Exported(client, outcome))
       })
       state

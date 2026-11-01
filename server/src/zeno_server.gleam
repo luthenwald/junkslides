@@ -2,7 +2,9 @@
 ////
 ////     zeno init <folder>                 a minimal deck and the default theme
 ////     zeno serve <folder> [--port N]     serve the deck on 127.0.0.1
-////     zeno export <folder> [--out path]  write the deck as a static folder
+////     zeno export <folder> [--out path] [--pdf]
+////                                        write the deck as a static folder,
+////                                        with a PDF of it on request
 
 import argv
 import envoy
@@ -24,6 +26,7 @@ import zeno/id
 import zeno/layout
 import zeno_server/export
 import zeno_server/highlighter
+import zeno_server/pdf
 import zeno_server/state
 import zeno_server/store
 import zeno_server/theme
@@ -34,7 +37,9 @@ const usage =
   "Usage:
   zeno init <folder>               create a deck with the default theme
   zeno serve <folder> [--port N]   serve the deck (default port 4870)
-  zeno export <folder> [--out P]   write a static page (default <folder>/export)"
+  zeno export <folder> [--out P] [--pdf]
+                                   write a static page (default <folder>/export),
+                                   and with --pdf a PDF of it, using Chrome"
 
 pub fn main() -> Nil {
   let result = case argv.load().arguments {
@@ -45,10 +50,19 @@ pub fn main() -> Nil {
         Ok(port) -> serve(folder, port)
         Error(Nil) -> Error("Not a port number: " <> port)
       }
-    ["export", folder] ->
-      export_deck(folder, None, "tree-sitter") |> result.map(print_report)
-    ["export", folder, "--out", out] ->
-      export_deck(folder, Some(out), "tree-sitter") |> result.map(print_report)
+    ["export", folder, ..options] ->
+      export_options(options, None, False)
+      |> result.try(fn(chosen) {
+        let #(out, wants_pdf) = chosen
+        case wants_pdf {
+          False -> export_deck(folder, out, "tree-sitter")
+          True -> {
+            use browser <- result.try(pdf.find())
+            export_pdf(folder, out, "tree-sitter", browser)
+          }
+        }
+      })
+      |> result.map(print_report)
     _ -> Error(usage)
   }
   case result {
@@ -57,6 +71,19 @@ pub fn main() -> Nil {
       io.println_error(message)
       halt(1)
     }
+  }
+}
+
+fn export_options(
+  options: List(String),
+  out: Option(String),
+  wants_pdf: Bool,
+) -> Result(#(Option(String), Bool), String) {
+  case options {
+    [] -> Ok(#(out, wants_pdf))
+    ["--pdf", ..rest] -> export_options(rest, out, True)
+    ["--out", path, ..rest] -> export_options(rest, Some(path), wants_pdf)
+    _ -> Error(usage)
   }
 }
 
@@ -145,8 +172,29 @@ pub fn export_deck(
   tree_sitter: String,
 ) -> Result(export.Report, String) {
   let folder = absolute(folder)
-  let out =
-    option.map(out, absolute) |> option.unwrap(export.default_out(folder))
+  let out = export_folder(folder, out)
+  use #(deck, layout) <- result.try(read_deck(folder))
+  export.write(folder:, out:, deck:, layout:, tree_sitter:)
+}
+
+/// As `export_deck`, and prints the page to a PDF with `browser`.
+pub fn export_pdf(
+  folder: String,
+  out: Option(String),
+  tree_sitter: String,
+  browser: String,
+) -> Result(export.Report, String) {
+  let folder = absolute(folder)
+  let out = export_folder(folder, out)
+  use #(deck, layout) <- result.try(read_deck(folder))
+  export.write_pdf(folder:, out:, deck:, layout:, tree_sitter:, browser:)
+}
+
+fn export_folder(folder: String, out: Option(String)) -> String {
+  option.map(out, absolute) |> option.unwrap(export.default_out(folder))
+}
+
+fn read_deck(folder: String) -> Result(#(deck.Deck, layout.Layout), String) {
   use #(bytes, _) <- result.try(
     store.read(filepath.join(folder, "deck.md"))
     |> result.replace_error("There is no deck.md in " <> folder <> "."),
@@ -162,7 +210,7 @@ pub fn export_deck(
         )
     },
   )
-  export.write(folder:, out:, deck:, layout:, tree_sitter:)
+  Ok(#(deck, layout))
 }
 
 fn print_report(report: export.Report) -> Nil {

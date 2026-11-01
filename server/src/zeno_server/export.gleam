@@ -1,7 +1,8 @@
 //// Writes a deck as a static folder (04-layout.md, Export): `index.html` from
 //// `render.document`, a copy of theme.css, the deck's images, and the default
-//// fonts. Of the deck, it only reads the folder. Nothing is deleted, and files outside the deck are never
-//// copied in, so a shared export holds only what belongs to the talk.
+//// fonts, and on request a PDF of the page. Of the deck, it only reads the
+//// folder. Nothing is deleted, and files outside the deck are never copied in,
+//// so a shared export holds only what belongs to the talk.
 
 import filepath
 import gleam/bit_array
@@ -18,11 +19,12 @@ import zeno/layout.{type Layout}
 import zeno/protocol
 import zeno/render
 import zeno_server/highlighter
+import zeno_server/pdf
 import zeno_server/store
 
 pub type Report {
-  /// `page` is the path of the written page; `warnings` name images that
-  /// could not be included.
+  /// `page` is the path of the written page or PDF; `warnings` name images
+  /// that could not be included.
   Report(page: String, warnings: List(String))
 }
 
@@ -82,6 +84,28 @@ pub fn write(
     )
   use _ <- result.try(store.write_atomic(page, bit_array.from_string(html)))
   Ok(Report(page, warnings))
+}
+
+/// Exports to the folder `out`, and prints the page to a PDF there, named after
+/// the deck. `browser` is the program that prints it (`pdf.find`).
+pub fn write_pdf(
+  folder folder: String,
+  out out: String,
+  deck deck: Deck,
+  layout layout: Layout,
+  tree_sitter tree_sitter: String,
+  browser browser: String,
+) -> Result(Report, String) {
+  use Report(page:, warnings:) <- result.try(write(
+    folder:,
+    out:,
+    deck:,
+    layout:,
+    tree_sitter:,
+  ))
+  let target = filepath.join(out, filepath.base_name(folder) <> ".pdf")
+  use Nil <- result.try(pdf.print(page:, target:, browser:))
+  Ok(Report(target, warnings))
 }
 
 /// The deck folder would get an `index.html` among its own files, and a folder

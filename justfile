@@ -71,6 +71,9 @@ s3:
 
 chrome := env("HOME") / "Library/Caches/zeno-cft/156/chrome-headless-shell-mac-arm64/chrome-headless-shell"
 
+# The browser that prints PDFs: yours if set, or else the one the browser checks use.
+export ZENO_CHROME := env("ZENO_CHROME", if path_exists(chrome) == "true" { chrome } else { "" })
+
 # Build the S1 and S2 pages and the S3 client
 browser-build:
    cd spikes/s1_drag && gleam run -m lustre/dev build

@@ -10,6 +10,7 @@ import gleam/json
 import gleam/list
 import gleam/string
 import harness.{deck, eventually, open, press, status}
+import simplifile
 
 /// Exports a fresh copy of the example deck with the `E` key and opens the page.
 fn exported(name: String, port: Int) -> #(Page, String) {
@@ -110,6 +111,23 @@ pub fn printing_gives_one_page_per_slide_test() {
   let assert Ok(data) = decode.run(reply, decode.at(["data"], decode.string))
   let assert Ok(pdf) = bit_array.base64_decode(data)
   assert pdf_pages(pdf) == 7
+}
+
+/// The whole way with a real browser: the key, a folder name that needs
+/// escaping, one page per slide, and the slide's fonts inside the file.
+pub fn the_key_prints_a_pdf_with_every_slide_and_its_fonts_test() {
+  let #(page, folder) = open("export pdf #2", 4949)
+  let before = deck(folder)
+  press(page, "F")
+  let target = filepath.join(folder, "export/export pdf #2.pdf")
+  let assert Ok(Nil) =
+    cdp.wait(30_000, fn() { string.contains(status(page), "Exported to ") })
+  let assert Ok(pdf) = simplifile.read_bits(target)
+  assert pdf_pages(pdf) == 7
+  let text = latin1(pdf, []) |> string.concat
+  assert string.contains(text, "ETBook")
+  assert string.contains(text, "VictorMono")
+  assert deck(folder) == before
 }
 
 /// Page objects in the file. Latin-1 bytes are all this needs to look at.

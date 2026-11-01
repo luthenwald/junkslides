@@ -97,7 +97,7 @@ just zeno export ~/talks/lenses                     # into ~/talks/lenses/export
 just zeno export ~/talks/lenses --out ~/site/lenses
 ```
 
-You get a folder with `index.html`, your `theme.css` and a copy of `assets/`, ready to open, host or zip. The page has no scripts. Arrow keys, space and Page Down step between slides, `#3` at the end of the address opens the third, and printing gives one slide per page, which is how you make a PDF. Speaker notes stay out.
+You get a folder with `index.html`, your `theme.css`, a copy of `assets/` and the default fonts in `fonts/`, ready to open, host or zip. The page has no scripts. Arrow keys, space and Page Down step between slides, `#3` at the end of the address opens the third, and printing gives one slide per page, which is how you make a PDF. Speaker notes stay out.
 
 Exporting again replaces those files and deletes nothing. Zeno tells you about images it could not find, and leaves out images outside the deck's folder. Anything your theme loads with `url()`, such as a font, belongs in `assets/`. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
 
@@ -116,6 +116,13 @@ List the theme's variants on `:root`:
 
 ```css
 :root { --zeno-variants: "large small quiet emphasis"; }
+```
+
+Text is set in et-book and code in Victor Mono unless your theme says otherwise:
+
+```css
+.zeno-slide { font-family: Georgia, serif; }
+pre, code { font-family: Menlo, monospace; }
 ```
 
 Zeno reloads the theme when the file changes.

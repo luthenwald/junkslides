@@ -1,5 +1,14 @@
 ## Unreleased
 
+## New default fonts
+
+2026-11-01 · `wutumzxl::ztxqruvq`
+
+- New: slides are set in et-book, with code in Victor Mono, and both come with Zeno, so a deck looks the same on any machine. Your theme can choose other fonts. A theme that already names a font keeps it for text; to use et-book, remove the font name from your `theme.css`.
+- New: exports include the fonts in a `fonts/` folder.
+- New: `just run` starts Zeno from the last build, without compiling first.
+- Improved: the source text in the editor is in Victor Mono too.
+
 ## Export to HTML
 
 2026-11-01 · `zxkrplnw::kquwnpqr`

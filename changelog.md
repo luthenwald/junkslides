@@ -2,9 +2,10 @@
 
 ## Highlighting with any theme
 
-2026-11-01 · `rpoxkxtu::rpoxkxtu`
+2026-11-01 · `rpoxkxtu::mmuqzvxr`
 
 - Fixed: code is now highlighted in decks whose theme.css says nothing about code tokens, such as decks with a theme of your own. Your theme can still restyle every token.
+- Improved: types in code are drawn in a softer shade rather than in italics.
 
 ## Highlighting with tree-sitter
 

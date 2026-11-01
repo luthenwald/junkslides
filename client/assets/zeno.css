@@ -360,7 +360,7 @@ body {
 }
 
 :where(.zeno-tok-type, .zeno-tok-constructor, .zeno-tok-module) {
-  font-style: italic;
+  color: color-mix(in srgb, currentColor 70%, transparent);
 }
 
 :where(.zeno-tok-operator, .zeno-tok-punctuation) {

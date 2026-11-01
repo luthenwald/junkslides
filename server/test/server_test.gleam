@@ -337,11 +337,12 @@ pub fn a_missing_command_leaves_code_plain_test() {
 /// must stay behind. The name is unique to a test.
 fn export_deck(name: String) -> String {
   let folder = harness.folder(name)
-  let write = fn(relative, contents) {
+  let write = fn(relative, contents) -> Nil {
     let path = filepath.join(folder, relative)
     let assert Ok(Nil) =
       simplifile.create_directory_all(filepath.directory_name(path))
     let assert Ok(Nil) = simplifile.write(path, contents)
+    Nil
   }
   write("assets/lens.png", "lens")
   write("assets/icon.png", "icon")

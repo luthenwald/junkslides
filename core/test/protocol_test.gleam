@@ -8,8 +8,8 @@ import zeno/id
 import zeno/layout.{Area, Center}
 import zeno/op
 import zeno/protocol.{
-  Apply, ApplyLayout, Diagnostic, Hello, Notice, Redo, Rejected, ReloadTheme,
-  SaveView, State, Undo, View,
+  Apply, ApplyLayout, Diagnostic, Export, Hello, Notice, Redo, Rejected,
+  ReloadTheme, SaveView, State, Undo, View,
 }
 
 pub fn client_messages_round_trip_test() {
@@ -43,6 +43,7 @@ pub fn client_messages_round_trip_test() {
     ApplyLayout(13, layout.PurgeOrphans),
     Undo,
     Redo,
+    Export,
     SaveView(View(55, True, False, 0)),
   ]
   check_client(messages)

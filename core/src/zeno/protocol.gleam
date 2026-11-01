@@ -49,6 +49,8 @@ pub type ClientMsg {
   Undo
   Redo
   SaveView(view: View)
+  /// Write the current state as a static folder (04-layout.md, Export).
+  Export
 }
 
 pub type ServerMsg {
@@ -119,6 +121,7 @@ pub fn encode_client(msg: ClientMsg) -> String {
       ])
     Undo -> tagged("undo", [])
     Redo -> tagged("redo", [])
+    Export -> tagged("export", [])
     SaveView(view:) -> tagged("save_view", [#("view", view_value(view))])
   }
   |> codec.to_string
@@ -144,6 +147,7 @@ fn client_decoder() -> Decoder(ClientMsg) {
     }
     "undo" -> decode.success(Undo)
     "redo" -> decode.success(Redo)
+    "export" -> decode.success(Export)
     "save_view" -> {
       use view <- decode.field("view", view_decoder())
       decode.success(SaveView(view))

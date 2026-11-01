@@ -21,6 +21,7 @@ import zeno/id.{type IdSupply}
 import zeno/layout.{type Layout}
 import zeno/op.{type Op}
 import zeno/protocol.{type ClientMsg, type Highlight, type ServerMsg, type View}
+import zeno_server/export
 import zeno_server/highlighter
 import zeno_server/store
 import zeno_server/theme
@@ -59,6 +60,8 @@ pub type Message {
   Flush(generation: Int)
   /// The highlighter's answer for the deck's code blocks.
   Highlighted(blocks: List(Highlight))
+  /// An export's outcome, for the client that asked for it.
+  Exported(client: Subject(ServerMsg), outcome: Result(export.Report, String))
 }
 
 /// Ops applied since deck.md was last read or written, kept to rebase them
@@ -261,6 +264,10 @@ fn handle(state: State, message: Message) -> actor.Next(State, Message) {
       broadcast(state, protocol.Highlights(blocks))
       actor.continue(State(..state, highlights: blocks))
     }
+    Exported(client, outcome) -> {
+      send(client, protocol.Notice(exported_notice(outcome)))
+      actor.continue(state)
+    }
   }
 }
 
@@ -317,6 +324,31 @@ fn from_client(
       }
       State(..state, view:)
     }
+    protocol.Export -> {
+      // On its own process, so a slow tree-sitter never holds up the owner.
+      let State(config:, deck:, layout:, self:, ..) = state
+      process.spawn_unlinked(fn() {
+        let outcome =
+          export.write(
+            folder: config.folder,
+            out: export.default_out(config.folder),
+            deck:,
+            layout:,
+            tree_sitter: config.tree_sitter,
+          )
+        process.send(self, Exported(client, outcome))
+      })
+      state
+    }
+  }
+}
+
+fn exported_notice(outcome: Result(export.Report, String)) -> String {
+  case outcome {
+    Error(problem) -> problem
+    Ok(export.Report(page:, warnings: [])) -> "Exported to " <> page
+    Ok(export.Report(page:, warnings:)) ->
+      "Exported to " <> page <> ". " <> string.join(warnings, ". ")
   }
 }
 

@@ -39,6 +39,7 @@ pub type Command {
   Undo
   Redo
   PurgeOrphans
+  Export
   ToggleCells
   ToggleSlide
   ToCanvas
@@ -94,6 +95,7 @@ pub fn command(key: Key) -> Result(Command, Nil) {
         "u" -> Ok(Undo)
         "U" -> Ok(Redo)
         "X" -> Ok(PurgeOrphans)
+        "E" -> Ok(Export)
         "Tab" -> Ok(ToCanvas)
         _ -> Error(Nil)
       }

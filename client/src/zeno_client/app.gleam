@@ -566,6 +566,7 @@ fn command_key(
       }
     keymap.Undo -> send(model, protocol.Undo)
     keymap.Redo -> send(model, protocol.Redo)
+    keymap.Export -> send(model, protocol.Export)
     keymap.PurgeOrphans ->
       case list.length(shared.layout.orphans) {
         0 -> #(

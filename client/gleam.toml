@@ -15,3 +15,6 @@ jot = ">= 12.1.2 and < 13.0.0"
 [dev_dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
 lustre_dev_tools = ">= 2.4.0 and < 3.0.0"
+# Held below 4.4.0: that release deprecates http.Header, which mist 6.0.3 and
+# gramps 6.0.1 (through lustre_dev_tools) still use, so every clean build warns. Lift once they have moved on.
+gleam_http = ">= 4.3.0 and < 4.4.0"

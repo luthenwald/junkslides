@@ -5,6 +5,10 @@
 //// dialect forbids. jot drops inline attributes without a trace, so a small
 //// source-level check looks for those. Rendering happens in the client from
 //// the AST, never through `jot.to_html`.
+////
+//// jot has no tables, and reads a pipe table as a paragraph. Such a block is
+//// recognised here from its source and its cells parsed on their own
+//// (`top_level`, 02-file-format.md, Tables).
 
 import gleam/dict.{type Dict}
 import gleam/int
@@ -37,6 +41,36 @@ pub type Problem {
   BulletSpelling
   /// Ordinals other than `1.`.
   OrdinalSpelling
+  /// A table row without its closing pipe or with another number of cells
+  /// than the header, or a second separator line.
+  TableShape
+}
+
+/// A table's cells hold inline content only. The table is rectangular:
+/// `head` and every row have as many cells as `columns`, the short ones
+/// padded with empty cells. `regular` is False if that took any repair.
+pub type Table {
+  Table(
+    columns: List(ColumnAlign),
+    head: List(List(Inline)),
+    rows: List(List(List(Inline))),
+    regular: Bool,
+  )
+}
+
+pub type ColumnAlign {
+  /// The separator cell has no colon: `---`.
+  AlignDefault
+  AlignStart
+  AlignCenter
+  AlignEnd
+}
+
+/// A top-level block of a cell body.
+pub type Block {
+  /// A block as jot read it, with the indents of its continuation lines.
+  Contained(container: Container, lines: List(Int))
+  Tabular(table: Table)
 }
 
 pub fn parse(source: String) -> Document {
@@ -66,7 +100,12 @@ pub fn problems(source: String) -> List(Problem) {
     False -> []
   }
   list.flatten([
-    list.flat_map(doc.content, block),
+    list.flat_map(top_level(source), fn(top) {
+      case top {
+        Contained(container:, ..) -> block(container)
+        Tabular(table:) -> table_problems(table)
+      }
+    }),
     definitions,
     footnotes,
     braces,
@@ -88,6 +127,7 @@ pub fn describe(problem: Problem) -> String {
     ExtraUsed -> "djot syntax outside the dialect"
     BulletSpelling -> "bullet other than -"
     OrdinalSpelling -> "list number other than 1."
+    TableShape -> "table row that does not fit the header"
   }
 }
 
@@ -130,6 +170,18 @@ fn block(c: Container) -> List(Problem) {
         list.flat_map(list.flatten(items), block),
       )
   }
+}
+
+fn table_problems(table: Table) -> List(Problem) {
+  let shape = case table.regular {
+    True -> []
+    False -> [TableShape]
+  }
+  [table.head, ..table.rows]
+  |> list.flatten
+  |> list.flatten
+  |> list.flat_map(inline)
+  |> list.append(shape)
 }
 
 fn inline(i: Inline) -> List(Problem) {
@@ -246,6 +298,167 @@ fn block_code(c: Container) -> List(#(String, String)) {
     BulletList(items:, ..) | OrderedList(items:, ..) ->
       list.flat_map(items, list.flat_map(_, block_code))
     _ -> []
+  }
+}
+
+// Top-level blocks and tables ---------------------------------------------------
+
+/// A cell body's top-level blocks. They are jot's, paired with the source of
+/// each from `blocks.split`, which is how tables are found and indents kept.
+/// Should the two not match up, there are no tables and no indents.
+pub fn top_level(source: String) -> List(Block) {
+  let content = parse(source).content
+  let sources = blocks.split(source)
+  case list.length(sources) == list.length(content) {
+    False -> list.map(content, Contained(_, []))
+    True ->
+      list.zip(content, sources)
+      |> list.map2(continuation_indents(source), fn(pair, lines) {
+        case pair.0, table(pair.1) {
+          Paragraph(..), Some(table) -> Tabular(table)
+          container, _ -> Contained(container, lines)
+        }
+      })
+  }
+}
+
+/// The table in a block's source: a row, then a separator line, then any
+/// lines at all as rows, so that a table stays one while a row is typed.
+pub fn table(block: String) -> Option(Table) {
+  case string.split(block, "\n") |> list.map(string.trim) {
+    ["|" <> _ as first, "|" <> _ as second, ..rest] ->
+      case separator(second) {
+        None -> None
+        Some(aligns) ->
+          Some(build_table(row(first), aligns, list.map(rest, row)))
+      }
+    _ -> None
+  }
+}
+
+/// The source of a row's cells, and whether the row is well made.
+type Row {
+  Row(cells: List(String), regular: Bool)
+}
+
+fn build_table(head: Row, aligns: List(ColumnAlign), rows: List(Row)) -> Table {
+  let width =
+    list.fold([head, ..rows], list.length(aligns), fn(width, row) {
+      int.max(width, list.length(row.cells))
+    })
+  let regular =
+    list.all([head, ..rows], fn(row) {
+      row.regular && list.length(row.cells) == list.length(aligns)
+    })
+  Table(
+    columns: pad(aligns, width, AlignDefault),
+    head: row_inlines(head, width),
+    rows: list.map(rows, row_inlines(_, width)),
+    regular:,
+  )
+}
+
+fn row_inlines(row: Row, width: Int) -> List(List(Inline)) {
+  pad(list.map(row.cells, cell_inlines), width, [])
+}
+
+fn pad(xs: List(a), width: Int, filler: a) -> List(a) {
+  list.append(xs, list.repeat(filler, width - list.length(xs)))
+}
+
+/// A cell's inline content. A leading word keeps jot from reading `# x` or
+/// `- x` as a block, and is taken off the first text again.
+fn cell_inlines(cell: String) -> List(Inline) {
+  case parse("a " <> cell).content {
+    [Paragraph(content: [Text("a " <> rest), ..others], ..)] ->
+      case rest {
+        "" -> others
+        _ -> [Text(rest), ..others]
+      }
+    _ if cell == "" -> []
+    _ -> [Text(cell)]
+  }
+}
+
+fn row(line: String) -> Row {
+  case line {
+    "|" <> rest -> {
+      let #(cells, closed) = row_cells(rest)
+      Row(cells, closed && separator(line) == None)
+    }
+    _ -> Row(row_cells(line).0, False)
+  }
+}
+
+/// The alignments of a separator line such as `|:---|---:|`.
+fn separator(line: String) -> Option(List(ColumnAlign)) {
+  case line {
+    "|" <> rest ->
+      case row_cells(rest) {
+        #([_, ..] as cells, True) ->
+          list.try_map(cells, separator_cell) |> option.from_result
+        _ -> None
+      }
+    _ -> None
+  }
+}
+
+fn separator_cell(cell: String) -> Result(ColumnAlign, Nil) {
+  let #(start, rest) = case cell {
+    ":" <> rest -> #(True, rest)
+    _ -> #(False, cell)
+  }
+  let #(end, dashes) = case string.ends_with(rest, ":") {
+    True -> #(True, string.drop_end(rest, 1))
+    False -> #(False, rest)
+  }
+  case dashes != "" && string.replace(dashes, "-", "") == "" {
+    False -> Error(Nil)
+    True ->
+      Ok(case start, end {
+        False, False -> AlignDefault
+        True, False -> AlignStart
+        True, True -> AlignCenter
+        False, True -> AlignEnd
+      })
+  }
+}
+
+/// A row's text after its opening pipe, split at the pipes that are neither
+/// escaped nor in inline code. The cells are trimmed. The flag says whether
+/// the row ended in such a pipe.
+fn row_cells(text: String) -> #(List(String), Bool) {
+  scan_cells(string.to_graphemes(text), [], [], 0)
+}
+
+/// `ticks` is the length of the backtick run that opened the code span we are
+/// in, or 0 outside code.
+fn scan_cells(
+  chars: List(String),
+  cell: List(String),
+  cells: List(String),
+  ticks: Int,
+) -> #(List(String), Bool) {
+  let finish = fn(chars) { string.trim(string.concat(list.reverse(chars))) }
+  case chars, ticks {
+    [], _ ->
+      case finish(cell) {
+        "" -> #(list.reverse(cells), ticks == 0 && cells != [])
+        last -> #(list.reverse([last, ..cells]), False)
+      }
+    ["\\", next, ..rest], 0 -> scan_cells(rest, [next, "\\", ..cell], cells, 0)
+    ["|", ..rest], 0 -> scan_cells(rest, [], [finish(cell), ..cells], 0)
+    ["`", ..], _ -> {
+      let run = list.take_while(chars, fn(c) { c == "`" })
+      let n = list.length(run)
+      let ticks = case ticks {
+        0 -> n
+        open if open == n -> 0
+        open -> open
+      }
+      scan_cells(list.drop(chars, n), list.append(run, cell), cells, ticks)
+    }
+    [c, ..rest], _ -> scan_cells(rest, [c, ..cell], cells, ticks)
   }
 }
 

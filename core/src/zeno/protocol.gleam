@@ -296,6 +296,7 @@ const problems = [
   #("extra", dialect.ExtraUsed),
   #("bullet_spelling", dialect.BulletSpelling),
   #("ordinal_spelling", dialect.OrdinalSpelling),
+  #("table_shape", dialect.TableShape),
 ]
 
 fn problem_value(problem: Problem) -> Value {

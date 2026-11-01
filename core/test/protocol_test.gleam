@@ -69,7 +69,13 @@ pub fn server_messages_round_trip_test() {
       3,
       deck,
       layout,
-      [Diagnostic(a.id, [dialect.ExtraUsed, dialect.BulletSpelling])],
+      [
+        Diagnostic(a.id, [
+          dialect.ExtraUsed,
+          dialect.BulletSpelling,
+          dialect.TableShape,
+        ]),
+      ],
       ["large", "small"],
       protocol.default_view,
     )

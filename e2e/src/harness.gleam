@@ -89,7 +89,8 @@ pub fn open_folder(
 pub fn serve(folder: String, port: Int, owner: Subject(state.Message)) {
   let assert Ok(cwd) = simplifile.current_directory()
   let client = filepath.join(cwd, "../server/priv/static")
-  web.start(web.Config(port:, folder:, client:), owner)
+  let fonts = filepath.join(cwd, "../server/priv/fonts")
+  web.start(web.Config(port:, folder:, client:, fonts:), owner)
 }
 
 pub fn press(page: Page, name: String) -> Nil {

@@ -220,6 +220,39 @@ pub fn tokens_have_a_look_in_any_theme_test() {
   assert eventually(fn() { weight() == Ok("300") })
 }
 
+pub fn default_fonts_load_and_any_theme_can_change_them_test() {
+  let #(page, folder) = open("fonts", 4932)
+  let family = fn(selector) { cdp.computed(page, selector, "font-family") }
+  let uses = fn(selector, font) {
+    case family(selector) {
+      Ok(family) -> string.starts_with(family, font)
+      Error(_) -> False
+    }
+  }
+  let loaded = fn(font) {
+    case cdp.loaded_fonts(page) {
+      Ok(fonts) -> string.contains(fonts, font)
+      Error(_) -> False
+    }
+  }
+  list.each([1, 2, 3], fn(_) { press(page, "}") })
+  assert eventually(fn() { cdp.count(page, ".ze-fit pre code") == 1 })
+  assert uses(".ze-fit .zeno-slide", "et-book")
+  assert uses(".ze-fit pre code", "\"Victor Mono\"")
+  assert eventually(fn() { loaded("et-book normal") })
+  assert eventually(fn() { loaded("Victor Mono normal") })
+  // Code stays at the size of the text around it.
+  assert cdp.computed(page, ".ze-fit pre code", "font-size") == Ok("32px")
+  // A theme's own fonts win.
+  let assert Ok(_) =
+    simplifile.write(
+      filepath.join(folder, "theme.css"),
+      ".zeno-slide { font-family: Georgia; }\ncode { font-family: Menlo; }\n",
+    )
+  assert eventually(fn() { uses(".ze-fit .zeno-slide", "Georgia") })
+  assert eventually(fn() { uses(".ze-fit pre code", "Menlo") })
+}
+
 pub fn theme_reloads_test() {
   let #(page, folder) = open("theme", 4926)
   let assert Ok(_) =

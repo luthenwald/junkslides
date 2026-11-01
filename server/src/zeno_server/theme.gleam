@@ -41,7 +41,8 @@ pub const default_css =
 .zeno-slide {
   background: #fafafa;
   color: #222;
-  font: 32px/1.4 system-ui, sans-serif;
+  font-size: 32px;
+  line-height: 1.4;
 }
 
 .zeno-body {

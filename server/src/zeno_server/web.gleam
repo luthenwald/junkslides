@@ -20,7 +20,7 @@ import zeno_server/state
 import zeno_server/store
 
 pub type Config {
-  Config(port: Int, folder: String, client: String)
+  Config(port: Int, folder: String, client: String, fonts: String)
 }
 
 pub fn start(
@@ -44,6 +44,7 @@ fn handle(
     [] -> page()
     [".zeno", "ws"] -> socket(req, owner)
     [".zeno", "base.css"] -> base_styles()
+    [".zeno", "fonts", ..rest] -> serve(config.fonts, rest)
     [".zeno", ..rest] -> serve(config.client, rest)
     segments -> serve(config.folder, segments)
   }
@@ -140,6 +141,7 @@ fn content_type(path: String) -> String {
     Ok("svg") -> "image/svg+xml"
     Ok("webp") -> "image/webp"
     Ok("avif") -> "image/avif"
+    Ok("woff2") -> "font/woff2"
     _ -> "application/octet-stream"
   }
 }

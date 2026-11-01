@@ -221,6 +221,26 @@ pub fn html(page: Page, selector: String) -> Result(String, String) {
   )
 }
 
+/// The font families the page has loaded, as `family style`, comma separated.
+pub fn loaded_fonts(page: Page) -> Result(String, String) {
+  get(
+    page,
+    "Runtime.evaluate",
+    [
+      #(
+        "expression",
+        json.string(
+          "[...document.fonts].filter(f => f.status === 'loaded')"
+          <> ".map(f => f.family.replaceAll('\"', '') + ' ' + f.style).join(',')",
+        ),
+      ),
+      #("returnByValue", json.bool(True)),
+    ],
+    ["result", "value"],
+    decode.string,
+  )
+}
+
 /// The computed value of a style property.
 pub fn computed(
   page: Page,

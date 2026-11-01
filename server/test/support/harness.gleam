@@ -13,6 +13,7 @@ import zeno/deck.{type Cell, type Deck}
 import zeno/id.{type CellTag, type Id}
 import zeno/layout.{type Layout}
 import zeno/protocol.{type ClientMsg, type ServerMsg}
+import zeno_server/export
 import zeno_server/state
 import zeno_server/web
 
@@ -87,8 +88,9 @@ pub fn serve_with_tree_sitter(
 fn serve_config(config: state.Config, port: Int) -> Harness {
   let folder = config.folder
   let assert Ok(owner) = state.start(config)
+  let assert Ok(fonts) = export.fonts_folder()
   let assert Ok(_) =
-    web.start(web.Config(port:, folder:, client: folder), owner)
+    web.start(web.Config(port:, folder:, client: folder, fonts:), owner)
   connect(folder, port)
 }
 

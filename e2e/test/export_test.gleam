@@ -42,6 +42,18 @@ pub fn the_page_holds_every_slide_and_no_script_test() {
     == Ok("rgb(250, 250, 250)")
 }
 
+pub fn the_page_loads_the_default_fonts_from_its_own_folder_test() {
+  let #(page, _) = exported("export-fonts", 4948)
+  let has = fn(font) {
+    case cdp.loaded_fonts(page) {
+      Ok(fonts) -> string.contains(fonts, font)
+      Error(_) -> False
+    }
+  }
+  assert eventually(fn() { has("et-book normal") })
+  assert eventually(fn() { has("Victor Mono normal") })
+}
+
 pub fn a_slide_fits_the_window_at_any_size_test() {
   let #(page, url) = exported("export-fit", 4942)
   // Wider than 16:9 or narrower, the slide is whole and centred.

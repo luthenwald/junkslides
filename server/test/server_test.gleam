@@ -4,6 +4,7 @@
 import filepath
 import gleam/dict
 import gleam/http/request
+import gleam/http/response
 import gleam/httpc
 import gleam/list
 import gleam/option.{None, Some}
@@ -149,6 +150,14 @@ pub fn static_files_stay_inside_the_deck_folder_test() {
   assert string.contains(body, "/.zeno/zeno_client.js")
   assert string.contains(body, "/.zeno/base.css")
   assert get("/.zeno/base.css") == #(200, styles.base_css)
+  // The default fonts, as raw files, and nothing else from around them.
+  let assert Ok(req) =
+    request.to("http://127.0.0.1:4895/.zeno/fonts/et-book-roman.woff2")
+  let assert Ok(font) = httpc.send_bits(request.set_body(req, <<>>))
+  assert font.status == 200
+  assert response.get_header(font, "content-type") == Ok("font/woff2")
+  assert get("/.zeno/fonts/victor-mono.LICENSE").0 == 200
+  assert get("/.zeno/fonts/%2e%2e/static/zeno.css").0 == 404
   assert get("/theme.css") == #(200, harness.read(h.folder, "theme.css"))
   let assert Ok(Nil) =
     simplifile.write(filepath.join(h.folder, "a b.txt"), "spaced")
@@ -375,6 +384,10 @@ pub fn export_writes_a_folder_and_leaves_the_deck_alone_test() {
   let out = filepath.join(folder, "export")
   assert report.page == filepath.join(out, "index.html")
   assert harness.read(out, "theme.css") == harness.read(folder, "theme.css")
+  assert exists(out, "fonts/et-book-roman.woff2")
+  assert exists(out, "fonts/victor-mono-italic.woff2")
+  assert exists(out, "fonts/et-book.LICENSE")
+  assert exists(out, "fonts/victor-mono.LICENSE")
   assert exists(out, "assets/lens.png")
   assert exists(out, "assets/sub/font.woff2")
   assert exists(out, "side.png")

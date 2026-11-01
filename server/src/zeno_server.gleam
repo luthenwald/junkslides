@@ -114,12 +114,13 @@ pub fn serve(folder: String, port: Int) -> Result(Nil, String) {
     |> result.map(filepath.join(_, "static"))
     |> result.replace_error("The zeno_server priv folder is missing."),
   )
+  use fonts <- result.try(export.fonts_folder())
   // A port in use makes the listener's supervisor log a long report and
   // exit, which would take this process with it, before the start returns
   // its error. The message below says it plainly instead.
   logging.set_level(logging.Emergency)
   process.trap_exits(True)
-  let started = web.start(web.Config(port:, folder:, client:), owner)
+  let started = web.start(web.Config(port:, folder:, client:, fonts:), owner)
   process.trap_exits(False)
   logging.set_level(logging.Notice)
   use _ <- result.try(

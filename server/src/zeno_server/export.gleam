@@ -1,12 +1,13 @@
 //// Writes a deck as a static folder (04-layout.md, Export): `index.html` from
-//// `render.document`, a copy of theme.css, and the deck's images. It only reads
-//// the deck folder. Nothing is deleted, and files outside the deck are never
+//// `render.document`, a copy of theme.css, the deck's images, and the default
+//// fonts. Of the deck, it only reads the folder. Nothing is deleted, and files outside the deck are never
 //// copied in, so a shared export holds only what belongs to the talk.
 
 import filepath
 import gleam/bit_array
 import gleam/bool
 import gleam/dict
+import gleam/erlang/application
 import gleam/list
 import gleam/result
 import gleam/string
@@ -30,6 +31,13 @@ pub fn default_out(folder: String) -> String {
   filepath.join(folder, "export")
 }
 
+/// The default fonts and their licences, which ship with Zeno in `priv/fonts`.
+pub fn fonts_folder() -> Result(String, String) {
+  application.priv_directory("zeno_server")
+  |> result.map(filepath.join(_, "fonts"))
+  |> result.replace_error("The zeno_server priv folder is missing.")
+}
+
 /// Exports to the folder `out`. Both paths are absolute and expanded.
 /// `tree_sitter` is the command that highlights code blocks.
 pub fn write(
@@ -43,6 +51,7 @@ pub fn write(
   use Nil <- result.try(
     simplifile.create_directory_all(out) |> result.map_error(describe(out, _)),
   )
+  use Nil <- result.try(copy_fonts(out))
   use Nil <- result.try(copy_assets(folder, out))
   let #(images, warnings) = images_to_copy(folder, deck)
   use Nil <- result.try(list.try_each(images, copy(folder, out, _)))
@@ -88,6 +97,24 @@ fn check_out(folder: String, out: String) -> Result(Nil, String) {
     Error("Export to a folder outside the deck's assets."),
   )
   Ok(Nil)
+}
+
+/// Every file of the fonts folder, into `fonts/`, where the base styles look.
+fn copy_fonts(out: String) -> Result(Nil, String) {
+  let target = filepath.join(out, "fonts")
+  use fonts <- result.try(fonts_folder())
+  use Nil <- result.try(
+    simplifile.create_directory_all(target)
+    |> result.map_error(describe(target, _)),
+  )
+  use files <- result.try(
+    simplifile.read_directory(fonts) |> result.map_error(describe(fonts, _)),
+  )
+  list.try_each(files, fn(file) {
+    let path = filepath.join(target, file)
+    simplifile.copy_file(filepath.join(fonts, file), path)
+    |> result.map_error(describe(path, _))
+  })
 }
 
 /// Every file in `assets/`, apart from hidden ones.

@@ -1,5 +1,13 @@
 ## Unreleased
 
+## Export to HTML
+
+2026-11-01 · `zxkrplnw::kquwnpqr`
+
+- New: press `E` or run `zeno export` to write your deck as a folder you can open, host or zip, with your theme and images.
+- New: the exported page steps between slides with the arrow keys, space and Page Down, fits each slide to the window, and links to a slide with `#3`. It runs no scripts.
+- New: printing the page gives one slide per page, so you can save a PDF.
+
 ## Tables
 
 2026-11-01 · `squnwrkv::nnuntwst`

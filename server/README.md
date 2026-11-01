@@ -7,6 +7,7 @@ debounced atomic writes, polling for outside edits, and static files.
 ```sh
 just zeno init <folder>     # a minimal deck with the default theme
 just zeno serve <folder>    # http://127.0.0.1:4870/
+just zeno export <folder>   # a static folder, by default <folder>/export
 just server-test            # unit tests and the external edit scenarios
 ```
 

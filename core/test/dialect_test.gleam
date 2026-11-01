@@ -209,3 +209,17 @@ pub fn tables_among_other_blocks_test() {
   let assert [dialect.Contained(jot.BulletList(..), _)] =
     dialect.top_level("- | a |\n  |---|")
 }
+
+pub fn images_of_a_cell_test() {
+  assert dialect.images("no images") == []
+  assert dialect.images("![a](assets/a.png) and _![b](b.png)_")
+    == ["assets/a.png", "b.png"]
+  assert dialect.images("> - [![c](c.png)](https://e.org)") == ["c.png"]
+  assert dialect.images("| ![d](d.png) |\n|---|\n| ![e](e.png) |")
+    == ["d.png", "e.png"]
+  // Once each, and only those without a scheme.
+  assert dialect.images("![a](a.png) ![a](a.png)") == ["a.png"]
+  assert dialect.images("![x](https://e.org/x.png) ![y](data:z)") == []
+  // The caller decides what to do with paths that leave the folder.
+  assert dialect.images("![u](../up.png)") == ["../up.png"]
+}

@@ -301,6 +301,56 @@ fn block_code(c: Container) -> List(#(String, String)) {
   }
 }
 
+// Images ------------------------------------------------------------------------
+
+/// The images a cell body draws that are not at a URL with a scheme: paths for
+/// the deck's folder, as written, at any depth and in table cells too.
+pub fn images(source: String) -> List(String) {
+  list.flat_map(top_level(source), fn(block) {
+    case block {
+      Contained(container:, ..) -> container_images(container)
+      Tabular(table:) ->
+        [table.head, ..table.rows]
+        |> list.flatten
+        |> list.flat_map(inline_images)
+    }
+  })
+  |> list.unique
+}
+
+fn container_images(c: Container) -> List(String) {
+  case c {
+    Paragraph(content:, ..) | Heading(content:, ..) -> inline_images(content)
+    BlockQuote(items:, ..) | Div(items:, ..) ->
+      list.flat_map(items, container_images)
+    BulletList(items:, ..) | OrderedList(items:, ..) ->
+      list.flat_map(items, list.flat_map(_, container_images))
+    _ -> []
+  }
+}
+
+fn inline_images(content: List(Inline)) -> List(String) {
+  list.flat_map(content, fn(i) {
+    case i {
+      Image(destination: Url(url), ..) ->
+        case scheme(string.trim(url)) {
+          None -> [string.trim(url)]
+          Some(_) -> []
+        }
+      Emphasis(content)
+      | Strong(content)
+      | Link(content:, ..)
+      | Span(content:, ..)
+      | Delete(content)
+      | Insert(content)
+      | Mark(content)
+      | Superscript(content)
+      | Subscript(content) -> inline_images(content)
+      _ -> []
+    }
+  })
+}
+
 // Top-level blocks and tables ---------------------------------------------------
 
 /// A cell body's top-level blocks. They are jot's, paired with the source of

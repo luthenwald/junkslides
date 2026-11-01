@@ -53,17 +53,4 @@ pub const default_css =
 .zeno-cell[data-variant=\"small\"] { font-size: 24px; }
 .zeno-cell[data-variant=\"quiet\"] { color: #777; }
 .zeno-cell[data-variant=\"emphasis\"] { font-weight: 600; }
-
-/* Code: grayscale highlighting by weight, slant and shade. */
-.zeno-tok-keyword { font-weight: 600; }
-.zeno-tok-comment { color: #888; font-style: italic; }
-.zeno-tok-string { color: #555; }
-.zeno-tok-number,
-.zeno-tok-constant { color: #444; }
-.zeno-tok-type,
-.zeno-tok-constructor,
-.zeno-tok-module { color: #333; font-style: italic; }
-.zeno-tok-function { color: #111; font-weight: 600; }
-.zeno-tok-operator,
-.zeno-tok-punctuation { color: #999; }
 "

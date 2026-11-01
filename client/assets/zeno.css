@@ -340,6 +340,33 @@ body {
   white-space: pre;
 }
 
+/* Code tokens by weight, slant and shade. The shades are of the text's own
+   colour, so they read on a theme's background, light or dark. */
+:where(.zeno-tok-keyword, .zeno-tok-function) {
+  font-weight: 600;
+}
+
+:where(.zeno-tok-comment) {
+  color: color-mix(in srgb, currentColor 55%, transparent);
+  font-style: italic;
+}
+
+:where(.zeno-tok-string) {
+  color: color-mix(in srgb, currentColor 75%, transparent);
+}
+
+:where(.zeno-tok-number, .zeno-tok-constant) {
+  color: color-mix(in srgb, currentColor 85%, transparent);
+}
+
+:where(.zeno-tok-type, .zeno-tok-constructor, .zeno-tok-module) {
+  font-style: italic;
+}
+
+:where(.zeno-tok-operator, .zeno-tok-punctuation) {
+  color: color-mix(in srgb, currentColor 50%, transparent);
+}
+
 :where(.zeno-page) {
   position: absolute;
   right: 60px;

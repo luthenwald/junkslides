@@ -198,6 +198,28 @@ pub fn code_is_highlighted_test() {
   })
 }
 
+pub fn tokens_have_a_look_in_any_theme_test() {
+  let #(page, folder) = open("code-look", 4931)
+  let weight = fn() {
+    cdp.computed(page, ".ze-fit pre .zeno-tok-keyword", "font-weight")
+  }
+  // A theme that says nothing about tokens still shows them.
+  let assert Ok(_) =
+    simplifile.write(
+      filepath.join(folder, "theme.css"),
+      ".zeno-slide { color: #123; }\n",
+    )
+  list.each([1, 2, 3], fn(_) { press(page, "}") })
+  assert eventually(fn() { weight() == Ok("600") })
+  // And a theme that does say wins.
+  let assert Ok(_) =
+    simplifile.write(
+      filepath.join(folder, "theme.css"),
+      ".zeno-tok-keyword { font-weight: 300; }\n",
+    )
+  assert eventually(fn() { weight() == Ok("300") })
+}
+
 pub fn theme_reloads_test() {
   let #(page, folder) = open("theme", 4926)
   let assert Ok(_) =

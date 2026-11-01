@@ -221,6 +221,35 @@ pub fn html(page: Page, selector: String) -> Result(String, String) {
   )
 }
 
+/// The computed value of a style property.
+pub fn computed(
+  page: Page,
+  selector: String,
+  property: String,
+) -> Result(String, String) {
+  let selector = json.to_string(json.string(selector))
+  let property = json.to_string(json.string(property))
+  get(
+    page,
+    "Runtime.evaluate",
+    [
+      #(
+        "expression",
+        json.string(
+          "getComputedStyle(document.querySelector("
+          <> selector
+          <> ")).getPropertyValue("
+          <> property
+          <> ")",
+        ),
+      ),
+      #("returnByValue", json.bool(True)),
+    ],
+    ["result", "value"],
+    decode.string,
+  )
+}
+
 /// The border box in viewport pixels.
 pub fn box(page: Page, selector: String) -> Result(Box, String) {
   use id <- result.try(node(page, selector))

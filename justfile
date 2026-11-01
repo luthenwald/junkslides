@@ -7,6 +7,10 @@ default:
 core-test:
    cd core && gleam test --target erlang && gleam test --target javascript
 
+# Render: slides as elements, on both targets
+render-test:
+   cd render && gleam test --target erlang && gleam test --target javascript
+
 # Server: unit tests and the external edit scenarios (about 5 s)
 server-test:
    cd server && gleam test
@@ -31,7 +35,7 @@ e2e: client
    cd e2e && gleam test
 
 # Everything that is not a spike
-test: core-test server-test client-test e2e
+test: core-test render-test server-test client-test e2e
 
 # The zeno command, run from where just is called: `just zeno serve examples/talk`
 [no-cd]

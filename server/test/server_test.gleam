@@ -14,6 +14,7 @@ import support/harness.{example_id}
 import zeno/file
 import zeno/op
 import zeno/protocol.{Token, View}
+import zeno/render/styles
 import zeno_server
 import zeno_server/highlighter
 import zeno_server/state
@@ -147,6 +148,8 @@ pub fn static_files_stay_inside_the_deck_folder_test() {
   let #(status, body) = get("/")
   assert status == 200
   assert string.contains(body, "/.zeno/zeno_client.js")
+  assert string.contains(body, "/.zeno/base.css")
+  assert get("/.zeno/base.css") == #(200, styles.base_css)
   assert get("/theme.css") == #(200, harness.read(h.folder, "theme.css"))
   let assert Ok(Nil) =
     simplifile.write(filepath.join(h.folder, "a b.txt"), "spaced")

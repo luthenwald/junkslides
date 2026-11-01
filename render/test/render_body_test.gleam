@@ -4,14 +4,16 @@ import gleam/option.{None, Some}
 import gleam/string
 import lustre/element
 import zeno/protocol.{CodeBlock, Token}
-import zeno_client/slide
+import zeno/render
 
 fn render(source: String) -> String {
   render_with(source, dict.new())
 }
 
-fn render_with(source: String, highlights: slide.Highlights) -> String {
-  slide.body(source, highlights) |> list.map(element.to_string) |> string.concat
+fn render_with(source: String, highlights: render.Highlights) -> String {
+  render.body(source, highlights)
+  |> list.map(element.to_string)
+  |> string.concat
 }
 
 pub fn lines_and_indentation_are_kept_test() {

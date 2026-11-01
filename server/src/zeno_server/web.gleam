@@ -1,5 +1,5 @@
 //// HTTP and WebSocket (06-runtime.md, Protocol and Serving). `/.zeno/ws`
-//// speaks `zeno/protocol`; `/.zeno/...` is the client bundle; every other
+//// speaks `zeno/protocol`; `/.zeno/...` is the client bundle and base styles; every other
 //// path is a file in the deck folder, such as theme.css and images. Deck
 //// files never start with a dot, so the editor's own paths cannot hide one.
 
@@ -17,6 +17,7 @@ import gleam/string
 import gleam/uri
 import mist.{type Connection, type ResponseData}
 import zeno/protocol.{type ServerMsg}
+import zeno/render/styles
 import zeno_server/state
 
 pub type Config {
@@ -43,6 +44,7 @@ fn handle(
   case request.path_segments(req) {
     [] -> page()
     [".zeno", "ws"] -> socket(req, owner)
+    [".zeno", "base.css"] -> base_styles()
     [".zeno", ..rest] -> serve(config.client, rest)
     segments -> serve(config.folder, segments)
   }
@@ -91,11 +93,19 @@ fn socket(
 fn page() -> Response(ResponseData) {
   let html =
     "<!doctype html>\n<meta charset=utf-8>\n<title>Zeno</title>\n"
+    <> "<link rel=stylesheet href=/.zeno/base.css>\n"
     <> "<link rel=stylesheet href=/.zeno/zeno.css>\n<div id=app></div>\n"
     <> "<script type=module src=/.zeno/zeno_client.js></script>\n"
   response.new(200)
   |> response.set_header("content-type", "text/html; charset=utf-8")
   |> response.set_body(mist.Bytes(bytes_tree.from_string(html)))
+}
+
+/// The slide's base styles, shared with export.
+fn base_styles() -> Response(ResponseData) {
+  response.new(200)
+  |> response.set_header("content-type", "text/css; charset=utf-8")
+  |> response.set_body(mist.Bytes(bytes_tree.from_string(styles.base_css)))
 }
 
 fn serve(root: String, segments: List(String)) -> Response(ResponseData) {

@@ -1,0 +1,12 @@
+name = "zeno_render"
+version = "1.0.0"
+description = "Slides as Lustre elements, for the editor in the browser and for export on the server."
+
+[dependencies]
+zeno_core = { path = "../core" }
+gleam_stdlib = ">= 1.0.0 and < 2.0.0"
+lustre = ">= 5.7.1 and < 6.0.0"
+jot = ">= 12.1.2 and < 13.0.0"
+
+[dev_dependencies]
+gleeunit = ">= 1.11.0 and < 2.0.0"

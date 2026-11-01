@@ -6,9 +6,9 @@ import gleam/bool
 import gleam/int
 import gleam/list
 import gleam/result
-import gleam/string
 import zeno/deck.{type Deck, type Position, type Slide, Position}
 import zeno/id.{type CellTag, type Id, type SlideTag}
+import zeno/render
 
 /// What is selected: a cell, or a slide without cells, which has nothing
 /// else to select.
@@ -185,14 +185,7 @@ pub fn after_removal(deck: Deck, cell: Id(CellTag)) -> Selection {
 /// Slide numbers as the editor shows them: `01/12`, zero-padded to the
 /// width of the total and at least two digits.
 pub fn number(index: Int, total: Int) -> String {
-  // Digits are single bytes, and byte sizes avoid grapheme segmentation,
-  // which is slow on JavaScript and runs for every slide on every render.
-  let width = int.max(2, string.byte_size(int.to_string(total)))
-  let pad = fn(n) {
-    let digits = int.to_string(n)
-    string.repeat("0", width - string.byte_size(digits)) <> digits
-  }
-  pad(index + 1) <> "/" <> pad(total)
+  render.number(index, total)
 }
 
 fn index_of(items: List(a), item: a) -> Result(Int, Nil) {

@@ -10,7 +10,7 @@
   --ze-paper: #fff;
   --ze-ground: #f4f4f4;
   --ze-sans: system-ui, sans-serif;
-  --ze-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --ze-mono: "Victor Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 html,

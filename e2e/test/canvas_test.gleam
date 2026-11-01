@@ -243,6 +243,11 @@ pub fn default_fonts_load_and_any_theme_can_change_them_test() {
   assert eventually(fn() { loaded("Victor Mono normal") })
   // Code stays at the size of the text around it.
   assert cdp.computed(page, ".ze-fit pre code", "font-size") == Ok("32px")
+  // The editor's source text is in the same mono.
+  press(page, "j")
+  press(page, "Enter")
+  assert uses(".ze-source", "\"Victor Mono\"")
+  press(page, "Escape")
   // A theme's own fonts win.
   let assert Ok(_) =
     simplifile.write(

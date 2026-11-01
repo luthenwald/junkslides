@@ -71,6 +71,21 @@ the opening fence, such as `haskell` or `hs`: a grammar's name or one of its
 file types both work. Without the command or a matching grammar, code is drawn
 plain.
 
+A table is a block of pipe rows, with a header row and a line of dashes below it:
+
+```
+| Law    | Says                  | Holds |
+|--------|-----------------------|------:|
+| GetPut | put back what you got | yes   |
+| PutPut | the last `put` wins   | no    |
+```
+
+Colons in the dashes align a column: `:---` to the start, `:--:` to the center,
+`---:` to the end. Cells hold inline text such as `*strong*` and `` `code` ``;
+write `\|` for a pipe in text. A row that does not fit the header is still drawn,
+with a note under the cell. A table is as wide as its content and wraps at the
+edge of its cell, and it scales with the cell's variant.
+
 ## Themes
 
 theme.css is plain CSS. Slides are 1920 by 1080 pixels and are drawn as
@@ -78,7 +93,10 @@ theme.css is plain CSS. Slides are 1920 by 1080 pixels and are drawn as
 `.zeno-cell`, with `data-variant` and `data-align` attributes for its style.
 The slide number is `.zeno-page`, and code tokens carry classes such as
 `.zeno-tok-keyword`, `.zeno-tok-string` and `.zeno-tok-comment`, named after
-tree-sitter's highlight names.
+tree-sitter's highlight names. Tables are plain `table`, `th` and `td` elements,
+drawn in shades of the text colour until your theme says otherwise; a column's
+alignment is in the `data-align` attribute of its cells, and
+`.zeno-cell table { width: 100%; }` makes tables fill their cells.
 List the theme's variants on `:root`:
 
 ```css

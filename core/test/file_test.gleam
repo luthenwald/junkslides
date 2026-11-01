@@ -30,7 +30,7 @@ pub fn example_round_trips_byte_for_byte_test() {
   let deck = parse(text)
   assert file.print(deck) == text
   assert deck.violations(deck) == []
-  assert list.length(deck.slides) == 6
+  assert list.length(deck.slides) == 7
   // The fourth slide holds an empty cell; the last slide is empty.
   let assert Ok(fourth) = list.drop(deck.slides, 3) |> list.first
   let assert Ok(empty) = list.last(fourth.cells)
@@ -64,6 +64,8 @@ pub fn example_has_every_allowed_construct_without_problems_test() {
       "](https",
       "\\_",
       "\\\n",
+      "| GetPut ",
+      "---:|",
     ],
     fn(construct) {
       assert string.contains(all, construct)

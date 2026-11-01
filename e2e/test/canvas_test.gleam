@@ -26,7 +26,7 @@ pub fn draws_the_slide_of_the_selection_test() {
   assert cdp.attribute(page, drawn_cell("02"), "data-align") == Ok("start")
   assert cdp.count(page, ".ze-fit h1") == 1
   // The slide's number, in the slide's lower right corner.
-  assert page_number(page) == "01/06"
+  assert page_number(page) == "01/07"
   let assert Ok(slide) = cdp.box(page, ".ze-fit .zeno-slide")
   let assert Ok(number) = cdp.box(page, ".ze-fit .zeno-page")
   assert number.x >. slide.x +. slide.w *. 0.8
@@ -35,11 +35,11 @@ pub fn draws_the_slide_of_the_selection_test() {
   press(page, "}")
   // Slide 3: three cells in the flow, lists drawn as lists.
   assert eventually(fn() { drawn(page) == 3 })
-  assert page_number(page) == "03/06"
+  assert page_number(page) == "03/07"
   assert cdp.count(page, ".ze-fit .zeno-body > .zeno-cell") == 3
   assert cdp.count(page, ".ze-fit ol > li") == 3
   // One probe per drawn cell of the deck, notes cells excepted.
-  assert cdp.count(page, ".ze-probe") == 12
+  assert cdp.count(page, ".ze-probe") == 14
 }
 
 pub fn tab_and_canvas_keys_change_the_layout_test() {

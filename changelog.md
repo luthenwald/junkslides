@@ -1,5 +1,13 @@
 ## Unreleased
 
+## Tables
+
+2026-11-01 · `squnwrkv::nnuntwst`
+
+- New: write tables as rows of pipes with a line of dashes under the header. Colons in the dashes align a column.
+- New: tables have a quiet look in every theme: a semibold header over one firm rule and faint lines between rows, in shades of the text colour. They scale with a cell's variant, and your theme can restyle them.
+- New: a table is as wide as its content and wraps at the edge of its cell. A table too wide for its box is flagged like any other overflow, and a row that does not fit the header is noted under the cell.
+
 ## Highlighting with any theme
 
 2026-11-01 · `rpoxkxtu::mmuqzvxr`

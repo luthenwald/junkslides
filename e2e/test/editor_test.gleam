@@ -18,14 +18,14 @@ import zeno_server/view
 
 pub fn loads_the_deck_test() {
   let #(page, _) = open("load", 4901)
-  assert cells(page) == 14
+  assert cells(page) == 16
   // The last slide has no cells; it is shown as a place to select.
   assert cdp.count(page, ".ze-empty") == 1
-  assert cdp.count(page, ".ze-slide") == 6
+  assert cdp.count(page, ".ze-slide") == 7
   assert cdp.count(page, ".ze-notes") == 2
   assert selected(page) == cell("02")
   assert string.contains(status(page), "command")
-  assert string.contains(status(page), "01/06")
+  assert string.contains(status(page), "01/07")
 }
 
 pub fn keys_move_the_selection_test() {
@@ -36,7 +36,7 @@ pub fn keys_move_the_selection_test() {
   press(page, "j")
   press(page, "j")
   assert selected(page) == cell("06")
-  assert string.contains(status(page), "02/06")
+  assert string.contains(status(page), "02/07")
   press(page, "}")
   assert selected(page) == cell("08")
   press(page, "{")
@@ -66,13 +66,13 @@ pub fn new_cell_with_a_break_starts_a_slide_test() {
   let #(page, folder) = open("new", 4904)
   press(page, "o")
   assert eventually(fn() { cdp.count(page, ".ze-editing") == 1 })
-  assert cells(page) == 15
+  assert cells(page) == 17
   let assert Ok(_) = cdp.type_text(page, "Fresh\n---\nAfter")
   // The break waits for the commit.
   process.sleep(400)
-  assert cdp.count(page, ".ze-slide") == 6
+  assert cdp.count(page, ".ze-slide") == 7
   press(page, "Escape")
-  assert eventually(fn() { cdp.count(page, ".ze-slide") == 7 })
+  assert eventually(fn() { cdp.count(page, ".ze-slide") == 8 })
   assert eventually(fn() {
     let text = deck(folder)
     string.contains(text, "# Why lenses")
@@ -84,11 +84,11 @@ pub fn new_cell_with_a_break_starts_a_slide_test() {
 pub fn cut_and_paste_keep_the_cell_id_test() {
   let #(page, folder) = open("cut", 4905)
   press(page, "d")
-  assert eventually(fn() { cells(page) == 13 })
+  assert eventually(fn() { cells(page) == 15 })
   assert selected(page) == cell("03")
   assert eventually(fn() { !string.contains(deck(folder), "# Why lenses") })
   press(page, "p")
-  assert eventually(fn() { cells(page) == 14 })
+  assert eventually(fn() { cells(page) == 16 })
   // Pasted below, with its old ID: the cell is revived, not new.
   assert selected(page) == cell("02")
   assert eventually(fn() {
@@ -155,16 +155,16 @@ pub fn restructuring_keys_test() {
   // A new slide starting at the second cell, then joined again.
   press(page, "j")
   press(page, "b")
-  assert eventually(fn() { cdp.count(page, ".ze-slide") == 7 })
+  assert eventually(fn() { cdp.count(page, ".ze-slide") == 8 })
   assert has("# Why lenses\n\n---\n<!-- slide ")
   press(page, "B")
-  assert eventually(fn() { cdp.count(page, ".ze-slide") == 6 })
+  assert eventually(fn() { cdp.count(page, ".ze-slide") == 7 })
   press(page, "k")
   press(page, "m")
-  assert eventually(fn() { cells(page) == 13 })
+  assert eventually(fn() { cells(page) == 15 })
   assert has("# Why lenses\n\nA lens is")
   press(page, "D")
-  assert eventually(fn() { cells(page) == 14 })
+  assert eventually(fn() { cells(page) == 16 })
   assert selected(page) != cell("02")
   assert eventually(fn() {
     list.length(string.split(deck(folder), "# Why lenses")) == 3
@@ -192,7 +192,7 @@ pub fn split_at_the_cursor_test() {
   // From the end of `# Why lenses` to just before `lenses`.
   list.each(list.repeat("ArrowLeft", 6), press(page, _))
   key(page, "Enter", [cdp.Alt])
-  assert eventually(fn() { cells(page) == 15 })
+  assert eventually(fn() { cells(page) == 17 })
   // Edit mode continues in the new cell, which has the rest of the text.
   assert eventually(fn() { cdp.count(page, ".ze-editing") == 1 })
   assert selected(page) != cell("02")

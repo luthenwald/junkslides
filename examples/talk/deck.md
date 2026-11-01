@@ -76,4 +76,17 @@ Escapes: \_not emphasis\_ and \*not strong\*.
 ###### Six
 
 ---
+<!-- slide 019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e15 -->
+
+<!-- cell 019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e16 -->
+## The laws at a glance
+
+<!-- cell 019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e17 -->
+| Law    | Says                  | Holds for            |
+|--------|-----------------------|---------------------:|
+| GetPut | put back what you got | every lens           |
+| PutGet | get what you put      | every lens           |
+| PutPut | the last `put` wins   | very well-behaved    |
+
+---
 <!-- slide 019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e14 -->

@@ -405,6 +405,56 @@ body {
   text-align: end;
 }
 
+/* Tables: a semibold header over one firm rule, faint hairlines between rows.
+   In `em` and shades of the text's own colour, so they follow variants and
+   read on a theme's background, light or dark. A table is as wide as its
+   content and its outer columns sit flush with the cell's text. */
+:where(.zeno-cell table) {
+  border-collapse: collapse;
+  max-width: 100%;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+:where(.zeno-cell th, .zeno-cell td) {
+  padding: 0.4em 1.2em;
+  text-align: start;
+  vertical-align: baseline;
+}
+
+:where(.zeno-cell th:first-child, .zeno-cell td:first-child) {
+  padding-inline-start: 0;
+}
+
+:where(.zeno-cell th:last-child, .zeno-cell td:last-child) {
+  padding-inline-end: 0;
+}
+
+:where(.zeno-cell th) {
+  font-weight: 600;
+  border-bottom: 0.07em solid color-mix(in srgb, currentColor 80%, transparent);
+}
+
+:where(.zeno-cell tbody tr + tr td) {
+  border-top: 0.03em solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+:where(.zeno-cell th[data-align="center"], .zeno-cell td[data-align="center"]) {
+  text-align: center;
+}
+
+:where(.zeno-cell th[data-align="end"], .zeno-cell td[data-align="end"]) {
+  text-align: end;
+}
+
+/* A cell's own alignment places the table; its columns keep their own. */
+:where(.zeno-cell[data-align="center"] table) {
+  margin-inline: auto;
+}
+
+:where(.zeno-cell[data-align="end"] table) {
+  margin-inline-start: auto;
+}
+
 /* Status line */
 
 .ze-status {

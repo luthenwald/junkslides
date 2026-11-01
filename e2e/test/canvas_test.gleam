@@ -385,3 +385,94 @@ fn glide(page: Page, from: #(Float, Float), to: #(Float, Float)) -> Nil {
       )
   })
 }
+
+const table_source =
+  "| Law | Holds |\n|---|---:|\n| GetPut | yes |\n| PutGet | yes |"
+
+/// Writes a table into a slide of the example, before one of its notes
+/// cells, as an outside edit.
+fn with_table(folder: String, notes: String, source: String) -> Nil {
+  let path = filepath.join(folder, "deck.md")
+  let marker = "<!-- notes " <> cell(notes) <> " -->"
+  let assert Ok(text) = simplifile.read(path)
+  let assert Ok(_) =
+    simplifile.write(
+      path,
+      string.replace(
+        text,
+        marker,
+        "<!-- cell " <> cell("ff") <> " -->\n" <> source <> "\n\n" <> marker,
+      ),
+    )
+  Nil
+}
+
+pub fn tables_have_a_look_in_any_theme_test() {
+  let #(page, folder) = open("table-look", 4933)
+  let header = fn(property) { cdp.computed(page, ".ze-fit table th", property) }
+  let assert Ok(_) =
+    simplifile.write(
+      filepath.join(folder, "theme.css"),
+      ".zeno-slide { color: #123; }\n",
+    )
+  with_table(folder, "04", table_source)
+  assert eventually(fn() { cdp.count(page, ".ze-fit table td") == 4 })
+  assert eventually(fn() { header("font-weight") == Ok("600") })
+  assert eventually(fn() { header("border-bottom-style") == Ok("solid") })
+  // No outer padding, and the column's alignment is on its cells.
+  assert cdp.computed(page, ".ze-fit table td", "padding-left") == Ok("0px")
+  assert cdp.computed(page, ".ze-fit table td[data-align]", "text-align")
+    == Ok("end")
+  // As wide as its content, not as the cell.
+  let assert Ok(table) = cdp.box(page, ".ze-fit table")
+  let assert Ok(body) = cdp.box(page, ".ze-fit .zeno-body")
+  assert table.w <. body.w /. 2.0
+  assert !string.contains(status(page), "problems")
+  // A theme that does say wins.
+  let assert Ok(_) =
+    simplifile.write(
+      filepath.join(folder, "theme.css"),
+      ".zeno-cell th { font-weight: 300; }\n",
+    )
+  assert eventually(fn() { header("font-weight") == Ok("300") })
+}
+
+pub fn a_table_too_wide_for_its_box_is_flagged_test() {
+  let #(page, folder) = open("table-wide", 4934)
+  let wide = string.repeat("x", 200)
+  with_table(folder, "04", "| " <> wide <> " |\n|---|\n| a |")
+  assert eventually(fn() { cdp.count(page, ".ze-fit table") == 1 })
+  assert eventually(fn() { string.contains(status(page), "1 cell overflows") })
+  assert eventually(fn() { cdp.count(page, ".ze-fit .ze-overflow") == 1 })
+}
+
+pub fn a_broken_table_row_is_reported_test() {
+  let #(page, folder) = open("table-shape", 4935)
+  with_table(folder, "04", "| a | b |\n|---|---|\n| 1 |")
+  assert eventually(fn() { cdp.count(page, ".ze-fit table td") == 2 })
+  assert eventually(fn() { string.contains(status(page), "problems") })
+  assert string.contains(
+    problem(page),
+    "table row that does not fit the header",
+  )
+}
+
+pub fn dragging_a_flowing_table_keeps_its_width_test() {
+  let #(page, folder) = open("table-drag", 4936)
+  with_table(folder, "0b", table_source)
+  press(page, "}")
+  press(page, "}")
+  assert eventually(fn() { cdp.count(page, ".ze-fit table") == 1 })
+  let assert Ok(before) = cdp.box(page, ".ze-fit table")
+  let start = #(before.x +. before.w /. 2.0, before.y +. before.h /. 2.0)
+  let assert Ok(_) = cdp.mouse(page, cdp.Press, start.0, start.1)
+  let end = #(start.0 +. 100.0, start.1 -. 60.0)
+  glide(page, start, end)
+  let assert Ok(_) = cdp.mouse(page, cdp.Release, end.0, end.1)
+  assert eventually(fn() { place(folder, "ff") != None })
+  assert eventually(fn() {
+    cdp.count(page, ".ze-fit .zeno-cell[data-placed] table") == 1
+  })
+  let assert Ok(after) = cdp.box(page, ".ze-fit table")
+  assert after.w == before.w
+}

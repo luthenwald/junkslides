@@ -362,17 +362,14 @@ fn on_probe(cell: Cell) -> Attribute(app.Msg) {
 ///
 /// The source's lines are kept (04-layout.md, Line structure): every soft
 /// or hard break is a line break, followed by the indentation its line had
-/// in the source, from `dialect.continuation_indents`. Should the blocks not
-/// match up, breaks are kept without indentation.
+/// in the source, from `dialect.top_level`.
 pub fn body(source: String, highlights: Highlights) -> List(Element(msg)) {
-  let doc = dialect.parse(source)
-  let indents = dialect.continuation_indents(source)
-  let indents = case list.length(indents) == list.length(doc.content) {
-    True -> indents
-    False -> list.map(doc.content, fn(_) { [] })
-  }
-  list.map2(doc.content, indents, fn(c, lines) {
-    container(c, lines, highlights).0
+  list.map(dialect.top_level(source), fn(block) {
+    case block {
+      dialect.Contained(container: c, lines:) ->
+        container(c, lines, highlights).0
+      dialect.Tabular(table:) -> table_view(table)
+    }
   })
 }
 
@@ -435,6 +432,41 @@ fn container(
       let #(children, lines) = each(items, lines, contained)
       #(html.div([], children), lines)
     }
+  }
+}
+
+/// A table (02-file-format.md, Tables). Its look is in the base styles
+/// (04-layout.md, Theme contract). A column's alignment is on its cells, for
+/// the theme to see.
+fn table_view(table: dialect.Table) -> Element(msg) {
+  let aligns = list.map(table.columns, column_align)
+  let cells = fn(cells, make) {
+    list.map2(cells, aligns, fn(content, align) {
+      make(align, inlines(content, []).0)
+    })
+  }
+  html.table([], [
+    html.thead([], [
+      html.tr(
+        [],
+        cells(table.head, fn(align, children) {
+          html.th([attribute("scope", "col"), ..align], children)
+        }),
+      ),
+    ]),
+    html.tbody(
+      [],
+      list.map(table.rows, fn(row) { html.tr([], cells(row, html.td)) }),
+    ),
+  ])
+}
+
+fn column_align(align: dialect.ColumnAlign) -> List(Attribute(msg)) {
+  case align {
+    dialect.AlignDefault -> []
+    dialect.AlignStart -> [attribute.data("align", "start")]
+    dialect.AlignCenter -> [attribute.data("align", "center")]
+    dialect.AlignEnd -> [attribute.data("align", "end")]
   }
 }
 

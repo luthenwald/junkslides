@@ -162,6 +162,7 @@ pub const page_css =
 html {
   background: #000;
   scroll-snap-type: y mandatory;
+  scrollbar-width: none;
 }
 
 .zeno-frame {

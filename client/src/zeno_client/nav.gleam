@@ -182,6 +182,17 @@ pub fn after_removal(deck: Deck, cell: Id(CellTag)) -> Selection {
   }
 }
 
+/// What to select once a slide is deleted: the first place on the next
+/// slide, else the last place on the previous one.
+pub fn after_slide_removal(deck: Deck, slide: Id(SlideTag)) -> Selection {
+  let #(before, from) = list.split_while(deck.slides, fn(s) { s.id != slide })
+  let next = case from {
+    [_, next, ..] -> list.first(slide_items(next))
+    _ -> list.last(before) |> result.try(fn(s) { list.last(slide_items(s)) })
+  }
+  result.lazy_unwrap(next, fn() { first(deck) })
+}
+
 /// Slide numbers as the editor shows them: `01/12`, zero-padded to the
 /// width of the total and at least two digits.
 pub fn number(index: Int, total: Int) -> String {

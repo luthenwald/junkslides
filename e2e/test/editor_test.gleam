@@ -171,6 +171,21 @@ pub fn restructuring_keys_test() {
   })
 }
 
+pub fn cut_on_an_empty_slide_deletes_it_test() {
+  let #(page, folder) = open("empty-slide", 4937)
+  let original = deck(folder)
+  list.each(list.repeat("}", 6), press(page, _))
+  assert eventually(fn() { string.contains(status(page), "07/07") })
+  press(page, "d")
+  assert eventually(fn() { cdp.count(page, ".ze-slide") == 6 })
+  assert cdp.count(page, ".ze-empty") == 0
+  assert eventually(fn() { !string.contains(deck(folder), cell("14")) })
+  // The end of the slide before it is selected.
+  assert selected(page) == cell("17")
+  press(page, "u")
+  assert eventually(fn() { deck(folder) == original })
+}
+
 pub fn marker_line_is_shown_and_can_be_dropped_test() {
   let #(page, folder) = open("marker", 4907)
   let original = deck(folder)

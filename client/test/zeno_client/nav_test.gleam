@@ -62,6 +62,23 @@ pub fn removal_selects_a_neighbour_on_the_slide_test() {
   assert nav.after_removal(d, id("c1")) == OnSlide(id("03"))
 }
 
+pub fn slide_removal_selects_the_next_slide_test() {
+  let d = deck()
+  assert nav.after_slide_removal(d, id("01")) == OnSlide(id("02"))
+  assert nav.after_slide_removal(d, id("02")) == OnCell(id("c1"))
+  // The last slide goes to the end of the one before it.
+  assert nav.after_slide_removal(d, id("03")) == OnSlide(id("02"))
+  let two =
+    Deck([
+      Slide(id("01"), [
+        Cell(id("a1"), Content, "A"),
+        Cell(id("b1"), Content, "B"),
+      ]),
+      Slide(id("03"), []),
+    ])
+  assert nav.after_slide_removal(two, id("03")) == OnCell(id("b1"))
+}
+
 pub fn reselect_keeps_the_place_test() {
   let d = deck()
   let without_b =

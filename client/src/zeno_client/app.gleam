@@ -13,7 +13,7 @@ import gleam/set
 import lustre/effect.{type Effect}
 import lustre_websocket as ws
 import zeno/deck.{type Cell, type Deck}
-import zeno/id.{type CellTag, type Id}
+import zeno/id.{type CellTag, type Id, type SlideTag}
 import zeno/layout.{type Area, type Layout}
 import zeno/op.{type EditProblem, type Op}
 import zeno/protocol.{
@@ -526,16 +526,20 @@ fn command_key(
       }
     keymap.CycleKind -> on_cell(fn(cell) { apply(model, [op.CycleKind(cell)]) })
     keymap.Cut ->
-      on_cell(fn(cell) {
-        let clipboard = find(deck, cell)
-        let model =
-          Model(
-            ..model,
-            clipboard: option.or(clipboard, model.clipboard),
-            selection: nav.after_removal(deck, cell),
-          )
-        apply(model, [op.Delete(cell)])
-      })
+      case selection {
+        OnCell(cell) -> {
+          let clipboard = find(deck, cell)
+          let model =
+            Model(
+              ..model,
+              clipboard: option.or(clipboard, model.clipboard),
+              selection: nav.after_removal(deck, cell),
+            )
+          apply(model, [op.Delete(cell)])
+        }
+        // An empty slide has nothing for the clipboard; it is deleted.
+        OnSlide(slide) -> delete_slide(model, deck, slide)
+      }
     keymap.Copy ->
       on_cell(fn(cell) {
         #(
@@ -644,6 +648,38 @@ fn paste(
       effect.none(),
     )
     _, Error(Nil) -> #(model, effect.none())
+  }
+}
+
+/// Deletes a slide with its cells, which is one undo step. Deleting the only
+/// slide is refused here, so the selection does not move first.
+fn delete_slide(
+  model: Model,
+  deck: Deck,
+  slide: Id(SlideTag),
+) -> #(Model, Effect(Msg)) {
+  let cells =
+    list.find(deck.slides, fn(s) { s.id == slide })
+    |> result.map(fn(s) { list.length(s.cells) })
+    |> result.unwrap(0)
+  let notice = case cells {
+    0 -> None
+    1 -> Some("Deleted the slide and its cell; u brings it back.")
+    n ->
+      Some(
+        "Deleted the slide and its "
+        <> int.to_string(n)
+        <> " cells; u brings them back.",
+      )
+  }
+  case deck.slides {
+    [_] -> #(
+      Model(..model, notice: Some("The only slide cannot be deleted.")),
+      effect.none(),
+    )
+    _ ->
+      Model(..model, notice:, selection: nav.after_slide_removal(deck, slide))
+      |> apply([op.DeleteSlide(slide)])
   }
 }
 

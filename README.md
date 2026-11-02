@@ -14,8 +14,9 @@ never touch content.
 talk/
   deck.md        content: slides and cells, with ID markers
   layout.json    placement and style per cell
-  theme.css      the default look
-  fonts/         the fonts theme.css loads
+  zeno.toml      settings: fonts, colours, sizes, slide numbers
+  theme.css      the look, in CSS, for anything the settings don't cover
+  fonts/         the fonts zeno.toml names
   assets/        images, referenced by paths relative to the deck
 ```
 
@@ -31,7 +32,7 @@ Zeno is written in Gleam. With Gleam, Erlang and `just` installed, and
 optionally the `tree-sitter` command for highlighting, from this folder:
 
 ```sh
-gleam run init ~/talks/lenses     # a new deck with the default theme
+gleam run init ~/talks/lenses     # a new deck with default settings and theme
 gleam run serve ~/talks/lenses    # then open http://127.0.0.1:4870/
 gleam run export ~/talks/lenses   # a static page, see Exporting
 ```
@@ -108,15 +109,72 @@ gleam run export ~/talks/lenses --out ~/site/lenses
 gleam run export ~/talks/lenses --pdf               # and ~/talks/lenses/export/lenses.pdf
 ```
 
-You get a folder with `index.html`, your `theme.css` with the fonts and other files it loads, and a copy of `assets/`, ready to open, host or zip. Licence files next to a font go with it. The page has no scripts. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.
+You get a folder with `index.html`, your settings as `settings.css` with the fonts they name, your `theme.css` with the fonts and other files it loads, and a copy of `assets/`, ready to open, host or zip. Licence files next to a font go with it. The page has no scripts. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.
 
 For a PDF with one slide per page, add `--pdf` or press `F` in command mode. Zeno prints the exported page with Chrome, Chromium, Edge or Brave, whichever it finds first; set `ZENO_CHROME` to choose a program. If printing fails, your last PDF stays as it was. A CSS `filter` in your theme makes that element an image in the PDF, so its text can't be searched or copied.
 
-Exporting again replaces those files and deletes nothing. Zeno tells you about images and theme files it could not find, and leaves out any outside the deck's folder. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
+Exporting again replaces those files and deletes nothing. If `zeno.toml` has a mistake, nothing is exported until you fix it. Zeno tells you about images, fonts and theme files it could not find, and leaves out any outside the deck's folder. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
+
+## Settings
+
+`zeno.toml` in the deck's folder holds the choices most decks change. A new
+deck gets this one, and every line in it is optional:
+
+```toml
+[font.text]
+family = "et-book"
+fallback = 'Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif'
+regular = "fonts/et-book-roman.woff2"
+italic = "fonts/et-book-italic.woff2"
+bold = "fonts/et-book-bold.woff2"
+
+[font.code]
+family = "Victor Mono"
+fallback = "ui-monospace, Menlo, Consolas, monospace"
+regular = "fonts/victor-mono-regular.woff2"
+italic = "fonts/victor-mono-italic.woff2"
+bold = "fonts/victor-mono-bold.woff2"
+
+[palette]
+background = "#fafafa"
+text = "#222"
+quiet = "#777"   # slide numbers and the quiet variant
+accent = "#222"  # for your theme, as var(--zeno-accent)
+
+[type]
+size = 32        # pixels on a 1920 by 1080 slide
+line-height = 1.4
+code-scale = 1   # code size against its text, such as 0.875
+
+[slide]
+numbers = "01/12"  # or "01", or "none"
+margin = 2         # body inset in 60 px grid units, or [rows, columns]
+gap = 24           # pixels between cells that flow
+```
+
+To use another font, put its files anywhere in the deck's folder and name them
+with paths relative to the deck. Give at least `family`; the faces you leave
+out are made up by the browser. A family with no files is one installed on
+your computer, which works only there. Exports and PDFs include the files,
+with licence files next to them.
+
+```toml
+[font.text]
+family = "Inter"
+fallback = "system-ui, sans-serif"
+regular = "fonts/Inter-Regular.woff2"
+bold = "fonts/Inter-Bold.woff2"
+```
+
+Colours are CSS colours, such as `"#1d1d1f"`, `"white"` or
+`"rgb(20 20 20 / 80%)"`. Zeno applies changes as soon as you save. If the file
+has a mistake, such as a misspelt key, Zeno says which key and keeps the
+settings it had.
 
 ## Themes
 
-theme.css is plain CSS. Slides are 1920 by 1080 pixels and are drawn as
+theme.css is plain CSS, and it comes after your settings, so any rule in it
+wins. Slides are 1920 by 1080 pixels and are drawn as
 `.zeno-slide`; the flowing cells sit in `.zeno-body` and every cell is a
 `.zeno-cell`, with `data-variant` and `data-align` attributes for its style.
 The slide number is `.zeno-page`, and code tokens carry classes such as
@@ -131,10 +189,11 @@ List the theme's variants on `:root`:
 :root { --zeno-variants: "large small quiet emphasis"; }
 ```
 
-Fonts come from your theme. A new deck has et-book for text and Victor Mono
-for code in its `fonts/` folder, loaded by the default theme. To use another
-font, put its file anywhere in the deck's folder and load it with a relative
-path, not one starting with `/`. Exports and PDFs include it:
+Your settings are custom properties on `:root` that the theme can use, such
+as `var(--zeno-accent)`, `var(--zeno-quiet)` and `var(--zeno-font-code)`.
+
+A theme can also load fonts itself, from anywhere in the deck's folder, with a
+relative path that does not start with `/`. Exports and PDFs include them:
 
 ```css
 @font-face {
@@ -145,7 +204,7 @@ path, not one starting with `/`. Exports and PDFs include it:
 pre, code { font-family: Menlo, monospace; }
 ```
 
-A font installed on your computer works by name too, but only on that
-computer. Where your theme names no font, the browser's default is used.
+Where neither your settings nor your theme name a font, the browser's default
+is used.
 
 Zeno reloads the theme when the file changes.

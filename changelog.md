@@ -1,5 +1,16 @@
 ## Unreleased
 
+## Deck settings
+
+2026-11-02 · `krmyskqr::tosxonru`
+
+- New: a `zeno.toml` in your deck's folder sets its fonts, colours, text size, line height, code size, slide numbers and margins, without writing CSS. Zeno applies a change as soon as you save the file.
+- New: a font is a family name plus the files for its regular, italic and bold faces, anywhere in the deck's folder. Exports and PDFs include those files, with licence files next to them.
+- New: slide numbers can show as `01/12`, as `01`, or not at all.
+- New: your `theme.css` can use the settings as CSS variables, such as `var(--zeno-accent)`, and any rule in it still wins over them.
+- Improved: a new deck gets a `zeno.toml` with et-book, Victor Mono and the grey palette, and its `theme.css` is down to the style variants. Decks you already have look the same. Slide numbers in a new deck use the quiet grey (#777), a little darker than before.
+- Improved: if `zeno.toml` has a mistake, Zeno says which key is wrong and keeps the settings it had. An export waits until the file is fixed.
+
 ## Fonts from your theme
 
 2026-11-02 · `lxrrkoxp::vnttkvwl`

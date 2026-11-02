@@ -16,6 +16,26 @@ import simplifile
 import zeno/protocol
 import zeno_server/view
 
+/// The editor's source text is in Victor Mono from Zeno's own fonts, even when
+/// the theme names no font and the deck has none.
+pub fn the_source_text_has_the_editors_own_mono_test() {
+  let folder = prepare("editor-mono")
+  let assert Ok(Nil) = simplifile.delete(filepath.join(folder, "fonts"))
+  let assert Ok(Nil) =
+    simplifile.write(
+      filepath.join(folder, "theme.css"),
+      ".zeno-slide { color: #000; }\n",
+    )
+  let #(page, _, _, _) = open_folder(folder, 4951)
+  press(page, "Enter")
+  assert eventually(fn() {
+    case cdp.loaded_fonts(page) {
+      Ok(fonts) -> string.contains(fonts, "Victor Mono normal")
+      Error(_) -> False
+    }
+  })
+}
+
 pub fn loads_the_deck_test() {
   let #(page, _) = open("load", 4901)
   assert cells(page) == 16

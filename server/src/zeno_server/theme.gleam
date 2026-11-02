@@ -1,7 +1,9 @@
 //// The deck's theme.css as far as the server needs it: the list of variants
-//// (04-layout.md, Variants), the files it loads (04-layout.md, Export) and the
-//// default theme `zeno init` writes.
+//// (04-layout.md, Variants), the files it loads (04-layout.md, Export), and the
+//// default theme and fonts `zeno init` writes (D25).
 
+import filepath
+import gleam/erlang/application
 import gleam/list
 import gleam/result
 import gleam/string
@@ -85,18 +87,83 @@ fn names_a_file(value: String) -> Bool {
   !string.starts_with(value, "#") && !string.contains(head, ":")
 }
 
-/// Kept equal to examples/talk/theme.css (checked by a test).
+/// The default fonts and their licences, which ship with Zeno in `priv/fonts`.
+/// `zeno init` copies them into a new deck's `fonts/`, where the default theme
+/// loads them; the editor serves them under `/.zeno/fonts` for its own text.
+pub fn fonts_folder() -> Result(String, String) {
+  application.priv_directory("zeno_server")
+  |> result.map(filepath.join(_, "fonts"))
+  |> result.replace_error("The zeno_server priv folder is missing.")
+}
+
+/// Kept equal to examples/talk/theme.css, whose deck has the default fonts in
+/// `fonts/` (checked by a test).
 pub const default_css =
   "/* Default prototype theme: grayscale, calm. */
 :root {
   --zeno-variants: \"large small quiet emphasis\";
 }
 
+/* et-book for text and Victor Mono for code, from fonts/ in the deck. */
+@font-face {
+  font-family: \"et-book\";
+  src: url(\"fonts/et-book-roman.woff2\") format(\"woff2\");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: \"et-book\";
+  src: url(\"fonts/et-book-italic.woff2\") format(\"woff2\");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: \"et-book\";
+  src: url(\"fonts/et-book-bold.woff2\") format(\"woff2\");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: \"Victor Mono\";
+  src: url(\"fonts/victor-mono-regular.woff2\") format(\"woff2\");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: \"Victor Mono\";
+  src: url(\"fonts/victor-mono-italic.woff2\") format(\"woff2\");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: \"Victor Mono\";
+  src: url(\"fonts/victor-mono-bold.woff2\") format(\"woff2\");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
 .zeno-slide {
   background: #fafafa;
   color: #222;
+  font-family: \"et-book\", Palatino, \"Palatino Linotype\", \"Book Antiqua\", Georgia, serif;
   font-size: 32px;
   line-height: 1.4;
+}
+
+pre,
+code {
+  font-family: \"Victor Mono\", ui-monospace, Menlo, Consolas, monospace;
 }
 
 .zeno-body {

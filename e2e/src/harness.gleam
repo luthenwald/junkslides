@@ -39,7 +39,7 @@ pub fn open_with(
   open_folder(prepare(name), port)
 }
 
-/// A fresh copy of the example deck, without view state.
+/// A fresh copy of the example deck with its fonts, without view state.
 pub fn prepare(name: String) -> String {
   let assert Ok(cwd) = simplifile.current_directory()
   let folder = filepath.join(cwd, "build/scenarios/" <> name)
@@ -53,6 +53,11 @@ pub fn prepare(name: String) -> String {
         filepath.join(folder, file),
       )
   })
+  let assert Ok(Nil) =
+    simplifile.copy_directory(
+      "../examples/talk/fonts",
+      filepath.join(folder, "fonts"),
+    )
   folder
 }
 

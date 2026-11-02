@@ -18,7 +18,6 @@ import zeno/op
 import zeno/protocol.{Token, View}
 import zeno/render/styles
 import zeno_server
-import zeno_server/export
 import zeno_server/highlighter
 import zeno_server/pdf
 import zeno_server/state
@@ -145,13 +144,19 @@ pub fn files_the_theme_loads_are_read_test() {
 .z { background: url(\"\"); cursor: url(sub/e:f.png), auto; }"
   assert theme.urls(css)
     == ["fonts/a.woff2", "b.woff", "c d.png", "sub/e:f.png"]
-  assert theme.urls(theme.default_css) == []
+  assert theme.urls(".x { color: red; }") == []
   assert theme.urls("/* never closed url(x.png)") == []
 }
 
 pub fn default_theme_is_the_example_theme_test() {
   let assert Ok(css) = simplifile.read("../examples/talk/theme.css")
   assert theme.default_css == css
+  let assert Ok(fonts) = theme.fonts_folder()
+  let assert Ok(names) = simplifile.read_directory(fonts)
+  list.each(names, fn(name) {
+    assert simplifile.read_bits("../examples/talk/fonts/" <> name)
+      == simplifile.read_bits(filepath.join(fonts, name))
+  })
 }
 
 pub fn static_files_stay_inside_the_deck_folder_test() {
@@ -224,6 +229,17 @@ pub fn init_creates_a_deck_and_never_replaces_one_test() {
   assert cell.source == "# Untitled"
   assert simplifile.read(filepath.join(folder, "theme.css"))
     == Ok(theme.default_css)
+  // The fonts the default theme loads, with their licences.
+  let assert Ok(fonts) = theme.fonts_folder()
+  let assert Ok(names) = simplifile.read_directory(fonts)
+  assert list.length(names) == 8
+  list.each(names, fn(name) {
+    assert simplifile.read_bits(filepath.join(folder, "fonts/" <> name))
+      == simplifile.read_bits(filepath.join(fonts, name))
+  })
+  assert list.all(theme.urls(theme.default_css), fn(url) {
+    list.contains(names, string.drop_start(url, 6))
+  })
   let assert Ok(layout) = simplifile.read(filepath.join(folder, "layout.json"))
   assert result.is_ok(file.parse_layout(layout))
   let assert Error(message) = zeno_server.init(folder)
@@ -237,6 +253,7 @@ pub fn init_keeps_an_existing_theme_test() {
     simplifile.write(filepath.join(folder, "theme.css"), "mine")
   let assert Ok(Nil) = zeno_server.init(folder)
   assert simplifile.read(filepath.join(folder, "theme.css")) == Ok("mine")
+  assert simplifile.is_directory(filepath.join(folder, "fonts")) == Ok(False)
 }
 
 pub fn serve_refuses_a_folder_without_a_deck_test() {
@@ -489,6 +506,7 @@ pub fn export_writes_a_folder_and_leaves_the_deck_alone_test() {
   let out = filepath.join(folder, "export")
   assert report.page == filepath.join(out, "index.html")
   assert harness.read(out, "theme.css") == harness.read(folder, "theme.css")
+  // The default theme's fonts come from the deck, with their licences.
   assert exists(out, "fonts/et-book-roman.woff2")
   assert exists(out, "fonts/victor-mono-italic.woff2")
   assert exists(out, "fonts/et-book.LICENSE")
@@ -514,8 +532,9 @@ pub fn export_writes_a_folder_and_leaves_the_deck_alone_test() {
   assert harness.read(folder, "layout.json") == layout
 }
 
-/// A font the theme loads from a folder of the deck reaches the export, and
-/// what cannot be included is named.
+/// A font the theme loads from a folder of the deck reaches the export with the
+/// licences beside it, nothing else of that folder does, and what cannot be
+/// included is named.
 pub fn export_copies_the_files_the_theme_loads_test() {
   let folder = export_deck("export-theme-files")
   let write = fn(relative, contents) {
@@ -526,13 +545,13 @@ pub fn export_copies_the_files_the_theme_loads_test() {
     Nil
   }
   write("fonts/custom.woff2", "custom")
-  write("fonts/et-book-roman.woff2", "not the default")
+  write("fonts/OFL-licence.txt", "licence")
+  write("fonts/.LICENSE.swp", "hidden")
   write("art/paper.png", "paper")
   write("../export-theme-files-outside.woff2", "outside")
   write(
     "theme.css",
     "@font-face { src: url(\"fonts/custom.woff2\") format(\"woff2\"); }
-@font-face { src: url(fonts/et-book-roman.woff2); }
 .zeno-slide { background: url('./art/paper.png?v=2'), url(gone.woff2); }
 .a { background: url(../export-theme-files-outside.woff2); }
 .b { background: url(/art/paper.png); }
@@ -545,15 +564,16 @@ pub fn export_copies_the_files_the_theme_loads_test() {
   assert harness.read(out, "fonts/custom.woff2") == "custom"
   assert harness.read(out, "art/paper.png") == "paper"
   assert exists(out, "assets/sub/font.woff2")
-  let assert Ok(fonts) = export.fonts_folder()
-  assert simplifile.read_bits(filepath.join(out, "fonts/et-book-roman.woff2"))
-    == simplifile.read_bits(filepath.join(fonts, "et-book-roman.woff2"))
+  assert exists(out, "fonts/et-book.LICENSE")
+  assert exists(out, "fonts/OFL-licence.txt")
+  assert !exists(out, "fonts/.LICENSE.swp")
+  // Not loaded by this theme, so not exported, though Zeno ships it.
+  assert !exists(out, "fonts/et-book-roman.woff2")
   assert !exists(out, "../export-theme-files-outside.woff2")
   assert report.warnings
     == [
       "Missing image: gone.png",
       "Left out an image outside the deck: ../export-theme-files-secret.png",
-      "Rename this file in theme.css, a default font has its name: fonts/et-book-roman.woff2",
       "Missing file in theme.css: gone.woff2",
       "Left out a file outside the deck in theme.css: ../export-theme-files-outside.woff2",
       "Use a relative path in theme.css: /art/paper.png",

@@ -4,61 +4,9 @@
 
 /// Zero specificity, so that any rule in theme.css wins.
 pub const base_css =
-  "/* The default fonts, in `fonts/` beside this stylesheet: under /.zeno/ in the
-   editor, and beside index.html in an export, where these styles are inline. */
-@font-face {
-  font-family: \"et-book\";
-  src: url(\"fonts/et-book-roman.woff2\") format(\"woff2\");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"et-book\";
-  src: url(\"fonts/et-book-italic.woff2\") format(\"woff2\");
-  font-weight: normal;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"et-book\";
-  src: url(\"fonts/et-book-bold.woff2\") format(\"woff2\");
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"Victor Mono\";
-  src: url(\"fonts/victor-mono-regular.woff2\") format(\"woff2\");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"Victor Mono\";
-  src: url(\"fonts/victor-mono-italic.woff2\") format(\"woff2\");
-  font-weight: normal;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"Victor Mono\";
-  src: url(\"fonts/victor-mono-bold.woff2\") format(\"woff2\");
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* The slide's structure (04-layout.md, Theme contract). Zero specificity,
-   so that any rule in theme.css wins. */
+  "/* The slide's structure (04-layout.md, Theme contract). Zero specificity,
+   so that any rule in theme.css wins. Fonts are the theme's own (D25). */
 :where(.zeno-slide) {
-  font-family: et-book, Palatino, \"Palatino Linotype\", \"Palatino LT STD\",
-    \"Book Antiqua\", Georgia, serif;
   position: relative;
   box-sizing: border-box;
   width: 1920px;
@@ -78,12 +26,6 @@ pub const base_css =
 
 :where(.zeno-cell) {
   min-width: 0;
-}
-
-/* Code in the default mono, at the size of the text around it. */
-:where(pre, code) {
-  font-family: \"Victor Mono\", ui-monospace, \"Cascadia Code\", \"JetBrains Mono\",
-    \"Fira Code\", Menlo, Consolas, monospace;
 }
 
 /* The indentation of a continued line, kept from the source. */

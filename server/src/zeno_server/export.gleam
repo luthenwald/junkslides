@@ -1,6 +1,6 @@
 //// Writes a deck as a static folder (04-layout.md, Export): `index.html` from
-//// `render.document`, a copy of theme.css and the files it loads, the deck's
-//// images, and the default fonts, and on request a PDF of the page. Of the deck, it only reads the
+//// `render.document`, a copy of theme.css and the files it loads, such as its
+//// fonts, and the deck's images, and on request a PDF of the page. Of the deck, it only reads the
 //// folder. Nothing is deleted, and files outside the deck are never copied in,
 //// so a shared export holds only what belongs to the talk.
 
@@ -8,7 +8,6 @@ import filepath
 import gleam/bit_array
 import gleam/bool
 import gleam/dict
-import gleam/erlang/application
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -35,13 +34,6 @@ pub fn default_out(folder: String) -> String {
   filepath.join(folder, "export")
 }
 
-/// The default fonts and their licences, which ship with Zeno in `priv/fonts`.
-pub fn fonts_folder() -> Result(String, String) {
-  application.priv_directory("zeno_server")
-  |> result.map(filepath.join(_, "fonts"))
-  |> result.replace_error("The zeno_server priv folder is missing.")
-}
-
 /// Exports to the folder `out`. Both paths are absolute and expanded.
 /// `tree_sitter` is the command that highlights code blocks.
 pub fn write(
@@ -55,8 +47,6 @@ pub fn write(
   use Nil <- result.try(
     simplifile.create_directory_all(out) |> result.map_error(describe(out, _)),
   )
-  use defaults <- result.try(default_fonts())
-  use Nil <- result.try(copy_fonts(out, defaults))
   use Nil <- result.try(copy_assets(folder, out))
   use theme_bytes <- result.try(read_theme(folder))
   let #(images, image_warnings) = images_to_copy(folder, deck)
@@ -64,11 +54,11 @@ pub fn write(
     theme_bytes
     |> option.map(bit_array.to_string)
     |> option.map(result.unwrap(_, ""))
-    |> option.map(theme_files(folder, _, defaults))
+    |> option.map(theme_files(folder, _))
     |> option.unwrap(#([], []))
   let warnings = list.append(image_warnings, theme_warnings)
   use Nil <- result.try(
-    list.append(images, loaded)
+    list.flatten([images, loaded, licences_beside(folder, loaded)])
     |> list.unique
     |> list.try_each(copy(folder, out, _)),
   )
@@ -133,27 +123,6 @@ fn check_out(folder: String, out: String) -> Result(Nil, String) {
   Ok(Nil)
 }
 
-/// The names of the files in the fonts folder.
-fn default_fonts() -> Result(List(String), String) {
-  use fonts <- result.try(fonts_folder())
-  simplifile.read_directory(fonts) |> result.map_error(describe(fonts, _))
-}
-
-/// The default fonts, into `fonts/`, where the base styles look.
-fn copy_fonts(out: String, files: List(String)) -> Result(Nil, String) {
-  let target = filepath.join(out, "fonts")
-  use fonts <- result.try(fonts_folder())
-  use Nil <- result.try(
-    simplifile.create_directory_all(target)
-    |> result.map_error(describe(target, _)),
-  )
-  list.try_each(files, fn(file) {
-    let path = filepath.join(target, file)
-    simplifile.copy_file(filepath.join(fonts, file), path)
-    |> result.map_error(describe(path, _))
-  })
-}
-
 /// Every file in `assets/`, apart from hidden ones.
 fn copy_assets(folder: String, out: String) -> Result(Nil, String) {
   let assets = filepath.join(folder, "assets")
@@ -208,36 +177,51 @@ fn images_to_copy(folder: String, deck: Deck) -> #(List(String), List(String)) {
 /// warnings about those that cannot be included. The page reads theme.css
 /// from the export's root, as the editor does from the deck's, so a relative
 /// path finds the copy. A path from the root works in the editor but not from
-/// a file, and a file named like a default font would take that font's place
-/// in the export but not in the editor.
-fn theme_files(
-  folder: String,
-  css: String,
-  defaults: List(String),
-) -> #(List(String), List(String)) {
+/// a file.
+fn theme_files(folder: String, css: String) -> #(List(String), List(String)) {
   theme.urls(css)
   |> list.map(fn(url) {
     case url {
       "/" <> _ -> Error("Use a relative path in theme.css: " <> url)
-      _ -> {
-        use relative <- result.try(locate(
+      _ ->
+        locate(
           folder,
           without_dot_segments(url),
           missing: "Missing file in theme.css: ",
           outside: "Left out a file outside the deck in theme.css: ",
-        ))
-        case list.any(defaults, fn(font) { relative == "fonts/" <> font }) {
-          True ->
-            Error(
-              "Rename this file in theme.css, a default font has its name: "
-              <> url,
-            )
-          False -> Ok(relative)
-        }
-      }
+        )
     }
   })
   |> split_results
+}
+
+/// The licence files in the folders of the given files, so that a font's
+/// licence travels with it: names with `LICENSE` or `LICENCE` in them, in any
+/// case, apart from hidden ones.
+fn licences_beside(folder: String, files: List(String)) -> List(String) {
+  files
+  |> list.map(filepath.directory_name)
+  |> list.unique
+  |> list.flat_map(fn(directory) {
+    simplifile.read_directory(filepath.join(folder, directory))
+    |> result.unwrap([])
+    |> list.filter(fn(name) {
+      let upper = string.uppercase(name)
+      !string.starts_with(name, ".")
+      && {
+        string.contains(upper, "LICENSE") || string.contains(upper, "LICENCE")
+      }
+    })
+    |> list.map(fn(name) {
+      case directory {
+        "" -> name
+        _ -> directory <> "/" <> name
+      }
+    })
+    |> list.filter(fn(relative) {
+      simplifile.is_file(filepath.join(folder, relative)) == Ok(True)
+    })
+  })
 }
 
 fn without_dot_segments(path: String) -> String {

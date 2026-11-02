@@ -112,13 +112,42 @@ pub fn init(folder: String) -> Result(Nil, String) {
     filepath.join(folder, "layout.json"),
     file.print_layout(layout.empty()),
   ))
-  use Nil <- result.try(write_new(
-    filepath.join(folder, "theme.css"),
-    theme.default_css,
-  ))
+  // The default theme loads the default fonts from the deck, so they come
+  // with it. A theme that is already there keeps its own fonts.
+  let theme_path = filepath.join(folder, "theme.css")
+  use Nil <- result.try(case simplifile.is_file(theme_path) {
+    Ok(True) -> Ok(Nil)
+    _ -> {
+      use Nil <- result.try(copy_default_fonts(folder))
+      write_new(theme_path, theme.default_css)
+    }
+  })
   io.println("Created a deck in " <> folder <> ".")
   io.println("Run: zeno serve " <> folder)
   Ok(Nil)
+}
+
+/// Zeno's fonts into `fonts/`, apart from files of the same name already there.
+fn copy_default_fonts(folder: String) -> Result(Nil, String) {
+  let target = filepath.join(folder, "fonts")
+  use fonts <- result.try(theme.fonts_folder())
+  use files <- result.try(
+    simplifile.read_directory(fonts)
+    |> result.map_error(simplifile.describe_error),
+  )
+  use Nil <- result.try(
+    simplifile.create_directory_all(target)
+    |> result.map_error(simplifile.describe_error),
+  )
+  list.try_each(files, fn(file) {
+    let path = filepath.join(target, file)
+    case simplifile.is_file(path) {
+      Ok(True) -> Ok(Nil)
+      _ ->
+        simplifile.copy_file(filepath.join(fonts, file), path)
+        |> result.map_error(simplifile.describe_error)
+    }
+  })
 }
 
 fn write_new(path: String, contents: String) -> Result(Nil, String) {
@@ -141,7 +170,7 @@ pub fn serve(folder: String, port: Int) -> Result(Nil, String) {
     |> result.map(filepath.join(_, "static"))
     |> result.replace_error("The zeno_server priv folder is missing."),
   )
-  use fonts <- result.try(export.fonts_folder())
+  use fonts <- result.try(theme.fonts_folder())
   // A port in use makes the listener's supervisor log a long report and
   // exit, which would take this process with it, before the start returns
   // its error. The message below says it plainly instead.

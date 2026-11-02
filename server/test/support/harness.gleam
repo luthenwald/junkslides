@@ -13,8 +13,8 @@ import zeno/deck.{type Cell, type Deck}
 import zeno/id.{type CellTag, type Id}
 import zeno/layout.{type Layout}
 import zeno/protocol.{type ClientMsg, type ServerMsg}
-import zeno_server/export
 import zeno_server/state
+import zeno_server/theme
 import zeno_server/web
 
 pub type Harness {
@@ -27,7 +27,7 @@ pub type Harness {
 
 const example = "../examples/talk"
 
-/// A fresh copy of the example deck under build/scenarios/<name>.
+/// A fresh copy of the example deck under build/scenarios/<name>, with its fonts.
 pub fn folder(name: String) -> String {
   let assert Ok(cwd) = simplifile.current_directory()
   let folder = filepath.join(cwd, "build/scenarios/" <> name)
@@ -40,6 +40,11 @@ pub fn folder(name: String) -> String {
         filepath.join(folder, name),
       )
   })
+  let assert Ok(Nil) =
+    simplifile.copy_directory(
+      filepath.join(example, "fonts"),
+      filepath.join(folder, "fonts"),
+    )
   folder
 }
 
@@ -88,7 +93,7 @@ pub fn serve_with_tree_sitter(
 fn serve_config(config: state.Config, port: Int) -> Harness {
   let folder = config.folder
   let assert Ok(owner) = state.start(config)
-  let assert Ok(fonts) = export.fonts_folder()
+  let assert Ok(fonts) = theme.fonts_folder()
   let assert Ok(_) =
     web.start(web.Config(port:, folder:, client: folder, fonts:), owner)
   connect(folder, port)

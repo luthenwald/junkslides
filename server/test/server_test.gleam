@@ -581,6 +581,59 @@ pub fn export_copies_the_files_the_theme_loads_test() {
     ]
 }
 
+/// The fonts zeno.toml names reach the export with their licences, and its
+/// settings.css names them by paths beside the page.
+pub fn export_writes_the_settings_and_their_fonts_test() {
+  let folder = export_deck("export-settings")
+  let write = fn(relative, contents) {
+    let path = filepath.join(folder, relative)
+    let assert Ok(Nil) =
+      simplifile.create_directory_all(filepath.directory_name(path))
+    let assert Ok(Nil) = simplifile.write(path, contents)
+    Nil
+  }
+  write("type/serif.woff2", "serif")
+  write("type/LICENSE.txt", "licence")
+  write("type/unused.woff2", "unused")
+  write(
+    "zeno.toml",
+    "[font.text]\nfamily = \"Serif\"\nregular = \"type/serif.woff2\"\n"
+      <> "italic = \"type/gone.woff2\"\n[palette]\ntext = \"#333\"\n",
+  )
+  // A file of the deck's own by the name the export uses for the settings.
+  write("settings.css", "mine")
+  write("theme.css", ".x { background: url(settings.css); }\n")
+  let assert Ok(report) =
+    zeno_server.export_deck(folder, None, "no-such-command")
+  let out = filepath.join(folder, "export")
+  assert harness.read(out, "type/serif.woff2") == "serif"
+  assert exists(out, "type/LICENSE.txt")
+  assert !exists(out, "type/unused.woff2")
+  let css = harness.read(out, "settings.css")
+  assert string.contains(css, "url(\"type/serif.woff2\")")
+  assert string.contains(css, "--zeno-text: #333;")
+  let page = harness.read(out, "index.html")
+  let assert Ok(#(before_theme, _)) =
+    string.split_once(page, "href=\"theme.css\"")
+  assert string.contains(before_theme, "href=\"settings.css\"")
+  assert report.warnings
+    == [
+      "Missing image: gone.png",
+      "Left out an image outside the deck: ../export-settings-secret.png",
+      "Missing file in zeno.toml: type/gone.woff2",
+      "theme.css loads settings.css, which the export writes from zeno.toml.",
+    ]
+}
+
+pub fn export_without_settings_links_none_test() {
+  let folder = export_deck("export-no-settings")
+  let _ = simplifile.delete(filepath.join(folder, "zeno.toml"))
+  let assert Ok(_) = zeno_server.export_deck(folder, None, "no-such-command")
+  let out = filepath.join(folder, "export")
+  assert !exists(out, "settings.css")
+  assert !string.contains(harness.read(out, "index.html"), "settings.css")
+}
+
 pub fn export_again_replaces_and_deletes_nothing_test() {
   let folder = export_deck("export-again")
   let out = filepath.join(folder, "elsewhere")
@@ -620,6 +673,13 @@ pub fn export_writes_nothing_when_a_file_does_not_read_test() {
   let assert Ok(Nil) =
     simplifile.write(filepath.join(folder, "layout.json"), "{")
   let assert Error(_) = zeno_server.export_deck(folder, None, "no-such-command")
+  assert simplifile.is_directory(filepath.join(folder, "export")) == Ok(False)
+  let folder = export_deck("export-broken-settings")
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(folder, "zeno.toml"), "[fonts]\n")
+  let assert Error(message) =
+    zeno_server.export_deck(folder, None, "no-such-command")
+  assert message == "zeno.toml: fonts is not a setting."
   assert simplifile.is_directory(filepath.join(folder, "export")) == Ok(False)
 }
 

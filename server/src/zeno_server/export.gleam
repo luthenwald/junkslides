@@ -1,6 +1,7 @@
 //// Writes a deck as a static folder (04-layout.md, Export): `index.html` from
-//// `render.document`, a copy of theme.css and the files it loads, such as its
-//// fonts, and the deck's images, and on request a PDF of the page. Of the deck, it only reads the
+//// `render.document`, `settings.css` from zeno.toml and the fonts it names, a
+//// copy of theme.css and the files it loads, such as its fonts, and the deck's
+//// images, and on request a PDF of the page. Of the deck, it only reads the
 //// folder. Nothing is deleted, and files outside the deck are never copied in,
 //// so a shared export holds only what belongs to the talk.
 
@@ -20,6 +21,7 @@ import zeno/protocol
 import zeno/render
 import zeno_server/highlighter
 import zeno_server/pdf
+import zeno_server/settings.{type Settings}
 import zeno_server/store
 import zeno_server/theme
 
@@ -44,11 +46,20 @@ pub fn write(
   tree_sitter tree_sitter: String,
 ) -> Result(Report, String) {
   use Nil <- result.try(check_out(folder, out))
+  use settings <- result.try(read_settings(folder))
   use Nil <- result.try(
     simplifile.create_directory_all(out) |> result.map_error(describe(out, _)),
   )
   use Nil <- result.try(copy_assets(folder, out))
   use theme_bytes <- result.try(read_theme(folder))
+  let settings_css =
+    settings
+    |> option.map(settings.to_css(_, ""))
+    |> option.unwrap("")
+  let #(fonts, settings_warnings) =
+    settings
+    |> option.map(settings_files(folder, _))
+    |> option.unwrap(#([], []))
   let #(images, image_warnings) = images_to_copy(folder, deck)
   let #(loaded, theme_warnings) =
     theme_bytes
@@ -56,12 +67,34 @@ pub fn write(
     |> option.map(result.unwrap(_, ""))
     |> option.map(theme_files(folder, _))
     |> option.unwrap(#([], []))
-  let warnings = list.append(image_warnings, theme_warnings)
+  let has_settings = settings_css != ""
+  let clash = case has_settings && list.contains(loaded, "settings.css") {
+    True -> [
+      "theme.css loads settings.css, which the export writes from zeno.toml.",
+    ]
+    False -> []
+  }
+  let warnings =
+    list.flatten([image_warnings, settings_warnings, theme_warnings, clash])
+  let fonts_and_loaded = list.append(fonts, loaded)
   use Nil <- result.try(
-    list.flatten([images, loaded, licences_beside(folder, loaded)])
+    list.flatten([
+      images,
+      fonts_and_loaded,
+      licences_beside(folder, fonts_and_loaded),
+    ])
     |> list.unique
     |> list.try_each(copy(folder, out, _)),
   )
+  use Nil <- result.try(case has_settings {
+    False -> Ok(Nil)
+    True ->
+      store.write_atomic(
+        filepath.join(out, "settings.css"),
+        bit_array.from_string(settings_css),
+      )
+      |> result.replace(Nil)
+  })
   let has_theme = option.is_some(theme_bytes)
   use Nil <- result.try(case theme_bytes {
     None -> Ok(Nil)
@@ -80,7 +113,7 @@ pub fn write(
       layout:,
       highlights:,
       title: filepath.base_name(folder),
-      has_settings: False,
+      has_settings:,
       has_theme:,
     )
   use _ <- result.try(store.write_atomic(page, bit_array.from_string(html)))
@@ -154,6 +187,38 @@ fn read_theme(folder: String) -> Result(Option(BitArray), String) {
       |> result.map_error(describe(path, _))
     _ -> Ok(None)
   }
+}
+
+/// The deck's zeno.toml, if it has one. One that does not read stops the
+/// export, as a broken deck does, rather than giving pages in other fonts.
+fn read_settings(folder: String) -> Result(Option(Settings), String) {
+  let path = filepath.join(folder, "zeno.toml")
+  case simplifile.is_file(path) {
+    Ok(True) -> {
+      use text <- result.try(
+        simplifile.read(path) |> result.map_error(describe(path, _)),
+      )
+      settings.parse(text) |> result.map(Some)
+    }
+    _ -> Ok(None)
+  }
+}
+
+/// The font files zeno.toml names, and the warnings about missing ones. The
+/// export's settings.css sits at its root and names them by the same relative
+/// paths.
+fn settings_files(
+  folder: String,
+  settings: Settings,
+) -> #(List(String), List(String)) {
+  settings.files(settings)
+  |> list.map(locate(
+    folder,
+    _,
+    missing: "Missing file in zeno.toml: ",
+    outside: "Left out a file outside the deck in zeno.toml: ",
+  ))
+  |> split_results
 }
 
 /// The relative paths of the images drawn cells use beyond `assets/`, and the

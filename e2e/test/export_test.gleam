@@ -89,6 +89,41 @@ pub fn the_page_loads_a_font_the_theme_keeps_in_the_deck_test() {
   })
 }
 
+/// A font named only in zeno.toml is in the export and loads from there.
+pub fn the_page_loads_a_font_the_settings_name_test() {
+  let folder = harness.prepare("export-settings-font")
+  let assert Ok(Nil) =
+    simplifile.create_directory_all(filepath.join(folder, "type"))
+  let assert Ok(Nil) =
+    simplifile.copy_file(
+      "../server/priv/fonts/victor-mono-regular.woff2",
+      filepath.join(folder, "type/settings-font.woff2"),
+    )
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(folder, "theme.css"), ".x { }\n")
+  let assert Ok(Nil) =
+    simplifile.write(
+      filepath.join(folder, "zeno.toml"),
+      "[font.text]\nfamily = \"Settings Font\"\n"
+        <> "regular = \"type/settings-font.woff2\"\n",
+    )
+  let #(page, _, _, _) = harness.open_folder(folder, 4953)
+  press(page, "E")
+  assert eventually(fn() { string.contains(status(page), "Exported to ") })
+  let assert Ok(_) =
+    cdp.open(
+      page,
+      "file://" <> filepath.join(folder, "export/index.html"),
+      ".zeno-frame",
+    )
+  assert eventually(fn() {
+    case cdp.loaded_fonts(page) {
+      Ok(fonts) -> string.contains(fonts, "Settings Font normal")
+      Error(_) -> False
+    }
+  })
+}
+
 pub fn a_slide_fits_the_window_at_any_size_test() {
   let #(page, url) = exported("export-fit", 4942)
   // Wider than 16:9 or narrower, the slide is whole and centred.

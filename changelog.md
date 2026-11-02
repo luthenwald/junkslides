@@ -1,5 +1,12 @@
 ## Unreleased
 
+## Delete slides
+
+2026-11-02 · `vvvxkwto::ktsyysmp`
+
+- New: `d` on an empty slide deletes it.
+- New: `Ctrl-Shift-D` deletes the selected slide with all its cells. It is the Control key on a Mac too, and `u` brings the slide back.
+
 ## Run with gleam
 
 2026-11-02 · `zywpnxsv::trquxrql`

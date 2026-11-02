@@ -57,7 +57,8 @@ The keys are modal:
 - Command mode: `j` and `k` move between cells, `o` adds a cell, `Enter`
   edits it, `J` and `K` move it, `b` starts a new slide, `t` turns a cell
   into speaker notes, `d`, `y` and `p` cut, copy and paste, `u` and `U` undo
-  and redo.
+  and redo. `d` on an empty slide deletes it, and `Ctrl-Shift-D` deletes the
+  selected slide with all its cells (Control, also on a Mac).
 - Edit mode: type, then `Esc`. A line that is exactly `---` starts a new
   slide; `Alt-Enter` splits the cell at the cursor.
 - Canvas mode (`Tab` from the cells pane): drag a cell to place it, drag its

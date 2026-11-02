@@ -1,5 +1,11 @@
 ## Unreleased
 
+## Run with gleam
+
+2026-11-02 · `zywpnxsv::trquxrql`
+
+- New: `gleam run serve <folder>`, `gleam run init <folder>` and `gleam run export <folder>` work from the project folder, with no `just` needed. Serving builds the editor first, so the page always matches the source.
+
 ## Export to PDF
 
 2026-11-01 · `rmklpwsu::pvwrmorp`

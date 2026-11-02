@@ -7,3 +7,4 @@ dist/
 .lustre/
 erl_crash.dump
 /.claude
+talk/

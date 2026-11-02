@@ -30,11 +30,19 @@ Zeno is written in Gleam. With Gleam, Erlang and `just` installed, and
 optionally the `tree-sitter` command for highlighting, from this folder:
 
 ```sh
-just zeno init ~/talks/lenses     # a new deck with the default theme
-just zeno serve ~/talks/lenses    # then open http://127.0.0.1:4870/
+gleam run init ~/talks/lenses     # a new deck with the default theme
+gleam run serve ~/talks/lenses    # then open http://127.0.0.1:4870/
+gleam run export ~/talks/lenses   # a static page, see Exporting
 ```
 
-`just zeno` builds Zeno first. `just run serve ~/talks/lenses` starts the last build straight away.
+`gleam run` builds Zeno and the editor first. Relative folders are read from
+where you run it, which can be any folder of this project except the
+packages inside it (`core`, `server`, `client` and the others), where it runs
+that package instead.
+
+`just zeno serve ~/talks/lenses` does the same from any folder of the
+project, and `just run serve ~/talks/lenses` starts the last `just zeno`
+build straight away.
 
 The editor targets Chromium-based browsers for now.
 
@@ -93,9 +101,9 @@ edge of its cell, and it scales with the cell's variant.
 Press `E` in command mode, or run:
 
 ```sh
-just zeno export ~/talks/lenses                     # into ~/talks/lenses/export
-just zeno export ~/talks/lenses --out ~/site/lenses
-just zeno export ~/talks/lenses --pdf               # and ~/talks/lenses/export/lenses.pdf
+gleam run export ~/talks/lenses                     # into ~/talks/lenses/export
+gleam run export ~/talks/lenses --out ~/site/lenses
+gleam run export ~/talks/lenses --pdf               # and ~/talks/lenses/export/lenses.pdf
 ```
 
 You get a folder with `index.html`, your `theme.css`, a copy of `assets/` and the default fonts in `fonts/`, ready to open, host or zip. The page has no scripts. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.

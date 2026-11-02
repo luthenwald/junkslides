@@ -134,6 +134,20 @@ pub fn variants_are_read_from_the_theme_test() {
   assert theme.variants(":root { --zeno-variants: \"a a\" }") == ["a"]
 }
 
+pub fn files_the_theme_loads_are_read_test() {
+  let css =
+    "@font-face { src: url(\"fonts/a.woff2\") format(\"woff2\"), url( 'b.woff' ); }
+/* .old { background: url(old.png); } */
+.x { background: url( c d.png ) , url(fonts/a.woff2); }
+.y { background: url(data:image/png;base64,AAAA); mask: url(#m); }
+@import url(https://example.com/font.css);
+.z { background: url(\"\"); cursor: url(sub/e:f.png), auto; }"
+  assert theme.urls(css)
+    == ["fonts/a.woff2", "b.woff", "c d.png", "sub/e:f.png"]
+  assert theme.urls(theme.default_css) == []
+  assert theme.urls("/* never closed url(x.png)") == []
+}
+
 pub fn default_theme_is_the_example_theme_test() {
   let assert Ok(css) = simplifile.read("../examples/talk/theme.css")
   assert theme.default_css == css

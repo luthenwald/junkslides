@@ -1,0 +1,12 @@
+name = "zeno"
+version = "1.0.0"
+target = "erlang"
+description = "The zeno command from the source tree: `gleam run serve <folder>`."
+
+[dependencies]
+zeno_server = { path = "server" }
+gleam_stdlib = ">= 1.0.0 and < 2.0.0"
+argv = ">= 1.0.2 and < 2.0.0"
+shellout = ">= 1.8.0 and < 2.0.0"
+simplifile = ">= 2.7.0 and < 3.0.0"
+filepath = ">= 1.1.2 and < 2.0.0"

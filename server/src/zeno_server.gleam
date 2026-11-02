@@ -1,6 +1,6 @@
 //// The `zeno` command (06-runtime.md, Processes).
 ////
-////     zeno init <folder>                 a minimal deck and the default theme
+////     zeno init <folder>                 a minimal deck, default settings and theme
 ////     zeno serve <folder> [--port N]     serve the deck on 127.0.0.1
 ////     zeno export <folder> [--out path] [--pdf]
 ////                                        write the deck as a static folder,
@@ -27,6 +27,7 @@ import zeno/layout
 import zeno_server/export
 import zeno_server/highlighter
 import zeno_server/pdf
+import zeno_server/settings
 import zeno_server/state
 import zeno_server/store
 import zeno_server/theme
@@ -35,7 +36,7 @@ import zeno_server/web
 
 const usage =
   "Usage:
-  zeno init <folder>               create a deck with the default theme
+  zeno init <folder>               create a deck with default settings and theme
   zeno serve <folder> [--port N]   serve the deck (default port 4870)
   zeno export <folder> [--out P] [--pdf]
                                    write a static page (default <folder>/export),
@@ -90,9 +91,9 @@ fn export_options(
 @external(erlang, "erlang", "halt")
 fn halt(status: Int) -> Nil
 
-/// Creates the folder if needed and writes deck.md, layout.json and
-/// theme.css. An existing deck.md is never replaced; existing layout.json
-/// and theme.css files are kept.
+/// Creates the folder if needed and writes deck.md, layout.json, zeno.toml
+/// and theme.css. An existing deck.md is never replaced; the other files are
+/// kept when they exist.
 pub fn init(folder: String) -> Result(Nil, String) {
   let folder = absolute(folder)
   let deck_path = filepath.join(folder, "deck.md")
@@ -112,16 +113,20 @@ pub fn init(folder: String) -> Result(Nil, String) {
     filepath.join(folder, "layout.json"),
     file.print_layout(layout.empty()),
   ))
-  // The default theme loads the default fonts from the deck, so they come
-  // with it. A theme that is already there keeps its own fonts.
-  let theme_path = filepath.join(folder, "theme.css")
-  use Nil <- result.try(case simplifile.is_file(theme_path) {
+  // The default settings name the default fonts in the deck, so they come
+  // with them. Settings that are already there keep their own fonts.
+  let settings_path = filepath.join(folder, "zeno.toml")
+  use Nil <- result.try(case simplifile.is_file(settings_path) {
     Ok(True) -> Ok(Nil)
     _ -> {
       use Nil <- result.try(copy_default_fonts(folder))
-      write_new(theme_path, theme.default_css)
+      write_new(settings_path, settings.default_toml)
     }
   })
+  use Nil <- result.try(write_new(
+    filepath.join(folder, "theme.css"),
+    theme.default_css,
+  ))
   io.println("Created a deck in " <> folder <> ".")
   io.println("Run: zeno serve " <> folder)
   Ok(Nil)

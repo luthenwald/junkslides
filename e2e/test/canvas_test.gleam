@@ -248,6 +248,14 @@ pub fn default_fonts_load_and_any_theme_can_change_them_test() {
   press(page, "Enter")
   assert uses(".ze-source", "\"Victor Mono\"")
   press(page, "Escape")
+  // zeno.toml names them; another family there shows at once.
+  let assert Ok(toml) = simplifile.read(filepath.join(folder, "zeno.toml"))
+  let assert Ok(_) =
+    simplifile.write(
+      filepath.join(folder, "zeno.toml"),
+      string.replace(toml, "family = \"et-book\"", "family = \"Optima\""),
+    )
+  assert eventually(fn() { uses(".ze-fit .zeno-slide", "Optima") })
   // A theme's own fonts win.
   let assert Ok(_) =
     simplifile.write(

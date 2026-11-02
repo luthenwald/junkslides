@@ -33,7 +33,7 @@ pub fn folder(name: String) -> String {
   let folder = filepath.join(cwd, "build/scenarios/" <> name)
   let _ = simplifile.delete(folder)
   let assert Ok(Nil) = simplifile.create_directory_all(folder)
-  list.each(["deck.md", "layout.json", "theme.css"], fn(name) {
+  list.each(["deck.md", "layout.json", "theme.css", "zeno.toml"], fn(name) {
     let assert Ok(Nil) =
       simplifile.copy_file(
         filepath.join(example, name),

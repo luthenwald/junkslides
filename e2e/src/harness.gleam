@@ -46,7 +46,7 @@ pub fn prepare(name: String) -> String {
   let _ = simplifile.delete(folder)
   let _ = simplifile.delete(folder <> ".view.json")
   let assert Ok(Nil) = simplifile.create_directory_all(folder)
-  list.each(["deck.md", "layout.json", "theme.css"], fn(file) {
+  list.each(["deck.md", "layout.json", "theme.css", "zeno.toml"], fn(file) {
     let assert Ok(Nil) =
       simplifile.copy_file(
         filepath.join("../examples/talk", file),

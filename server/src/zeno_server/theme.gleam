@@ -1,6 +1,6 @@
 //// The deck's theme.css as far as the server needs it: the list of variants
 //// (04-layout.md, Variants), the files it loads (04-layout.md, Export), and the
-//// default theme and fonts `zeno init` writes (D25).
+//// default theme and fonts `zeno init` writes (D25, D27).
 
 import filepath
 import gleam/erlang/application
@@ -88,91 +88,24 @@ fn names_a_file(value: String) -> Bool {
 }
 
 /// The default fonts and their licences, which ship with Zeno in `priv/fonts`.
-/// `zeno init` copies them into a new deck's `fonts/`, where the default theme
-/// loads them; the editor serves them under `/.zeno/fonts` for its own text.
+/// `zeno init` copies them into a new deck's `fonts/`, where the default
+/// zeno.toml names them; the editor serves them under `/.zeno/fonts` for its own text.
 pub fn fonts_folder() -> Result(String, String) {
   application.priv_directory("zeno_server")
   |> result.map(filepath.join(_, "fonts"))
   |> result.replace_error("The zeno_server priv folder is missing.")
 }
 
-/// Kept equal to examples/talk/theme.css, whose deck has the default fonts in
-/// `fonts/` (checked by a test).
+/// Kept equal to examples/talk/theme.css (checked by a test). The fonts and
+/// the look it once declared are in `settings.default_toml` (D27).
 pub const default_css =
-  "/* Default prototype theme: grayscale, calm. */
+  "/* Default prototype theme: grayscale, calm. Fonts, colours, sizes and the
+   body area come from zeno.toml; any rule here wins over them. */
 :root {
   --zeno-variants: \"large small quiet emphasis\";
 }
 
-/* et-book for text and Victor Mono for code, from fonts/ in the deck. */
-@font-face {
-  font-family: \"et-book\";
-  src: url(\"fonts/et-book-roman.woff2\") format(\"woff2\");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"et-book\";
-  src: url(\"fonts/et-book-italic.woff2\") format(\"woff2\");
-  font-weight: normal;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"et-book\";
-  src: url(\"fonts/et-book-bold.woff2\") format(\"woff2\");
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"Victor Mono\";
-  src: url(\"fonts/victor-mono-regular.woff2\") format(\"woff2\");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"Victor Mono\";
-  src: url(\"fonts/victor-mono-italic.woff2\") format(\"woff2\");
-  font-weight: normal;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: \"Victor Mono\";
-  src: url(\"fonts/victor-mono-bold.woff2\") format(\"woff2\");
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
-
-.zeno-slide {
-  background: #fafafa;
-  color: #222;
-  font-family: \"et-book\", Palatino, \"Palatino Linotype\", \"Book Antiqua\", Georgia, serif;
-  font-size: 32px;
-  line-height: 1.4;
-}
-
-pre,
-code {
-  font-family: \"Victor Mono\", ui-monospace, Menlo, Consolas, monospace;
-}
-
-.zeno-body {
-  grid-area: 3 / 3 / 17 / 31;
-  gap: 24px;
-}
-
 .zeno-cell[data-variant=\"large\"] { font-size: 64px; }
 .zeno-cell[data-variant=\"small\"] { font-size: 24px; }
-.zeno-cell[data-variant=\"quiet\"] { color: #777; }
 .zeno-cell[data-variant=\"emphasis\"] { font-weight: 600; }
 "

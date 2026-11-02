@@ -152,6 +152,12 @@ pub fn files_the_theme_loads_are_read_test() {
 pub fn default_theme_is_the_example_theme_test() {
   let assert Ok(css) = simplifile.read("../examples/talk/theme.css")
   assert theme.default_css == css
+  let assert Ok(toml) = simplifile.read("../examples/talk/zeno.toml")
+  assert settings.default_toml == toml
+  let assert Ok(defaults) = settings.parse(toml)
+  assert list.all(settings.files(defaults), fn(file) {
+    simplifile.is_file("../examples/talk/" <> file) == Ok(True)
+  })
   let assert Ok(fonts) = theme.fonts_folder()
   let assert Ok(names) = simplifile.read_directory(fonts)
   list.each(names, fn(name) {
@@ -230,7 +236,9 @@ pub fn init_creates_a_deck_and_never_replaces_one_test() {
   assert cell.source == "# Untitled"
   assert simplifile.read(filepath.join(folder, "theme.css"))
     == Ok(theme.default_css)
-  // The fonts the default theme loads, with their licences.
+  assert simplifile.read(filepath.join(folder, "zeno.toml"))
+    == Ok(settings.default_toml)
+  // The fonts the default settings name, with their licences.
   let assert Ok(fonts) = theme.fonts_folder()
   let assert Ok(names) = simplifile.read_directory(fonts)
   assert list.length(names) == 8
@@ -238,8 +246,9 @@ pub fn init_creates_a_deck_and_never_replaces_one_test() {
     assert simplifile.read_bits(filepath.join(folder, "fonts/" <> name))
       == simplifile.read_bits(filepath.join(fonts, name))
   })
-  assert list.all(theme.urls(theme.default_css), fn(url) {
-    list.contains(names, string.drop_start(url, 6))
+  let assert Ok(defaults) = settings.parse(settings.default_toml)
+  assert list.all(settings.files(defaults), fn(file) {
+    list.contains(names, string.drop_start(file, 6))
   })
   let assert Ok(layout) = simplifile.read(filepath.join(folder, "layout.json"))
   assert result.is_ok(file.parse_layout(layout))
@@ -248,12 +257,16 @@ pub fn init_creates_a_deck_and_never_replaces_one_test() {
   assert simplifile.read(filepath.join(folder, "deck.md")) == Ok(text)
 }
 
-pub fn init_keeps_an_existing_theme_test() {
+pub fn init_keeps_an_existing_theme_and_settings_test() {
   let folder = scratch("init-theme")
   let assert Ok(Nil) =
     simplifile.write(filepath.join(folder, "theme.css"), "mine")
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(folder, "zeno.toml"), "# mine")
   let assert Ok(Nil) = zeno_server.init(folder)
   assert simplifile.read(filepath.join(folder, "theme.css")) == Ok("mine")
+  assert simplifile.read(filepath.join(folder, "zeno.toml")) == Ok("# mine")
+  // Settings of its own bring their own fonts.
   assert simplifile.is_directory(filepath.join(folder, "fonts")) == Ok(False)
 }
 
@@ -538,6 +551,8 @@ pub fn export_writes_a_folder_and_leaves_the_deck_alone_test() {
 /// included is named.
 pub fn export_copies_the_files_the_theme_loads_test() {
   let folder = export_deck("export-theme-files")
+  // Only the theme loads files here.
+  let assert Ok(Nil) = simplifile.delete(filepath.join(folder, "zeno.toml"))
   let write = fn(relative, contents) {
     let path = filepath.join(folder, relative)
     let assert Ok(Nil) =
@@ -568,7 +583,8 @@ pub fn export_copies_the_files_the_theme_loads_test() {
   assert exists(out, "fonts/et-book.LICENSE")
   assert exists(out, "fonts/OFL-licence.txt")
   assert !exists(out, "fonts/.LICENSE.swp")
-  // Not loaded by this theme, so not exported, though Zeno ships it.
+  // Not loaded by this theme, so not exported, though Zeno ships it and the
+  // default zeno.toml names it.
   assert !exists(out, "fonts/et-book-roman.woff2")
   assert !exists(out, "../export-theme-files-outside.woff2")
   assert report.warnings

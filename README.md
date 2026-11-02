@@ -107,11 +107,11 @@ gleam run export ~/talks/lenses --out ~/site/lenses
 gleam run export ~/talks/lenses --pdf               # and ~/talks/lenses/export/lenses.pdf
 ```
 
-You get a folder with `index.html`, your `theme.css`, a copy of `assets/` and the default fonts in `fonts/`, ready to open, host or zip. The page has no scripts. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.
+You get a folder with `index.html`, your `theme.css` with the files it loads, a copy of `assets/` and the default fonts in `fonts/`, ready to open, host or zip. The page has no scripts. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.
 
 For a PDF with one slide per page, add `--pdf` or press `F` in command mode. Zeno prints the exported page with Chrome, Chromium, Edge or Brave, whichever it finds first; set `ZENO_CHROME` to choose a program. If printing fails, your last PDF stays as it was. A CSS `filter` in your theme makes that element an image in the PDF, so its text can't be searched or copied.
 
-Exporting again replaces those files and deletes nothing. Zeno tells you about images it could not find, and leaves out images outside the deck's folder. Anything your theme loads with `url()`, such as a font, belongs in `assets/`. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
+Exporting again replaces those files and deletes nothing. Zeno tells you about images and theme files it could not find, and leaves out any outside the deck's folder. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
 
 ## Themes
 
@@ -136,5 +136,19 @@ Text is set in et-book and code in Victor Mono unless your theme says otherwise:
 .zeno-slide { font-family: Georgia, serif; }
 pre, code { font-family: Menlo, monospace; }
 ```
+
+To bring a font of your own, put its file anywhere in the deck's folder and
+load it with a relative path. Exports and PDFs include it:
+
+```css
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/Inter.woff2") format("woff2");
+}
+.zeno-slide { font-family: "Inter", sans-serif; }
+```
+
+Keep the path relative to the deck, not starting with `/`, and pick file names
+other than those of the default fonts.
 
 Zeno reloads the theme when the file changes.

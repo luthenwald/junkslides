@@ -18,6 +18,7 @@ import zeno/op
 import zeno/protocol.{Token, View}
 import zeno/render/styles
 import zeno_server
+import zeno_server/export
 import zeno_server/highlighter
 import zeno_server/pdf
 import zeno_server/state
@@ -511,6 +512,52 @@ pub fn export_writes_a_folder_and_leaves_the_deck_alone_test() {
   assert !string.contains(page, "Mention Boomerang here.")
   assert harness.read(folder, "deck.md") == deck
   assert harness.read(folder, "layout.json") == layout
+}
+
+/// A font the theme loads from a folder of the deck reaches the export, and
+/// what cannot be included is named.
+pub fn export_copies_the_files_the_theme_loads_test() {
+  let folder = export_deck("export-theme-files")
+  let write = fn(relative, contents) {
+    let path = filepath.join(folder, relative)
+    let assert Ok(Nil) =
+      simplifile.create_directory_all(filepath.directory_name(path))
+    let assert Ok(Nil) = simplifile.write(path, contents)
+    Nil
+  }
+  write("fonts/custom.woff2", "custom")
+  write("fonts/et-book-roman.woff2", "not the default")
+  write("art/paper.png", "paper")
+  write("../export-theme-files-outside.woff2", "outside")
+  write(
+    "theme.css",
+    "@font-face { src: url(\"fonts/custom.woff2\") format(\"woff2\"); }
+@font-face { src: url(fonts/et-book-roman.woff2); }
+.zeno-slide { background: url('./art/paper.png?v=2'), url(gone.woff2); }
+.a { background: url(../export-theme-files-outside.woff2); }
+.b { background: url(/art/paper.png); }
+.c { background: url(assets/sub/font.woff2); }
+",
+  )
+  let assert Ok(report) =
+    zeno_server.export_deck(folder, None, "no-such-command")
+  let out = filepath.join(folder, "export")
+  assert harness.read(out, "fonts/custom.woff2") == "custom"
+  assert harness.read(out, "art/paper.png") == "paper"
+  assert exists(out, "assets/sub/font.woff2")
+  let assert Ok(fonts) = export.fonts_folder()
+  assert simplifile.read_bits(filepath.join(out, "fonts/et-book-roman.woff2"))
+    == simplifile.read_bits(filepath.join(fonts, "et-book-roman.woff2"))
+  assert !exists(out, "../export-theme-files-outside.woff2")
+  assert report.warnings
+    == [
+      "Missing image: gone.png",
+      "Left out an image outside the deck: ../export-theme-files-secret.png",
+      "Rename this file in theme.css, a default font has its name: fonts/et-book-roman.woff2",
+      "Missing file in theme.css: gone.woff2",
+      "Left out a file outside the deck in theme.css: ../export-theme-files-outside.woff2",
+      "Use a relative path in theme.css: /art/paper.png",
+    ]
 }
 
 pub fn export_again_replaces_and_deletes_nothing_test() {

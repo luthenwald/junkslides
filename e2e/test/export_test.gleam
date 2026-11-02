@@ -55,6 +55,40 @@ pub fn the_page_loads_the_default_fonts_from_its_own_folder_test() {
   assert eventually(fn() { has("Victor Mono normal") })
 }
 
+/// A font the theme loads from the deck's own `fonts/` folder, not `assets/`,
+/// is in the export and loads from there. The PDF names fonts after their
+/// files, so this is the check that tells the theme's copy from the default.
+pub fn the_page_loads_a_font_the_theme_keeps_in_the_deck_test() {
+  let folder = harness.prepare("export-theme-font")
+  let font = filepath.join(folder, "fonts/deck-font.woff2")
+  let assert Ok(Nil) =
+    simplifile.create_directory_all(filepath.join(folder, "fonts"))
+  let assert Ok(Nil) =
+    simplifile.copy_file("../server/priv/fonts/victor-mono-regular.woff2", font)
+  let assert Ok(Nil) =
+    simplifile.append(
+      filepath.join(folder, "theme.css"),
+      "@font-face { font-family: \"Deck Font\"; src: url(\"fonts/deck-font.woff2\"); }
+.zeno-slide { font-family: \"Deck Font\"; }
+",
+    )
+  let #(page, _, _, _) = harness.open_folder(folder, 4950)
+  press(page, "E")
+  assert eventually(fn() { string.contains(status(page), "Exported to ") })
+  let assert Ok(_) =
+    cdp.open(
+      page,
+      "file://" <> filepath.join(folder, "export/index.html"),
+      ".zeno-frame",
+    )
+  assert eventually(fn() {
+    case cdp.loaded_fonts(page) {
+      Ok(fonts) -> string.contains(fonts, "Deck Font normal")
+      Error(_) -> False
+    }
+  })
+}
+
 pub fn a_slide_fits_the_window_at_any_size_test() {
   let #(page, url) = exported("export-fit", 4942)
   // Wider than 16:9 or narrower, the slide is whole and centred.

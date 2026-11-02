@@ -1,5 +1,12 @@
 ## Unreleased
 
+## Your own fonts in exports
+
+2026-11-02 · `lxrrkoxp::sxmkqqvn`
+
+- New: fonts and other files your `theme.css` loads with `url()` go into exports and PDFs, wherever they sit in the deck's folder, not only in `assets/`.
+- Improved: Zeno tells you when a file your theme loads is missing, lies outside the deck, uses a path starting with `/`, or has the name of one of the default fonts.
+
 ## Delete slides
 
 2026-11-02 · `vvvxkwto::ktsyysmp`

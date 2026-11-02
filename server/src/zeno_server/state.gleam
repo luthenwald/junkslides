@@ -14,6 +14,7 @@ import gleam/otp/actor
 import gleam/result
 import gleam/string
 import gleam/time/timestamp.{type Timestamp}
+import simplifile
 import zeno/deck.{type Deck}
 import zeno/file
 import zeno/history.{type History}
@@ -24,6 +25,7 @@ import zeno/protocol.{type ClientMsg, type Highlight, type ServerMsg, type View}
 import zeno_server/export
 import zeno_server/highlighter
 import zeno_server/pdf
+import zeno_server/settings
 import zeno_server/store
 import zeno_server/theme
 import zeno_server/view
@@ -63,6 +65,8 @@ pub type Message {
   Highlighted(blocks: List(Highlight))
   /// An export's outcome, for the client that asked for it.
   Exported(client: Subject(ServerMsg), outcome: Result(export.Report, String))
+  /// The stylesheet from zeno.toml as last read well, for `/.zeno/settings.css`.
+  SettingsCss(reply: Subject(String))
 }
 
 /// Ops applied since deck.md was last read or written, kept to rebase them
@@ -84,6 +88,19 @@ type Disk {
   Disk(seen: String, problem: Option(String))
 }
 
+/// zeno.toml as far as the editor needs it: the hash last read, the stylesheet
+/// from the last version that read well (empty without the file), why the
+/// file on disk does not read, and the font files it names that are missing.
+/// Zeno never writes it.
+type SettingsFile {
+  SettingsFile(
+    seen: String,
+    css: String,
+    problem: Option(String),
+    missing: List(String),
+  )
+}
+
 type State {
   State(
     config: Config,
@@ -101,6 +118,7 @@ type State {
     deck_file: Disk,
     layout_file: Disk,
     theme_seen: String,
+    settings_file: SettingsFile,
     /// Only the flush with the latest generation writes.
     generation: Int,
     /// Absent if it could not be started; code blocks then stay plain.
@@ -140,6 +158,8 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
   }
   let layout = layout.consistency(layout, deck, now)
   let #(variants, theme_seen) = read_theme(config)
+  let settings_file =
+    read_settings(config, SettingsFile(store.missing, "", None, []))
   let initialise = fn(self) {
     process.send(self, Flush(0))
     process.send_after(self, config.poll, Poll)
@@ -159,6 +179,7 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
         deck_file: Disk(deck_hash, None),
         layout_file:,
         theme_seen:,
+        settings_file:,
         generation: 0,
         highlighter: highlighter.start(config.tree_sitter)
           |> option.from_result,
@@ -172,6 +193,11 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
   |> actor.start
   |> result.map(fn(started) { started.data })
   |> result.replace_error("The deck owner did not start.")
+}
+
+/// The stylesheet from zeno.toml, empty when the deck has none.
+pub fn settings_css(owner: Subject(Message)) -> String {
+  process.call(owner, 1000, SettingsCss)
 }
 
 fn path(config: Config, name: String) -> String {
@@ -256,7 +282,7 @@ fn handle(state: State, message: Message) -> actor.Next(State, Message) {
     FromClient(client, msg) -> actor.continue(from_client(state, client, msg))
     Poll -> {
       process.send_after(state.self, state.config.poll, Poll)
-      actor.continue(state |> poll_files |> poll_theme)
+      actor.continue(state |> poll_files |> poll_theme |> poll_settings)
     }
     Flush(generation) if generation == state.generation ->
       actor.continue(state |> poll_files |> write_files)
@@ -267,6 +293,10 @@ fn handle(state: State, message: Message) -> actor.Next(State, Message) {
     }
     Exported(client, outcome) -> {
       send(client, protocol.Notice(exported_notice(outcome)))
+      actor.continue(state)
+    }
+    SettingsCss(reply) -> {
+      process.send(reply, state.settings_file.css)
       actor.continue(state)
     }
   }
@@ -590,6 +620,90 @@ fn poll_layout(state: State) -> State {
   }
 }
 
+/// zeno.toml read again after an outside edit. A file that does not read
+/// keeps the stylesheet of the last one that did, as deck.md and layout.json
+/// keep their last good state.
+fn poll_settings(state: State) -> State {
+  let before = state.settings_file
+  let seen = case store.read(path(state.config, settings_name)) {
+    Ok(#(_, hash)) -> hash
+    Error(Nil) -> store.missing
+  }
+  case seen == before.seen {
+    True -> state
+    False -> {
+      let after = read_settings(state.config, before)
+      case after.problem, before.problem {
+        Some(problem), _ -> broadcast(state, protocol.Notice(problem))
+        None, Some(_) ->
+          broadcast(state, protocol.Notice(settings_name <> " reads again."))
+        None, None -> Nil
+      }
+      case after.problem, after.missing == before.missing {
+        None, False ->
+          list.each(missing_notices(after), fn(notice) {
+            broadcast(state, protocol.Notice(notice))
+          })
+        _, _ -> Nil
+      }
+      case after.css == before.css {
+        True -> Nil
+        False -> broadcast(state, protocol.ReloadTheme)
+      }
+      State(..state, settings_file: after)
+    }
+  }
+}
+
+const settings_name = "zeno.toml"
+
+/// The settings file as it is on disk now, keeping the stylesheet of `last`
+/// when it does not read.
+fn read_settings(config: Config, last: SettingsFile) -> SettingsFile {
+  case store.read(path(config, settings_name)) {
+    Error(Nil) -> SettingsFile(store.missing, "", None, [])
+    Ok(#(bytes, hash)) -> {
+      let parsed =
+        bit_array.to_string(bytes)
+        |> result.replace_error(settings_name <> " is not valid UTF-8.")
+        |> result.try(settings.parse)
+      case parsed {
+        Error(problem) ->
+          SettingsFile(
+            ..last,
+            seen: hash,
+            problem: Some(
+              problem
+              <> " Zeno keeps the settings it last read until the file is fixed.",
+            ),
+          )
+        Ok(read) ->
+          SettingsFile(
+            seen: hash,
+            css: settings.to_css(read, "/"),
+            problem: None,
+            missing: settings.files(read)
+              |> list.filter(fn(file) {
+                simplifile.is_file(path(config, file)) != Ok(True)
+              }),
+          )
+      }
+    }
+  }
+}
+
+fn missing_notices(file: SettingsFile) -> List(String) {
+  case file.missing {
+    [] -> []
+    missing -> [
+      settings_name
+      <> " names files that are missing: "
+      <> string.join(missing, ", ")
+      <> ".",
+    ]
+  }
+}
+
 fn poll_theme(state: State) -> State {
   let #(variants, seen) = read_theme(state.config)
   case seen == state.theme_seen {
@@ -685,8 +799,13 @@ fn greet(state: State, client: Subject(ServerMsg)) -> Nil {
     [] -> Nil
     blocks -> send(client, protocol.Highlights(blocks))
   }
-  [state.deck_file.problem, state.layout_file.problem]
+  [
+    state.deck_file.problem,
+    state.layout_file.problem,
+    state.settings_file.problem,
+  ]
   |> option.values
+  |> list.append(missing_notices(state.settings_file))
   |> list.each(fn(problem) { send(client, protocol.Notice(problem)) })
 }
 

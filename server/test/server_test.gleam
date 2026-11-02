@@ -20,6 +20,7 @@ import zeno/render/styles
 import zeno_server
 import zeno_server/highlighter
 import zeno_server/pdf
+import zeno_server/settings
 import zeno_server/state
 import zeno_server/store
 import zeno_server/theme
@@ -640,4 +641,58 @@ pub fn export_highlights_code_test() {
     harness.read(filepath.directory_name(report.page), "index.html"),
     "zeno-tok-",
   )
+}
+
+pub fn settings_reload_and_keep_the_last_good_sheet_test() {
+  let h = harness.start("settings", 4960)
+  let _ = harness.next_state(h)
+  let get = fn() {
+    let assert Ok(req) = request.to("http://127.0.0.1:4960/.zeno/settings.css")
+    let assert Ok(response) = httpc.send(req)
+    assert response.status == 200
+    response.body
+  }
+  let good = "[palette]\nbackground = \"#101010\"\n"
+  let assert Ok(expected) = settings.parse(good)
+  harness.write(h.folder, "zeno.toml", good)
+  assert harness.next(h) == protocol.ReloadTheme
+  assert get() == settings.to_css(expected, "/")
+  // A file that does not read keeps the sheet, says why, and reloads nothing.
+  harness.write(h.folder, "zeno.toml", "[palette]\nbackgrund = \"#000\"\n")
+  let notice = harness.next(h)
+  assert notice
+    == protocol.Notice(
+      "zeno.toml: palette.backgrund is not a setting. Zeno keeps the settings"
+      <> " it last read until the file is fixed.",
+    )
+  assert harness.quiet(h, 300)
+  assert get() == settings.to_css(expected, "/")
+  // A client that joins now is told too.
+  let late = harness.connect(h.folder, 4960)
+  let _ = harness.next_state(late)
+  assert harness.next_notice(late)
+    == "zeno.toml: palette.backgrund is not a setting. Zeno keeps the settings it last read until the file is fixed."
+  harness.write(h.folder, "zeno.toml", good <> "accent = \"#fff\"\n")
+  assert harness.next(h) == protocol.Notice("zeno.toml reads again.")
+  assert harness.next(h) == protocol.ReloadTheme
+  assert string.contains(get(), "--zeno-accent: #fff;")
+  // Without the file there are no settings.
+  let assert Ok(Nil) = simplifile.delete(filepath.join(h.folder, "zeno.toml"))
+  assert harness.next(h) == protocol.ReloadTheme
+  assert get() == ""
+}
+
+pub fn settings_name_missing_font_files_test() {
+  let h = harness.start("settings-fonts", 4961)
+  let _ = harness.next_state(h)
+  harness.write(
+    h.folder,
+    "zeno.toml",
+    "[font.text]\nfamily = \"Gone\"\nregular = \"fonts/gone.woff2\"\n",
+  )
+  assert harness.next(h)
+    == protocol.Notice(
+      "zeno.toml names files that are missing: fonts/gone.woff2.",
+    )
+  assert harness.next(h) == protocol.ReloadTheme
 }

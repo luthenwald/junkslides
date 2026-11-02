@@ -44,6 +44,7 @@ fn handle(
     [] -> page()
     [".zeno", "ws"] -> socket(req, owner)
     [".zeno", "base.css"] -> base_styles()
+    [".zeno", "settings.css"] -> settings_styles(owner)
     [".zeno", "fonts", ..rest] -> serve(config.fonts, rest)
     [".zeno", ..rest] -> serve(config.client, rest)
     segments -> serve(config.folder, segments)
@@ -106,6 +107,17 @@ fn base_styles() -> Response(ResponseData) {
   response.new(200)
   |> response.set_header("content-type", "text/css; charset=utf-8")
   |> response.set_body(mist.Bytes(bytes_tree.from_string(styles.base_css)))
+}
+
+/// The deck's settings from zeno.toml, between the base styles and the theme
+/// (04-layout.md, Stylesheets). The client links it with the theme.
+fn settings_styles(owner: Subject(state.Message)) -> Response(ResponseData) {
+  response.new(200)
+  |> response.set_header("content-type", "text/css; charset=utf-8")
+  |> response.set_header("cache-control", "no-cache")
+  |> response.set_body(
+    mist.Bytes(bytes_tree.from_string(state.settings_css(owner))),
+  )
 }
 
 fn serve(root: String, segments: List(String)) -> Response(ResponseData) {

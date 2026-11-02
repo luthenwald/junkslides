@@ -62,27 +62,30 @@ pub fn view(model: Model) -> Element(app.Msg) {
   }
 }
 
-/// The deck's theme. A reload changes its URL, and the browser fetches it
-/// again.
-/// The theme, and while a reload is on its way, the previous one too. The
-/// browser drops a stylesheet as soon as its link changes, so the new one
-/// gets a link of its own. A theme that fails to load counts as arrived.
+/// The deck's settings from zeno.toml and its theme, in that order, so the
+/// theme wins. A reload changes their URLs, and the browser fetches them again.
+/// While a reload is on its way the previous pair stays too: the browser drops
+/// a stylesheet as soon as its link changes, so the new ones get links of
+/// their own. A sheet that fails to load counts as arrived.
 fn theme(model: Model) -> Element(app.Msg) {
-  let link = fn(n) {
+  let link = fn(n, path, name) {
     let loaded = app.ThemeLoaded(n)
     #(
-      int.to_string(n),
+      name <> int.to_string(n),
       html.link([
         attribute.rel("stylesheet"),
-        attribute.href("/theme.css?v=" <> int.to_string(n)),
+        attribute.href(path <> "?v=" <> int.to_string(n)),
         event.on("load", decode.success(loaded)),
         event.on("error", decode.success(loaded)),
       ]),
     )
   }
+  let pair = fn(n) {
+    [link(n, "/.zeno/settings.css", "settings"), link(n, "/theme.css", "theme")]
+  }
   keyed.fragment(case model.theme_loaded == model.theme {
-    True -> [link(model.theme)]
-    False -> [link(model.theme_loaded), link(model.theme)]
+    True -> pair(model.theme)
+    False -> list.append(pair(model.theme_loaded), pair(model.theme))
   })
 }
 

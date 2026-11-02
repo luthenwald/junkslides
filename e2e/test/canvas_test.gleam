@@ -258,6 +258,37 @@ pub fn default_fonts_load_and_any_theme_can_change_them_test() {
   assert eventually(fn() { uses(".ze-fit pre code", "Menlo") })
 }
 
+pub fn settings_apply_live_below_the_theme_test() {
+  let #(page, folder) = open("settings", 4952)
+  let write = fn(name, text) {
+    let assert Ok(_) = simplifile.write(filepath.join(folder, name), text)
+    Nil
+  }
+  let look = fn(selector, property) { cdp.computed(page, selector, property) }
+  write("theme.css", ":root { --zeno-variants: \"large\"; }\n")
+  write(
+    "zeno.toml",
+    "[font.text]\nfamily = \"Georgia\"\n[palette]\nbackground = \"#101010\"\n"
+      <> "[slide]\nnumbers = \"01\"\n",
+  )
+  assert eventually(fn() {
+    look(".ze-fit .zeno-slide", "background-color") == Ok("rgb(16, 16, 16)")
+  })
+  assert look(".ze-fit .zeno-slide", "font-family") == Ok("Georgia")
+  assert look(".ze-fit .zeno-page-total", "display") == Ok("none")
+  // The previous pair of links goes once both new sheets have loaded.
+  assert eventually(fn() {
+    cdp.count(page, "link[href^=\"/.zeno/settings.css\"]") == 1
+    && cdp.count(page, "link[href^=\"/theme.css\"]") == 1
+  })
+  // The theme wins over the settings.
+  write("theme.css", ".zeno-slide { background: #fff; }\n")
+  assert eventually(fn() {
+    look(".ze-fit .zeno-slide", "background-color") == Ok("rgb(255, 255, 255)")
+  })
+  assert look(".ze-fit .zeno-slide", "font-family") == Ok("Georgia")
+}
+
 pub fn theme_reloads_test() {
   let #(page, folder) = open("theme", 4926)
   let assert Ok(_) =

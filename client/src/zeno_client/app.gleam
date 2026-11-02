@@ -49,12 +49,15 @@ pub type Model {
     drag: Option(Drag),
     /// What each cell's overflow probe reported last; see `slide`.
     overflow: Dict(Id(CellTag), Bool),
-    /// Counts theme reloads; the theme's URL carries it.
+    /// Counts theme reloads; the URLs of the theme and of the settings from
+    /// zeno.toml carry it.
     theme: Int,
-    /// The latest reload whose stylesheet has arrived. Its link stays until
-    /// the newer one has loaded, so the slide is never drawn without a
-    /// theme.
+    /// The latest reload whose two stylesheets have arrived. Their links stay
+    /// until both newer ones have loaded, so the slide is never drawn without
+    /// a theme or settings.
     theme_loaded: Int,
+    /// How many of each newer reload's two stylesheets have arrived.
+    sheets_arrived: Dict(Int, Int),
   )
 }
 
@@ -171,6 +174,7 @@ pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
       overflow: dict.new(),
       theme: 0,
       theme_loaded: 0,
+      sheets_arrived: dict.new(),
     )
   #(model, ws.init("/.zeno/ws", Socket))
 }
@@ -307,10 +311,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
       }
     // Focus goes back to the selection, so keys work again at once.
     SnapChosen(snap) -> snap_to(Model(..model, focus: model.focus + 1), snap)
-    ThemeLoaded(n) -> #(
-      Model(..model, theme_loaded: int.max(model.theme_loaded, n)),
-      effect.none(),
-    )
+    ThemeLoaded(n) -> #(sheet_loaded(model, n), effect.none())
   }
 }
 
@@ -323,6 +324,29 @@ pub fn overflowing(model: Model, shared: Shared) -> List(Id(CellTag)) {
       _, _ -> Error(Nil)
     }
   })
+}
+
+/// One of the stylesheets of reload `n` has arrived (or failed, which
+/// counts too); with both, reload `n` replaces the older ones.
+pub fn sheet_loaded(model: Model, n: Int) -> Model {
+  let count = case dict.get(model.sheets_arrived, n) {
+    Ok(count) -> count + 1
+    Error(Nil) -> 1
+  }
+  case n <= model.theme_loaded, count >= 2 {
+    True, _ -> model
+    False, True ->
+      Model(
+        ..model,
+        theme_loaded: n,
+        sheets_arrived: dict.filter(model.sheets_arrived, fn(k, _) { k > n }),
+      )
+    False, False ->
+      Model(
+        ..model,
+        sheets_arrived: dict.insert(model.sheets_arrived, n, count),
+      )
+  }
 }
 
 // The socket ------------------------------------------------------------------

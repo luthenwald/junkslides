@@ -21,6 +21,10 @@ fn id_of(text: String) -> id.Id(tag) {
 }
 
 fn page(has_theme: Bool) -> String {
+  page_with(False, has_theme)
+}
+
+fn page_with(has_settings: Bool, has_theme: Bool) -> String {
   let deck =
     Deck([
       Slide(id_of(slide_a), [
@@ -36,7 +40,7 @@ fn page(has_theme: Bool) -> String {
       deck,
       layout.Place(id_of(placed), layout.Area(120, 60, 600, 300)),
     )
-  render.document(deck, laid, dict.new(), "My <talk>", has_theme)
+  render.document(deck, laid, dict.new(), "My <talk>", has_settings, has_theme)
 }
 
 pub fn every_slide_has_a_numbered_frame_test() {
@@ -44,9 +48,12 @@ pub fn every_slide_has_a_numbered_frame_test() {
   assert string.starts_with(string.lowercase(html), "<!doctype html>")
   assert string.contains(html, "<section class=\"zeno-frame\" id=\"1\">")
   assert string.contains(html, "<section class=\"zeno-frame\" id=\"2\">")
-  assert string.contains(html, ">01/02</div>")
+  assert string.contains(html, ">01</span>")
   // A slide with nothing drawn stays, so numbers match the editor's.
-  assert string.contains(html, ">02/02</div>")
+  assert string.contains(
+    html,
+    ">02</span><span class=\"zeno-page-total\">/02</span>",
+  )
 }
 
 pub fn notes_are_left_out_test() {
@@ -81,6 +88,15 @@ pub fn the_theme_comes_after_the_page_styles_test() {
   let assert [_, after_styles] = string.split(html, "</style><link")
   assert string.contains(after_styles, "href=\"theme.css\"")
   assert !string.contains(page(False), "href=\"theme.css\"")
+}
+
+pub fn settings_come_between_page_styles_and_theme_test() {
+  let html = page_with(True, True)
+  let assert [_, after_styles] = string.split(html, "</style><link")
+  let assert Ok(#(before_theme, _)) =
+    string.split_once(after_styles, "href=\"theme.css\"")
+  assert string.contains(before_theme, "href=\"settings.css\"")
+  assert !string.contains(page_with(False, True), "settings.css")
 }
 
 pub fn numbers_are_padded_test() {

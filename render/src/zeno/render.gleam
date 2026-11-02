@@ -19,21 +19,28 @@ import zeno/render/styles
 
 /// The whole deck as one static page, without any script. Each slide is the
 /// theme contract's structure in a frame whose ID is the slide's number. The
-/// theme comes last, as `theme.css` beside the page, so that it wins.
+/// deck's settings follow the base styles as `settings.css`, and the theme
+/// comes last, as `theme.css` beside the page, so that it wins.
 pub fn document(
   deck deck: Deck,
   layout layout: Layout,
   highlights highlights: Highlights,
   title title: String,
+  has_settings has_settings: Bool,
   has_theme has_theme: Bool,
 ) -> String {
   let total = list.length(deck.slides)
-  let theme = case has_theme {
-    True -> [
-      html.link([attribute.rel("stylesheet"), attribute.href("theme.css")]),
-    ]
-    False -> []
+  let sheet = fn(present, href) {
+    case present {
+      True -> [html.link([attribute.rel("stylesheet"), attribute.href(href)])]
+      False -> []
+    }
   }
+  let theme =
+    list.append(
+      sheet(has_settings, "settings.css"),
+      sheet(has_theme, "theme.css"),
+    )
   html.html([], [
     html.head(
       [],
@@ -107,9 +114,17 @@ pub fn number(index: Int, total: Int) -> String {
 }
 
 /// The slide's number for the theme to place or hide (04-layout.md, Theme
-/// contract). Not a cell, so it is not in the overflow probes.
+/// contract), in two parts, `01` and `/12`, so that a stylesheet can hide the
+/// total. Not a cell, so it is not in the overflow probes.
 pub fn page_number(index: Int, total: Int) -> Element(msg) {
-  html.div([class("zeno-page")], [text(number(index, total))])
+  let #(own, of) = case string.split_once(number(index, total), "/") {
+    Ok(#(own, of)) -> #(own, "/" <> of)
+    Error(Nil) -> #(number(index, total), "")
+  }
+  html.div([class("zeno-page")], [
+    html.span([class("zeno-page-index")], [text(own)]),
+    html.span([class("zeno-page-total")], [text(of)]),
+  ])
 }
 
 /// A drawn cell, as the theme contract describes it, with the caller's

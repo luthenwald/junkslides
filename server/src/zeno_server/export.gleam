@@ -80,6 +80,7 @@ pub fn write(
       layout:,
       highlights:,
       title: filepath.base_name(folder),
+      has_settings: False,
       has_theme:,
     )
   use _ <- result.try(store.write_atomic(page, bit_array.from_string(html)))

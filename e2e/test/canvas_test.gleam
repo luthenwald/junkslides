@@ -369,9 +369,15 @@ pub fn snap_step_is_chosen_and_kept_test() {
 
 fn page_number(page: Page) -> String {
   let assert Ok(html) = cdp.html(page, ".ze-fit .zeno-page")
-  html
-  |> string.replace("<div class=\"zeno-page\">", "")
-  |> string.replace("</div>", "")
+  // The number's parts are spans; their text is what shows.
+  string.split(html, ">")
+  |> list.map(fn(part) {
+    case string.split_once(part, "<") {
+      Ok(#(text, _)) -> text
+      Error(Nil) -> part
+    }
+  })
+  |> string.concat
 }
 
 fn drawn(page: Page) -> Int {

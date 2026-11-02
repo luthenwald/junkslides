@@ -67,3 +67,15 @@ pub fn purge_key_test() {
   assert keymap.command(key("X")) == Ok(keymap.PurgeOrphans)
   assert keymap.command(Key(..key("x"), meta: True)) == Error(Nil)
 }
+
+pub fn delete_slide_key_test() {
+  // Control on every system, Cmd stays with the browser.
+  let ctrl_shift_d = Key(..key("D"), code: "KeyD", ctrl: True, shift: True)
+  assert keymap.command(ctrl_shift_d) == Ok(keymap.DeleteSlide)
+  assert keymap.command(Key(..ctrl_shift_d, key: "d")) == Ok(keymap.DeleteSlide)
+  assert keymap.command(Key(..ctrl_shift_d, meta: True)) == Error(Nil)
+  assert keymap.command(Key(..ctrl_shift_d, alt: True)) == Error(Nil)
+  assert keymap.command(Key(..ctrl_shift_d, shift: False, key: "d"))
+    == Error(Nil)
+  assert keymap.command(key("d")) == Ok(keymap.Cut)
+}

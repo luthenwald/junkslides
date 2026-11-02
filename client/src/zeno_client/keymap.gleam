@@ -1,7 +1,8 @@
 //// The keymap, in one place (05-editor.md, Keymap). Keys are matched on the
 //// browser's `key` value, so `J` is a shifted `j`, except with Alt, which
 //// changes `key` on macOS (Option-h types `˙`), so Alt keys are matched on
-//// `code`. Keys held with Cmd are left to the browser.
+//// `code`. Keys held with Cmd are left to the browser; Ctrl means the
+//// Control key on every system, also on macOS.
 
 import gleam/dynamic/decode.{type Decoder}
 
@@ -36,6 +37,7 @@ pub type Command {
   Merge
   BreakHere
   RemoveBreak
+  DeleteSlide
   Undo
   Redo
   PurgeOrphans
@@ -72,6 +74,8 @@ pub fn command(key: Key) -> Result(Command, Nil) {
     Key(meta: True, ..) | Key(composing: True, ..) -> Error(Nil)
     Key(ctrl: True, key: "[", ..) -> Ok(ToggleCells)
     Key(ctrl: True, key: "]", ..) -> Ok(ToggleSlide)
+    Key(ctrl: True, shift: True, alt: False, key: "D", ..)
+    | Key(ctrl: True, shift: True, alt: False, key: "d", ..) -> Ok(DeleteSlide)
     Key(ctrl: True, ..) | Key(alt: True, ..) -> Error(Nil)
     Key(key:, ..) ->
       case key {

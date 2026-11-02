@@ -186,6 +186,22 @@ pub fn cut_on_an_empty_slide_deletes_it_test() {
   assert eventually(fn() { deck(folder) == original })
 }
 
+pub fn ctrl_shift_d_deletes_a_slide_with_its_cells_test() {
+  let #(page, folder) = open("delete-slide", 4938)
+  let original = deck(folder)
+  key(page, "D", [cdp.Ctrl, cdp.Shift])
+  assert eventually(fn() { cdp.count(page, ".ze-slide") == 6 })
+  assert cells(page) == 13
+  assert string.contains(
+    status(page),
+    "Deleted the slide and its 3 cells; u brings them back.",
+  )
+  assert eventually(fn() { !string.contains(deck(folder), "# Why lenses") })
+  assert selected(page) == cell("06")
+  press(page, "u")
+  assert eventually(fn() { deck(folder) == original })
+}
+
 pub fn marker_line_is_shown_and_can_be_dropped_test() {
   let #(page, folder) = open("marker", 4907)
   let original = deck(folder)

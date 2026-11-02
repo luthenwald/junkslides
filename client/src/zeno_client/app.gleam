@@ -540,6 +540,11 @@ fn command_key(
         // An empty slide has nothing for the clipboard; it is deleted.
         OnSlide(slide) -> delete_slide(model, deck, slide)
       }
+    keymap.DeleteSlide ->
+      case nav.slide_of(deck, selection) {
+        Ok(slide) -> delete_slide(model, deck, slide)
+        Error(Nil) -> #(model, effect.none())
+      }
     keymap.Copy ->
       on_cell(fn(cell) {
         #(

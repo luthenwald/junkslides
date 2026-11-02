@@ -1,11 +1,12 @@
 ## Unreleased
 
-## Your own fonts in exports
+## Fonts from your theme
 
-2026-11-02 · `lxrrkoxp::sxmkqqvn`
+2026-11-02 · `lxrrkoxp::vnttkvwl`
 
-- New: fonts and other files your `theme.css` loads with `url()` go into exports and PDFs, wherever they sit in the deck's folder, not only in `assets/`.
-- Improved: Zeno tells you when a file your theme loads is missing, lies outside the deck, uses a path starting with `/`, or has the name of one of the default fonts.
+- New: your `theme.css` decides the fonts. A new deck gets et-book for text and Victor Mono for code in its `fonts/` folder, and the default theme loads them. In a deck made earlier, a theme that names no font now shows the browser's fonts; to keep et-book and Victor Mono, copy `fonts/` and the `@font-face` lines from a new deck's theme.
+- New: exports and PDFs include the fonts and other files your theme loads with `url()`, wherever they sit in the deck's folder, together with licence files next to them. Fonts your theme doesn't use stay out.
+- Improved: Zeno tells you when a file your theme loads is missing, lies outside the deck, or uses a path starting with `/`.
 
 ## Delete slides
 

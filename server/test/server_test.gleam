@@ -12,6 +12,7 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import simplifile
+import stratus
 import support/harness.{example_id}
 import zeno/dialect
 import zeno/file
@@ -27,6 +28,7 @@ import zeno_server/state
 import zeno_server/store
 import zeno_server/theme
 import zeno_server/view
+import zeno_server/web
 
 pub fn failed_op_is_rejected_and_changes_nothing_test() {
   let h = harness.start("rejected", 4891)
@@ -848,4 +850,37 @@ pub fn settings_name_missing_font_files_test() {
       "zeno.toml names files that are missing: fonts/gone.woff2.",
     )
   assert harness.next(h) == protocol.ReloadTheme
+}
+
+pub fn only_the_editors_own_page_reaches_the_server_test() {
+  let at = fn(host, origin) {
+    let req = request.new() |> request.set_header("host", host)
+    case origin {
+      "" -> req
+      _ -> request.set_header(req, "origin", origin)
+    }
+  }
+  assert web.trusted(at("127.0.0.1:4800", ""), 4800)
+  assert web.trusted(at("localhost:4800", ""), 4800)
+  // A name that resolves here, and another port.
+  assert !web.trusted(at("evil.example:4800", ""), 4800)
+  assert !web.trusted(at("127.0.0.1:4801", ""), 4800)
+  assert !web.trusted(request.new(), 4800)
+  assert web.same_origin(at("127.0.0.1:4800", ""), 4800)
+  assert web.same_origin(at("127.0.0.1:4800", "http://localhost:4800"), 4800)
+  assert !web.same_origin(at("127.0.0.1:4800", "null"), 4800)
+  assert !web.same_origin(at("127.0.0.1:4800", "https://example.com"), 4800)
+  assert !web.same_origin(at("127.0.0.1:4800", "http://127.0.0.1:4801"), 4800)
+  // A socket from a sandboxed frame is refused; the editor's is not.
+  let h = harness.start("origins", 4973)
+  let _ = harness.next_state(h)
+  let open = fn(origin) {
+    let assert Ok(req) = request.to("http://127.0.0.1:4973/.zeno/ws")
+    stratus.new(request: request.set_header(req, "origin", origin), state: Nil)
+    |> stratus.on_message(fn(state, _, _) { stratus.continue(state) })
+    |> stratus.start
+    |> result.is_ok
+  }
+  assert !open("null")
+  assert open("http://127.0.0.1:4973")
 }

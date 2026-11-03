@@ -4,10 +4,13 @@
 //// files never start with a dot, so the editor's own paths cannot hide one.
 
 import filepath
+import gleam/bool
 import gleam/bytes_tree
 import gleam/erlang/process.{type Subject}
 import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
+import gleam/int
+import gleam/list
 import gleam/option.{None, Some}
 import gleam/otp/actor
 import gleam/otp/static_supervisor
@@ -40,15 +43,53 @@ fn handle(
   config: Config,
   owner: Subject(state.Message),
 ) -> Response(ResponseData) {
+  use <- bool.lazy_guard(!trusted(req, config.port), refused)
   case request.path_segments(req) {
     [] -> page()
-    [".zeno", "ws"] -> socket(req, owner)
+    [".zeno", "ws"] ->
+      case same_origin(req, config.port) {
+        True -> socket(req, owner)
+        False -> refused()
+      }
     [".zeno", "base.css"] -> base_styles()
     [".zeno", "settings.css"] -> settings_styles(owner)
     [".zeno", "fonts", ..rest] -> serve(config.fonts, rest)
     [".zeno", ..rest] -> serve(config.client, rest)
     segments -> serve(config.folder, segments)
   }
+}
+
+/// The names the server answers to. Checking the host keeps out a name that
+/// resolves to this machine (DNS rebinding), which would make another site
+/// the same origin as the editor.
+fn local(port: Int) -> List(String) {
+  ["127.0.0.1:" <> int.to_string(port), "localhost:" <> int.to_string(port)]
+}
+
+/// A request to this server by a name it listens on.
+pub fn trusted(req: Request(a), port: Int) -> Bool {
+  case request.get_header(req, "host") {
+    Ok(host) -> list.contains(local(port), host)
+    Error(Nil) -> False
+  }
+}
+
+/// A socket the editor's own page could have opened: browsers let any page
+/// open a WebSocket to any address and say where it comes from, and an
+/// embedded page's script runs inside the editor (D29), so the socket that
+/// edits the deck is closed to other origins, sandboxed frames (`null`)
+/// among them. Clients that are not browsers send no origin.
+pub fn same_origin(req: Request(a), port: Int) -> Bool {
+  case request.get_header(req, "origin") {
+    Error(Nil) -> True
+    Ok(origin) ->
+      list.contains(list.map(local(port), fn(l) { "http://" <> l }), origin)
+  }
+}
+
+fn refused() -> Response(ResponseData) {
+  response.new(403)
+  |> response.set_body(mist.Bytes(bytes_tree.from_string("Forbidden")))
 }
 
 fn socket(

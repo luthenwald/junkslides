@@ -89,10 +89,11 @@ pub const base_css =
   border: 0;
 }
 
-/* Charts (D29): the frame in HTML, one SVG per panel. The sizes of the
-   legend row, the x label and the y label are the ones the panels' boxes are
-   computed with, so a theme that changes them makes the panels scale a
-   little. Marks are in shades of the text's own colour. */
+/* Charts (D29): the frame in HTML, one SVG per panel. The legend row, the x
+   label and the y label have fixed sizes, the ones the renderer computes the
+   panels' boxes with (`frame_*` in chart.gleam); a theme that changes them
+   makes the panels scale a little. Marks are in shades of the text's own
+   colour. */
 :where(.zeno-cell[data-placed] > .zeno-figure[data-figure=\"chart\"]) {
   height: 100%;
 }
@@ -106,10 +107,19 @@ pub const base_css =
 }
 
 :where(.zeno-chart-top) {
+  height: 31px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 40px;
+}
+
+:where(.zeno-chart-top:has(.zeno-chart-switch)) {
+  height: 39px;
+}
+
+:where(.zeno-chart-top:not(:has(.zeno-chart-switch)):has(.zeno-chart-legend:empty)) {
+  height: 0;
 }
 
 :where(.zeno-chart-legend) {
@@ -215,6 +225,11 @@ pub const base_css =
 }
 
 :where(.zeno-chart-ylabel) {
+  width: 28px;
+  line-height: 28px;
+  font-size: 23px;
+  overflow: visible;
+  white-space: nowrap;
   writing-mode: vertical-rl;
   rotate: 180deg;
   text-align: center;
@@ -222,7 +237,14 @@ pub const base_css =
   font-style: italic;
 }
 
+:where(.zeno-chart-ylabel:empty) {
+  width: 0;
+}
+
 :where(.zeno-chart-xlabel) {
+  height: 28px;
+  line-height: 28px;
+  font-size: 23px;
   margin: 0;
   text-align: center;
   font-style: italic;

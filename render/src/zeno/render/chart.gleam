@@ -250,6 +250,19 @@ fn bar_row() -> Decoder(BarRow) {
 
 // Scales and ticks --------------------------------------------------------------
 
+/// The sizes of a chart's frame in slide pixels, as the base styles set them:
+/// the legend row without and with a switch, the x and y labels, and the gaps
+/// around the panels.
+const frame_top = 31.0
+
+const frame_top_switch = 39.0
+
+const frame_label = 28.0
+
+const frame_row_gap = 12.0
+
+const frame_column_gap = 14.0
+
 /// Slide pixels per viewBox unit.
 const per_unit = 2.0
 
@@ -500,14 +513,27 @@ fn panels_view(
   }
   let rows = { count + cols - 1 } / cols
   let switch = labels != []
-  // The panels' box, from the chart's box less the legend, the x label and
-  // the y label, at the sizes they have in the base look.
-  let top = case switch {
-    True -> 37.0
-    False -> 31.0
+  // The panels' box, from the chart's box less the legend row, the x label
+  // and the y label, which the base styles give fixed sizes (`frame_*`), so
+  // that the panels' viewBox has their box's shape whatever the theme's fonts.
+  let has_y = case chart {
+    Lines(..) -> list.any(rows_of_panels, fn(row) { row.0 != "" })
+    Stacked(y:, ..) -> y.label != ""
+    Dots(..) | Bars(..) -> False
   }
-  let panels_w = width -. 46.0
-  let panels_h = height -. top -. 32.0 -. 24.0
+  let top = case switch, legend != [] {
+    True, _ -> frame_top_switch
+    False, True -> frame_top
+    False, False -> 0.0
+  }
+  let panels_w =
+    width
+    -. frame_column_gap
+    -. case has_y {
+      True -> frame_label
+      False -> 0.0
+    }
+  let panels_h = height -. top -. frame_label -. 2.0 *. frame_row_gap
   let pw = { panels_w -. int.to_float(cols - 1) *. 34.0 } /. int.to_float(cols)
   let ph =
     { panels_h -. int.to_float(rows - 1) *. 10.0 }

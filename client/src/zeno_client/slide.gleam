@@ -274,7 +274,8 @@ fn probe_slide(
   slide: Slide,
   figures: Dict(String, String),
 ) -> Element(app.Msg) {
-  let context = render.context(dict.new(), figures, "p")
+  let context =
+    render.Context(..render.context(dict.new(), figures, "p"), frames: False)
   let record = fn(cell: Cell) { layout.record(shared.layout, cell.id) }
   let unplaced =
     list.filter(render.drawn_cells(slide), fn(cell) {

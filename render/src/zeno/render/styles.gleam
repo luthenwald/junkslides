@@ -72,6 +72,23 @@ pub const base_css =
   height: auto;
 }
 
+/* An embedded page (D29): 16:9 in the flow, the cell's box when placed. */
+:where(.zeno-figure[data-figure=\"page\"]) {
+  aspect-ratio: 16 / 9;
+}
+
+:where(.zeno-cell[data-placed] > .zeno-figure[data-figure=\"page\"]) {
+  aspect-ratio: auto;
+  height: 100%;
+}
+
+:where(.zeno-figure > iframe) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
 /* Charts (D29): the frame in HTML, one SVG per panel. The sizes of the
    legend row, the x label and the y label are the ones the panels' boxes are
    computed with, so a theme that changes them makes the panels scale a

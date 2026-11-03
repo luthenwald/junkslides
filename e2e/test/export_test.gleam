@@ -8,6 +8,7 @@ import gleam/dynamic/decode
 import gleam/float
 import gleam/json
 import gleam/list
+import gleam/result
 import gleam/string
 import harness.{deck, eventually, open, press, status}
 import simplifile
@@ -269,4 +270,79 @@ pub fn a_charts_switch_shows_one_row_at_a_time_test() {
     cdp.click(page, ".zeno-chart-switch > label:nth-of-type(2)")
   assert eventually(fn() { display("2") == Ok("grid") })
   assert display("1") == Ok("none")
+}
+
+/// The text of the first frame's page, read in a world of the test's own,
+/// since the page's origin is not the parent's.
+fn frame_text(page: Page) -> Result(String, String) {
+  use tree <- result.try(cdp.call(page, "Page.getFrameTree", []))
+  use id <- result.try(
+    decode.run(
+      tree,
+      decode.at(
+        ["frameTree", "childFrames"],
+        decode.at([0], decode.at(["frame", "id"], decode.string)),
+      ),
+    )
+    |> result.replace_error("no frame"),
+  )
+  use world <- result.try(
+    cdp.call(page, "Page.createIsolatedWorld", [#("frameId", json.string(id))]),
+  )
+  use context <- result.try(
+    decode.run(world, decode.at(["executionContextId"], decode.int))
+    |> result.replace_error("no world"),
+  )
+  use reply <- result.try(
+    cdp.call(page, "Runtime.evaluate", [
+      #("expression", json.string("document.body.textContent")),
+      #("contextId", json.int(context)),
+      #("returnByValue", json.bool(True)),
+    ]),
+  )
+  decode.run(reply, decode.at(["result", "value"], decode.string))
+  |> result.replace_error("no text")
+}
+
+/// An embedded page is a frame in the editor, where it does not take the
+/// pointer, and in the exported page, where its script runs.
+pub fn an_embedded_page_runs_its_script_test() {
+  let folder = harness.prepare("export-page-frame")
+  let assert Ok(Nil) =
+    simplifile.create_directory_all(filepath.join(folder, "assets"))
+  let assert Ok(Nil) =
+    simplifile.write(
+      filepath.join(folder, "assets/viz.html"),
+      "<!doctype html><body><script>document.body.textContent = 'ran'</script>",
+    )
+  let path = filepath.join(folder, "deck.md")
+  let marker = "<!-- notes " <> harness.cell("04") <> " -->"
+  let assert Ok(text) = simplifile.read(path)
+  let assert Ok(Nil) =
+    simplifile.write(
+      path,
+      string.replace(
+        text,
+        marker,
+        "<!-- cell "
+          <> harness.cell("ff")
+          <> " -->\n![the search](assets/viz.html)\n\n"
+          <> marker,
+      ),
+    )
+  let #(page, _, _, _) = harness.open_folder(folder, 4956)
+  assert eventually(fn() { cdp.count(page, ".ze-fit iframe") == 1 })
+  assert cdp.count(page, ".ze-probes iframe") == 0
+  assert cdp.computed(page, ".ze-fit iframe", "pointer-events") == Ok("none")
+  assert eventually(fn() { frame_text(page) == Ok("ran") })
+  press(page, "E")
+  assert eventually(fn() { string.contains(status(page), "Exported to ") })
+  let assert Ok(_) =
+    cdp.open(
+      page,
+      "file://" <> filepath.join(folder, "export/index.html"),
+      ".zeno-frame",
+    )
+  assert cdp.attribute(page, "iframe", "sandbox") == Ok("allow-scripts")
+  assert eventually(fn() { frame_text(page) == Ok("ran") })
 }

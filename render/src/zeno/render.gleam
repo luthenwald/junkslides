@@ -223,12 +223,15 @@ pub type Figures =
 /// group. `cell_box` adds the cell's ID to it.
 ///
 /// `box` is the cell's placed size, which a chart fills; `cell_box` sets it.
+/// Without `frames`, an embedded page is an empty box of the same size, so
+/// that a copy only measured never loads and runs the page.
 pub type Context {
   Context(
     highlights: Highlights,
     figures: Figures,
     copy: String,
     box: Option(#(Int, Int)),
+    frames: Bool,
   )
 }
 
@@ -237,12 +240,12 @@ pub fn context(
   figures: Figures,
   copy: String,
 ) -> Context {
-  Context(highlights, figures, copy, None)
+  Context(highlights, figures, copy, None, True)
 }
 
 /// No tokens and no figures: code is plain, drawings are pictures.
 pub fn bare(copy: String) -> Context {
-  Context(dict.new(), dict.new(), copy, None)
+  Context(dict.new(), dict.new(), copy, None, True)
 }
 
 /// The size an unplaced chart is drawn at.
@@ -395,7 +398,25 @@ fn figure(
         ),
       )
     }
-    dialect.Page -> None
+    dialect.Page -> {
+      // Scripts run, in an origin of their own: the frame cannot reach the
+      // editor or the exported page. Not lazy, so that a printed page has
+      // every frame.
+      let frame = case context.frames {
+        True -> [
+          html.iframe([
+            attribute.src(src),
+            attribute.title(alt),
+            attribute("sandbox", "allow-scripts"),
+          ]),
+        ]
+        False -> []
+      }
+      Some(html.div(
+        [class("zeno-figure"), attribute.data("figure", "page")],
+        frame,
+      ))
+    }
   }
 }
 

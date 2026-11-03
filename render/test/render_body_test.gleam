@@ -146,3 +146,26 @@ pub fn drawings_are_inline_when_alone_test() {
   assert draw("![p](assets/other.svg)")
     == "<p><img alt=\"p\" src=\"assets/other.svg\"></p>"
 }
+
+pub fn pages_are_embedded_in_a_sandbox_test() {
+  let draw = fn(source, context) {
+    render.body(source, context)
+    |> list.map(element.to_string)
+    |> string.concat
+  }
+  assert draw("![the search](assets/search.html)", render.bare(""))
+    == "<div class=\"zeno-figure\" data-figure=\"page\"><iframe sandbox=\"allow-scripts\" src=\"assets/search.html\" title=\"the search\"></iframe></div>"
+  // A copy that is only measured keeps the box without the page.
+  assert draw(
+      "![the search](assets/search.html)",
+      render.Context(..render.bare(""), frames: False),
+    )
+    == "<div class=\"zeno-figure\" data-figure=\"page\"></div>"
+  // Among text it stays an image, and a script URL is never a frame.
+  assert draw("see ![s](s.html)", render.bare(""))
+    == "<p>see <img alt=\"s\" src=\"s.html\"></p>"
+  assert !string.contains(
+    draw("![s](javascript:alert.html)", render.bare("")),
+    "iframe",
+  )
+}

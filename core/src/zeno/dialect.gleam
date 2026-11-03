@@ -14,6 +14,7 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 import jot.{
   type Container, type Document, type Inline, BlockQuote, BulletDash, BulletList,
@@ -44,6 +45,9 @@ pub type Problem {
   /// A table row without its closing pipe or with another number of cells
   /// than the header, or a second separator line.
   TableShape
+  /// A mark class (a span's or a code block's) that the theme does not list
+  /// in `--zeno-marks`.
+  UnknownMark
 }
 
 /// A table's cells hold inline content only. The table is rectangular:
@@ -118,7 +122,7 @@ pub fn describe(problem: Problem) -> String {
     ThematicBreakUsed -> "thematic break"
     RawBlockUsed -> "raw block"
     DivUsed -> "div"
-    SpanUsed -> "span"
+    SpanUsed -> "span without a class"
     AttributesUsed -> "attributes"
     ReferenceLinkUsed -> "reference link"
     ReferenceDefinitionUsed -> "reference definition"
@@ -128,6 +132,7 @@ pub fn describe(problem: Problem) -> String {
     BulletSpelling -> "bullet other than -"
     OrdinalSpelling -> "list number other than 1."
     TableShape -> "table row that does not fit the header"
+    UnknownMark -> "mark the theme does not list"
   }
 }
 
@@ -198,7 +203,8 @@ fn inline(i: Inline) -> List(Problem) {
         },
         list.flat_map(content, inline),
       ])
-    Span(..) -> [SpanUsed]
+    Span(attributes:, content:) ->
+      list.append(span_attributes(attributes), list.flat_map(content, inline))
     Footnote(..) -> [FootnoteUsed]
     MathInline(..) | MathDisplay(..) -> [MathUsed]
     NonBreakingSpace
@@ -211,22 +217,53 @@ fn inline(i: Inline) -> List(Problem) {
   }
 }
 
+/// A span may carry classes and nothing else (D28): `[120]{.now}`. Which
+/// classes the theme knows is checked by `unknown_marks`.
+fn span_attributes(attributes: Dict(String, String)) -> List(Problem) {
+  case dict.to_list(attributes) {
+    [] -> [SpanUsed]
+    [#("class", _)] -> []
+    _ -> [AttributesUsed]
+  }
+}
+
 /// Outside code: a `{` at the start of a line or right after a non-space
-/// character, or any `{=`, `{+` or `{-`. jot reads these as attributes or
-/// edit marks and may drop the text silently.
+/// character other than the `]` that closes a span, or any `{=`, `{+` or
+/// `{-`. jot reads these as attributes or edit marks and may drop the text
+/// silently. A line of attributes right before a code fence is the fence's
+/// (D28), checked on the AST instead.
 fn has_attribute_braces(source: String) -> Bool {
+  let lines = string.split(source, "\n")
+  let next = list.append(list.drop(lines, 1), [""])
   let #(found, _) =
-    list.fold(string.split(source, "\n"), #(False, False), fn(acc, l) {
+    list.fold(list.zip(lines, next), #(False, False), fn(acc, pair) {
+      let #(l, after) = pair
       let #(found, fenced) = acc
-      let fence = string.starts_with(string.trim_start(l), "```")
+      let fence = is_fence(l)
       case found, fenced, fence {
         True, _, _ -> #(True, fenced)
         _, _, True -> #(False, !fenced)
         _, True, _ -> #(False, True)
-        _, False, False -> #(braces_in_line(outside_code(l)), False)
+        _, False, False ->
+          case fence_attributes(l, after) {
+            True -> #(False, False)
+            False -> #(braces_in_line(outside_code(l)), False)
+          }
       }
     })
   found
+}
+
+fn is_fence(l: String) -> Bool {
+  string.starts_with(string.trim_start(l), "```")
+}
+
+fn fence_attributes(l: String, after: String) -> Bool {
+  let l = string.trim(l)
+  string.starts_with(l, "{")
+  && string.ends_with(l, "}")
+  && !string.contains(string.drop_start(l, 1), "{")
+  && is_fence(after)
 }
 
 /// The line with inline code spans removed.
@@ -245,7 +282,10 @@ fn braces_in_line(l: String) -> Bool {
   let after_text =
     list.window_by_2(string.to_graphemes(" " <> l))
     |> list.any(fn(pair) {
-      pair.1 == "{" && string.trim(pair.0) != "" && pair.0 != "\\"
+      pair.1 == "{"
+      && string.trim(pair.0) != ""
+      && pair.0 != "\\"
+      && pair.0 != "]"
     })
   after_text
   || string.starts_with(string.trim_start(l), "{")
@@ -281,6 +321,69 @@ fn scheme(url: String) -> Option(String) {
         False -> Some(string.lowercase(before))
       }
   }
+}
+
+// Marks -------------------------------------------------------------------------
+
+/// The mark classes a cell body uses, each once, in order of appearance: the
+/// classes of its spans at any depth, in table cells too (D28).
+pub fn marks(source: String) -> List(String) {
+  list.flat_map(top_level(source), fn(block) {
+    case block {
+      Contained(container:, ..) -> container_marks(container)
+      Tabular(table:) ->
+        [table.head, ..table.rows]
+        |> list.flatten
+        |> list.flat_map(inline_marks)
+    }
+  })
+  |> list.unique
+}
+
+/// `[UnknownMark]` if the body uses a mark class not in `known`, the theme's
+/// `--zeno-marks`; else nothing.
+pub fn unknown_marks(source: String, known: List(String)) -> List(Problem) {
+  case list.all(marks(source), list.contains(known, _)) {
+    True -> []
+    False -> [UnknownMark]
+  }
+}
+
+fn container_marks(c: Container) -> List(String) {
+  case c {
+    Paragraph(content:, ..) | Heading(content:, ..) -> inline_marks(content)
+    BlockQuote(items:, ..) | Div(items:, ..) ->
+      list.flat_map(items, container_marks)
+    BulletList(items:, ..) | OrderedList(items:, ..) ->
+      list.flat_map(items, list.flat_map(_, container_marks))
+    _ -> []
+  }
+}
+
+fn inline_marks(content: List(Inline)) -> List(String) {
+  list.flat_map(content, fn(i) {
+    case i {
+      Span(attributes:, content:) ->
+        list.append(span_classes(attributes), inline_marks(content))
+      Emphasis(content)
+      | Strong(content)
+      | Link(content:, ..)
+      | Delete(content)
+      | Insert(content)
+      | Mark(content)
+      | Superscript(content)
+      | Subscript(content) -> inline_marks(content)
+      _ -> []
+    }
+  })
+}
+
+/// The classes of a span, from jot's `class` attribute.
+pub fn span_classes(attributes: Dict(String, String)) -> List(String) {
+  dict.get(attributes, "class")
+  |> result.unwrap("")
+  |> string.split(" ")
+  |> list.filter(fn(name) { name != "" })
 }
 
 // Code blocks ------------------------------------------------------------------

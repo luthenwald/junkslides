@@ -111,6 +111,8 @@ type State {
     history: History,
     version: Int,
     variants: List(String),
+    /// The theme's mark classes (D28), for the diagnostics.
+    marks: List(String),
     view: View,
     /// The deck as last read from or written to deck.md.
     base: Deck,
@@ -157,7 +159,7 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
       }
   }
   let layout = layout.consistency(layout, deck, now)
-  let #(variants, theme_seen) = read_theme(config)
+  let #(variants, marks, theme_seen) = read_theme(config)
   let settings_file =
     read_settings(config, SettingsFile(store.missing, "", None, []))
   let initialise = fn(self) {
@@ -173,6 +175,7 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
         history: history.new(deck, layout),
         version: 1,
         variants:,
+        marks:,
         view: view.load(config.view_file, config.folder),
         base: deck,
         pending: Groups([]),
@@ -243,13 +246,13 @@ pub fn parse_layout(bytes: BitArray) -> Result(Layout, String) {
   )
 }
 
-fn read_theme(config: Config) -> #(List(String), String) {
+fn read_theme(config: Config) -> #(List(String), List(String), String) {
   case store.read(path(config, "theme.css")) {
-    Error(Nil) -> #([], store.missing)
-    Ok(#(bytes, hash)) -> #(
-      theme.variants(bit_array.to_string(bytes) |> result.unwrap("")),
-      hash,
-    )
+    Error(Nil) -> #([], [], store.missing)
+    Ok(#(bytes, hash)) -> {
+      let css = bit_array.to_string(bytes) |> result.unwrap("")
+      #(theme.variants(css), theme.marks(css), hash)
+    }
   }
 }
 
@@ -705,13 +708,13 @@ fn missing_notices(file: SettingsFile) -> List(String) {
 }
 
 fn poll_theme(state: State) -> State {
-  let #(variants, seen) = read_theme(state.config)
+  let #(variants, marks, seen) = read_theme(state.config)
   case seen == state.theme_seen {
     True -> state
     False -> {
       broadcast(state, protocol.ReloadTheme)
-      let same = variants == state.variants
-      let state = State(..state, variants:, theme_seen: seen)
+      let same = variants == state.variants && marks == state.marks
+      let state = State(..state, variants:, marks:, theme_seen: seen)
       case same {
         True -> state
         False -> {
@@ -786,7 +789,7 @@ fn state_msg(state: State) -> ServerMsg {
     version: state.version,
     deck: state.deck,
     layout: state.layout,
-    diagnostics: protocol.diagnostics(state.deck),
+    diagnostics: protocol.diagnostics(state.deck, state.marks),
     variants: state.variants,
     view: state.view,
   )

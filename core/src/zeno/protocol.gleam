@@ -81,11 +81,17 @@ pub fn code_blocks(deck: Deck) -> List(CodeBlock) {
   |> list.unique
 }
 
-/// Diagnostics for every cell with at least one problem.
-pub fn diagnostics(deck: Deck) -> List(Diagnostic) {
+/// Diagnostics for every cell with at least one problem. `marks` are the
+/// mark classes the theme lists (D28).
+pub fn diagnostics(deck: Deck, marks: List(String)) -> List(Diagnostic) {
   deck.cells(deck)
   |> list.filter_map(fn(cell) {
-    case dialect.problems(cell.source) {
+    let problems =
+      list.append(
+        dialect.problems(cell.source),
+        dialect.unknown_marks(cell.source, marks),
+      )
+    case problems {
       [] -> Error(Nil)
       problems -> Ok(Diagnostic(cell.id, problems))
     }
@@ -305,6 +311,7 @@ const problems = [
   #("bullet_spelling", dialect.BulletSpelling),
   #("ordinal_spelling", dialect.OrdinalSpelling),
   #("table_shape", dialect.TableShape),
+  #("unknown_mark", dialect.UnknownMark),
 ]
 
 fn problem_value(problem: Problem) -> Value {

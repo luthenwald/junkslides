@@ -1,6 +1,9 @@
+import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
+import gleam/string
 import jot.{Text}
+import qcheck
 import zeno/dialect.{
   AlignCenter, AlignDefault, AlignEnd, AlignStart, AttributesUsed,
   BulletSpelling, DivUsed, ExtraUsed, FootnoteUsed, MathUsed, OrdinalSpelling,
@@ -28,7 +31,10 @@ pub fn forbidden_test() {
     #("***", ThematicBreakUsed),
     #("```=html\n<b>x</b>\n```", RawBlockUsed),
     #(":::\nx\n:::", DivUsed),
-    #("[x]{.big}", SpanUsed),
+    #("[x]{}", SpanUsed),
+    #("[x]{#here}", AttributesUsed),
+    #("[x]{.big key=v}", AttributesUsed),
+    #("[x](a.png){.big}", AttributesUsed),
     #("{.big}\nPara", AttributesUsed),
     #("_x_{.big}", AttributesUsed),
     #("{=mark=}", AttributesUsed),
@@ -48,6 +54,17 @@ pub fn forbidden_test() {
     let #(source, problem) = c
     assert list.contains(dialect.problems(source), problem)
   })
+}
+
+pub fn marks_test() {
+  let source =
+    "A [120]{.now} and [x]{.quiet .side},\n_[y]{.now}_\n\n| a | [b]{.num} |\n|---|---|\n| c | d |"
+  assert dialect.problems(source) == []
+  assert dialect.marks(source) == ["now", "quiet", "side", "num"]
+  assert dialect.unknown_marks(source, ["now", "quiet", "side", "num"]) == []
+  assert dialect.unknown_marks(source, ["now", "quiet", "side"])
+    == [dialect.UnknownMark]
+  assert dialect.marks("no marks, `[x]{.now}` in code") == []
 }
 
 pub fn safe_url_test() {
@@ -222,4 +239,30 @@ pub fn images_of_a_cell_test() {
   assert dialect.images("![x](https://e.org/x.png) ![y](data:z)") == []
   // The caller decides what to do with paths that leave the folder.
   assert dialect.images("![u](../up.png)") == ["../up.png"]
+}
+
+/// Any text with classed spans among its words is in the dialect, and its
+/// marks are the classes in order of appearance.
+pub fn classed_spans_property_test() {
+  let names = ["now", "quiet", "side", "num-2", "x_y"]
+  let word =
+    qcheck.map2(
+      qcheck.bounded_int(0, 9),
+      qcheck.bounded_int(0, 5),
+      fn(word, mark) {
+        let text = "w" <> int.to_string(word)
+        case list.drop(names, mark) {
+          [name, ..] -> #("[" <> text <> "]{." <> name <> "}", [name])
+          [] -> #(text, [])
+        }
+      },
+    )
+  use words <- qcheck.run(
+    qcheck.default_config() |> qcheck.with_test_count(200),
+    qcheck.generic_list(word, qcheck.bounded_int(1, 8)),
+  )
+  let source = list.map(words, fn(w) { w.0 }) |> string.join(" ")
+  assert dialect.problems(source) == []
+  assert dialect.marks(source)
+    == list.unique(list.flat_map(words, fn(w) { w.1 }))
 }

@@ -398,7 +398,8 @@ fn inline(i: jot.Inline, lines: Lines) -> #(List(Element(msg)), Lines) {
         )
         None -> #([html.span([], [text(plain(content))])], lines)
       }
-    jot.Span(content:, ..) -> wrap(content, html.span([], _))
+    jot.Span(attributes:, content:) ->
+      wrap(content, html.span(span_class(attributes), _))
     jot.Delete(content) -> wrap(content, html.del([], _))
     jot.Insert(content) -> wrap(content, html.ins([], _))
     jot.Mark(content) -> wrap(content, html.mark([], _))
@@ -410,6 +411,15 @@ fn inline(i: jot.Inline, lines: Lines) -> #(List(Element(msg)), Lines) {
       lines,
     )
     jot.Symbol(content) -> #([text(":" <> content <> ":")], lines)
+  }
+}
+
+/// A span's classes are marks the theme names (D28); nothing else of its
+/// attributes reaches the page.
+fn span_class(attributes: Dict(String, String)) -> List(Attribute(msg)) {
+  case dialect.span_classes(attributes) {
+    [] -> []
+    classes -> [class(string.join(classes, " "))]
   }
 }
 

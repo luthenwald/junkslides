@@ -11,7 +11,17 @@ import gleam/string
 /// The names in `--zeno-variants: "a b c";`, in order, without duplicates.
 /// A theme without the property has no variants.
 pub fn variants(css: String) -> List(String) {
-  case string.split_once(css, "--zeno-variants") {
+  names(css, "--zeno-variants")
+}
+
+/// The mark classes in `--zeno-marks: "now quiet";`, likewise (D28). A theme
+/// without the property has no marks.
+pub fn marks(css: String) -> List(String) {
+  names(css, "--zeno-marks")
+}
+
+fn names(css: String, property: String) -> List(String) {
+  case string.split_once(css, property) {
     Error(Nil) -> []
     Ok(#(_, rest)) -> {
       // The declaration ends at the first `;` or `}`.

@@ -95,3 +95,10 @@ pub fn tables_stay_among_other_blocks_with_their_lines_test() {
     <> "<table><thead><tr><th scope=\"col\">a</th></tr></thead><tbody></tbody></table>"
     <> "<p>text<br><span class=\"zeno-indent\">  </span>more</p>"
 }
+
+pub fn marks_are_classes_test() {
+  assert render("A [120]{.now} and [x]{.quiet .side}.")
+    == "<p>A <span class=\"now\">120</span> and <span class=\"quiet side\">x</span>.</p>"
+  // Nothing else of a span's attributes reaches the page.
+  assert render("[x]{#id}") == "<p><span>x</span></p>"
+}

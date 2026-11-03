@@ -13,6 +13,7 @@ import gleam/result
 import gleam/string
 import simplifile
 import support/harness.{example_id}
+import zeno/dialect
 import zeno/file
 import zeno/op
 import zeno/protocol.{Token, View}
@@ -124,7 +125,32 @@ pub fn theme_change_reloads_and_updates_variants_test() {
   assert harness.quiet(h, 200)
 }
 
+/// A mark is fine once the theme lists it, and diagnosed until then (D28).
+pub fn marks_follow_the_theme_test() {
+  let h = harness.start("marks", 4920)
+  let _ = harness.next_state(h)
+  let cell = example_id("03")
+  harness.send(h, protocol.Apply(1, [op.EditText(cell, "A [word]{.now}.")]))
+  let assert protocol.State(diagnostics:, ..) = next_full_state(h)
+  assert diagnostics == [protocol.Diagnostic(cell, [dialect.UnknownMark])]
+  harness.write(h.folder, "theme.css", ":root { --zeno-marks: \"now\"; }\n")
+  let assert protocol.State(diagnostics:, ..) = next_full_state(h)
+  assert diagnostics == []
+}
+
+fn next_full_state(h: harness.Harness) -> protocol.ServerMsg {
+  case harness.next(h) {
+    protocol.State(..) as state -> state
+    _ -> next_full_state(h)
+  }
+}
+
 pub fn variants_are_read_from_the_theme_test() {
+  assert theme.marks(
+      ":root { --zeno-marks: \"now quiet\"; --zeno-variants: \"a\" }",
+    )
+    == ["now", "quiet"]
+  assert theme.marks(theme.default_css) == []
   assert theme.variants(theme.default_css)
     == ["large", "small", "quiet", "emphasis"]
   assert theme.variants(

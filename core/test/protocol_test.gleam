@@ -76,6 +76,7 @@ pub fn server_messages_round_trip_test() {
           dialect.ExtraUsed,
           dialect.BulletSpelling,
           dialect.TableShape,
+          dialect.UnknownMark,
         ]),
       ],
       ["large", "small"],
@@ -111,8 +112,13 @@ pub fn diagnostics_test() {
   let a = cell(deck, 0, 0)
   let assert Ok(#(deck, _, _)) =
     op.apply(deck, op.EditText(a.id, "* star"), supply)
-  assert protocol.diagnostics(deck)
+  assert protocol.diagnostics(deck, [])
     == [Diagnostic(a.id, [dialect.BulletSpelling])]
+  let assert Ok(#(deck, _, _)) =
+    op.apply(deck, op.EditText(a.id, "[x]{.now}"), supply)
+  assert protocol.diagnostics(deck, ["now"]) == []
+  assert protocol.diagnostics(deck, [])
+    == [Diagnostic(a.id, [dialect.UnknownMark])]
 }
 
 pub fn unknown_messages_are_errors_test() {

@@ -52,7 +52,7 @@ pub fn every_slide_has_a_numbered_frame_test() {
   // A slide with nothing drawn stays, so numbers match the editor's.
   assert string.contains(
     html,
-    ">02</span><span class=\"zeno-page-total\">/02</span>",
+    ">02</span><span class=\"zeno-page-total\"><span class=\"zeno-page-slash\">/</span>02</span>",
   )
 }
 

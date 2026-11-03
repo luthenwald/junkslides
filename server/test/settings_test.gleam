@@ -172,6 +172,12 @@ pub fn css_has_faces_properties_and_rules_test() {
   assert string.contains(css, "grid-area: 3 / 4 / 17 / 30;")
   assert string.contains(css, "gap: 24px;")
   assert string.contains(css, ":where(.zeno-page-total) {\n  display: none;")
+  // Spaced numbers put a space each side of the slash.
+  let assert Ok(spaced) = settings.parse("[slide]\nnumbers = \"01 / 12\"\n")
+  assert string.contains(
+    settings.to_css(spaced, ""),
+    ":where(.zeno-page-slash)::before, :where(.zeno-page-slash)::after {\n  content: \" \";\n  white-space: pre;",
+  )
   // Every rule has zero specificity, so the theme wins.
   assert string.split(css, "\n")
     |> list.filter(string.ends_with(_, " {"))

@@ -147,7 +147,7 @@ line-height = 1.4
 code-scale = 1   # code size against its text, such as 0.875
 
 [slide]
-numbers = "01/12"  # or "01", or "none"
+numbers = "01/12"  # or "01 / 12", "01", or "none"
 margin = 2         # body inset in 60 px grid units, or [rows, columns]
 gap = 24           # pixels between cells that flow
 ```

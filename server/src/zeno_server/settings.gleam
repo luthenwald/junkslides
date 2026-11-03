@@ -48,9 +48,10 @@ pub type Face {
   BoldItalic
 }
 
-/// How slide numbers show: `01/12`, `01`, or not at all.
+/// How slide numbers show: `01/12`, `01 / 12`, `01`, or not at all.
 pub type Numbers {
   Full
+  Spaced
   Short
   Hidden
 }
@@ -114,7 +115,7 @@ line-height = 1.4
 code-scale = 1   # code size against its text, such as 0.875
 
 [slide]
-numbers = \"01/12\"  # or \"01\", or \"none\"
+numbers = \"01/12\"  # or \"01 / 12\", \"01\", or \"none\"
 margin = 2         # body inset in 60 px grid units, or [rows, columns]
 gap = 24           # pixels between cells that flow
 "
@@ -419,11 +420,14 @@ fn in_range(
 fn read_numbers(value: Toml, path: String) -> Result(Numbers, String) {
   case value {
     tom.String("01/12") -> Ok(Full)
+    tom.String("01 / 12") -> Ok(Spaced)
     tom.String("01") -> Ok(Short)
     tom.String("none") -> Ok(Hidden)
     _ ->
       Error(
-        "zeno.toml: " <> path <> " should be \"01/12\", \"01\" or \"none\".",
+        "zeno.toml: "
+        <> path
+        <> " should be \"01/12\", \"01 / 12\", \"01\" or \"none\".",
       )
   }
 }
@@ -518,6 +522,14 @@ pub fn to_css(settings: Settings, prefix: String) -> String {
         Some(Short) ->
           rule(":where(.zeno-page-total)", [Some("display: none;")])
         Some(Hidden) -> rule(":where(.zeno-page)", [Some("display: none;")])
+        Some(Spaced) ->
+          rule(
+            ":where(.zeno-page-slash)::before, :where(.zeno-page-slash)::after",
+            [
+              Some("content: \" \";"),
+              Some("white-space: pre;"),
+            ],
+          )
         Some(Full) | None -> None
       },
     ]

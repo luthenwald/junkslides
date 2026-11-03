@@ -116,15 +116,19 @@ pub fn number(index: Int, total: Int) -> String {
 
 /// The slide's number for the theme to place or hide (04-layout.md, Theme
 /// contract), in two parts, `01` and `/12`, so that a stylesheet can hide the
-/// total. Not a cell, so it is not in the overflow probes.
+/// total. The slash has a span of its own, so a stylesheet can space it.
+/// Not a cell, so it is not in the overflow probes.
 pub fn page_number(index: Int, total: Int) -> Element(msg) {
   let #(own, of) = case string.split_once(number(index, total), "/") {
-    Ok(#(own, of)) -> #(own, "/" <> of)
-    Error(Nil) -> #(number(index, total), "")
+    Ok(#(own, of)) -> #(own, [
+      html.span([class("zeno-page-slash")], [text("/")]),
+      text(of),
+    ])
+    Error(Nil) -> #(number(index, total), [])
   }
   html.div([class("zeno-page")], [
     html.span([class("zeno-page-index")], [text(own)]),
-    html.span([class("zeno-page-total")], [text(of)]),
+    html.span([class("zeno-page-total")], of),
   ])
 }
 

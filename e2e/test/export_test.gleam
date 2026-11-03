@@ -220,3 +220,53 @@ fn latin1(bytes: BitArray, done: List(String)) -> List(String) {
     _ -> list.reverse(done)
   }
 }
+
+/// A chart spec is drawn in the editor and in the page, and its switch shows
+/// one row of panels at a time without any script.
+pub fn a_charts_switch_shows_one_row_at_a_time_test() {
+  let folder = harness.prepare("export-chart")
+  let spec =
+    "{\"kind\": \"lines\", \"x\": {\"label\": \"K\"}, \"y\": {\"label\": \"n\"},
+\"grid\": {\"rows\": [\"paths\", \"queries\"], \"cols\": [\"a\"]},
+\"panels\": [
+{\"title\": \"a\", \"row\": \"paths\", \"col\": \"a\", \"series\": [{\"label\": \"s\", \"points\": [{\"x\": 1, \"y\": 2}, {\"x\": 2, \"y\": 4}]}]},
+{\"title\": \"a\", \"row\": \"queries\", \"col\": \"a\", \"series\": [{\"label\": \"s\", \"points\": [{\"x\": 1, \"y\": 3}, {\"x\": 2, \"y\": 1}]}]}]}"
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(folder, "stats.json"), spec)
+  let path = filepath.join(folder, "deck.md")
+  let marker = "<!-- notes " <> harness.cell("04") <> " -->"
+  let assert Ok(text) = simplifile.read(path)
+  let assert Ok(Nil) =
+    simplifile.write(
+      path,
+      string.replace(
+        text,
+        marker,
+        "<!-- cell "
+          <> harness.cell("ff")
+          <> " -->\n![statistics](stats.json)\n\n"
+          <> marker,
+      ),
+    )
+  let #(page, _, _, _) = harness.open_folder(folder, 4955)
+  assert eventually(fn() {
+    cdp.count(page, ".ze-fit .zeno-chart-panel svg") == 2
+  })
+  press(page, "E")
+  assert eventually(fn() { string.contains(status(page), "Exported to ") })
+  let assert Ok(_) =
+    cdp.open(
+      page,
+      "file://" <> filepath.join(folder, "export/index.html"),
+      ".zeno-frame",
+    )
+  let display = fn(n) {
+    cdp.computed(page, ".zeno-chart-row:nth-child(" <> n <> ")", "display")
+  }
+  assert display("1") == Ok("grid")
+  assert display("2") == Ok("none")
+  let assert Ok(_) =
+    cdp.click(page, ".zeno-chart-switch > label:nth-of-type(2)")
+  assert eventually(fn() { display("2") == Ok("grid") })
+  assert display("1") == Ok("none")
+}

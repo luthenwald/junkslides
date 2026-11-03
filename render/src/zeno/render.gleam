@@ -17,6 +17,7 @@ import zeno/dialect
 import zeno/id
 import zeno/layout.{type Area, type CellRecord, type Layout}
 import zeno/protocol.{type CodeBlock, type Token, CodeBlock}
+import zeno/render/chart
 import zeno/render/styles
 
 /// The whole deck as one static page, without any script. Each slide is the
@@ -64,7 +65,7 @@ pub fn document(
     html.body(
       [],
       list.index_map(deck.slides, fn(slide, index) {
-        frame(slide, index, total, layout, Context(highlights, figures, ""))
+        frame(slide, index, total, layout, context(highlights, figures, ""))
       }),
     ),
   ])
@@ -163,7 +164,11 @@ pub fn cell_box(
     [class("zeno-cell"), ..list.flatten([placement, style, extra])],
     body(
       cell.source,
-      Context(..context, copy: context.copy <> id.to_string(cell.id)),
+      Context(
+        ..context,
+        copy: context.copy <> id.to_string(cell.id),
+        box: option.map(area, fn(area) { #(area.w, area.h) }),
+      ),
     ),
   )
 }
@@ -216,14 +221,32 @@ pub type Figures =
 /// figures' text, and `copy`, which tells apart the drawn copies of a cell (a
 /// slide and its overflow probe) where a chart's controls must not share a
 /// group. `cell_box` adds the cell's ID to it.
+///
+/// `box` is the cell's placed size, which a chart fills; `cell_box` sets it.
 pub type Context {
-  Context(highlights: Highlights, figures: Figures, copy: String)
+  Context(
+    highlights: Highlights,
+    figures: Figures,
+    copy: String,
+    box: Option(#(Int, Int)),
+  )
+}
+
+pub fn context(
+  highlights: Highlights,
+  figures: Figures,
+  copy: String,
+) -> Context {
+  Context(highlights, figures, copy, None)
 }
 
 /// No tokens and no figures: code is plain, drawings are pictures.
 pub fn bare(copy: String) -> Context {
-  Context(dict.new(), dict.new(), copy)
+  Context(dict.new(), dict.new(), copy, None)
 }
+
+/// The size an unplaced chart is drawn at.
+const flowing_chart = #(1600, 800)
 
 fn container(
   c: jot.Container,
@@ -336,7 +359,43 @@ fn figure(
           svg,
         )
       })
-    dialect.Chart | dialect.Page -> None
+    dialect.Chart -> {
+      let drawn = case dict.get(context.figures, src) {
+        Error(Nil) -> chart.missing(alt, "not read")
+        Ok(spec) ->
+          case chart.decode(spec) {
+            Error(why) -> chart.missing(alt, why)
+            Ok(spec) -> {
+              let #(w, h) = option.unwrap(context.box, flowing_chart)
+              chart.view(
+                spec,
+                w,
+                h,
+                "zeno-chart-" <> context.copy <> "-" <> src,
+              )
+            }
+          }
+      }
+      let height = case context.box {
+        Some(_) -> []
+        None -> [
+          attribute.style("height", int.to_string(flowing_chart.1) <> "px"),
+        ]
+      }
+      Some(
+        html.div(
+          [
+            class("zeno-figure"),
+            attribute.data("figure", "chart"),
+            attribute.role("img"),
+            attribute("aria-label", alt),
+            ..height
+          ],
+          [drawn],
+        ),
+      )
+    }
+    dialect.Page -> None
   }
 }
 

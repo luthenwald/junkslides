@@ -148,7 +148,7 @@ fn next_full_state(h: harness.Harness) -> protocol.ServerMsg {
 
 /// A drawing's text reaches clients, again after an edit, and one that
 /// could run script is refused with a notice (D29).
-pub fn drawings_reach_clients_test() {
+pub fn drawings_and_charts_reach_clients_test() {
   let h = harness.start("drawings", 4972)
   let _ = harness.next_state(h)
   harness.write(h.folder, "fan.svg", "<svg class=\"fan\"></svg>")
@@ -161,6 +161,10 @@ pub fn drawings_reach_clients_test() {
   assert next_figures(h) == []
   assert harness.next_notice(h)
     == "The figure fan.svg cannot be drawn: it has event handler attributes."
+  // A chart spec goes to clients as it is; the renderer reads it.
+  harness.write(h.folder, "c.json", "{\"kind\": \"dots\"}")
+  harness.send(h, protocol.Apply(2, [op.EditText(cell, "![c](c.json)")]))
+  assert next_figures(h) == [#("c.json", "{\"kind\": \"dots\"}")]
 }
 
 fn next_figures(h: harness.Harness) -> List(#(String, String)) {

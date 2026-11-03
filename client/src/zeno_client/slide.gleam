@@ -76,7 +76,7 @@ pub fn view(
         layout.record(shared.layout, cell.id),
         area,
         decorations,
-        render.Context(model.highlights, model.figures, "s"),
+        render.context(model.highlights, model.figures, "s"),
       ),
     )
   }
@@ -274,7 +274,7 @@ fn probe_slide(
   slide: Slide,
   figures: Dict(String, String),
 ) -> Element(app.Msg) {
-  let context = render.Context(dict.new(), figures, "p")
+  let context = render.context(dict.new(), figures, "p")
   let record = fn(cell: Cell) { layout.record(shared.layout, cell.id) }
   let unplaced =
     list.filter(render.drawn_cells(slide), fn(cell) {

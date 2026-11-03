@@ -102,3 +102,30 @@ pub fn marks_are_classes_test() {
   // Nothing else of a span's attributes reaches the page.
   assert render("[x]{#id}") == "<p><span>x</span></p>"
 }
+
+pub fn code_attributes_light_lines_and_mark_text_test() {
+  // A lit line, and a mark whose delimiters are left out.
+  assert render("{lit=2 now=\"⟦⟧\"}\n```\na\nb ⟦c⟧ d\ne\n```")
+    == "<pre><code>a\n<span class=\"zeno-lit\">b <span class=\"now\">c</span> d</span>\ne\n</code></pre>"
+  // Ranges, and a mark that runs to the end of its line.
+  assert render("{lit=\"1-2\" to=\"<>\"}\n```\nx <y\nz\n```")
+    == "<pre><code><span class=\"zeno-lit\">x <span class=\"to\">y</span></span>\n<span class=\"zeno-lit\">z</span>\n</code></pre>"
+}
+
+pub fn marks_in_code_cut_tokens_test() {
+  let source = "{now=\"⟦⟧\"}\n```hs\nab⟦cd⟧e\n```"
+  // The server highlights the text without delimiters.
+  let highlights =
+    dict.from_list([
+      #(CodeBlock("hs", "abcde\n"), [
+        Token(Some("keyword"), "abc"),
+        Token(None, "de"),
+        Token(None, "\n"),
+      ]),
+    ])
+  assert render_with(source, highlights)
+    == "<pre><code data-language=\"hs\"><span class=\"zeno-tok-keyword\">ab</span><span class=\"now\"><span class=\"zeno-tok-keyword\">c</span>d</span>e\n</code></pre>"
+  // Tokens of another text are not used.
+  assert render_with("{now=\"⟦⟧\"}\n```hs\nab⟦cd⟧x\n```", highlights)
+    == "<pre><code data-language=\"hs\">ab<span class=\"now\">cd</span>x\n</code></pre>"
+}

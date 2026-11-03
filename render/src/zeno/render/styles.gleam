@@ -60,6 +60,16 @@ pub const base_css =
   color: color-mix(in srgb, currentColor 50%, transparent);
 }
 
+/* A lit line of code (D28): a faint band across the block, with a rule at its
+   left edge. */
+:where(.zeno-lit) {
+  display: inline-block;
+  min-width: 100%;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  box-shadow: -0.4em 0 0 color-mix(in srgb, currentColor 7%, transparent),
+    -0.55em 0 0 currentColor;
+}
+
 :where(.zeno-page) {
   position: absolute;
   right: 60px;

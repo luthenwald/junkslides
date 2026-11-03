@@ -77,6 +77,7 @@ pub fn server_messages_round_trip_test() {
           dialect.BulletSpelling,
           dialect.TableShape,
           dialect.UnknownMark,
+          dialect.CodeAttribute,
         ]),
       ],
       ["large", "small"],

@@ -48,6 +48,9 @@ pub type Problem {
   /// A mark class (a span's or a code block's) that the theme does not list
   /// in `--zeno-marks`.
   UnknownMark
+  /// A code block attribute other than `lit` with line numbers, or a mark
+  /// class with two different delimiter characters.
+  CodeAttribute
 }
 
 /// A table's cells hold inline content only. The table is rectangular:
@@ -133,6 +136,8 @@ pub fn describe(problem: Problem) -> String {
     OrdinalSpelling -> "list number other than 1."
     TableShape -> "table row that does not fit the header"
     UnknownMark -> "mark the theme does not list"
+    CodeAttribute ->
+      "code attribute other than lit or a mark with two characters"
   }
 }
 
@@ -155,7 +160,11 @@ fn block(c: Container) -> List(Problem) {
         attrs(dict.delete(attributes, "id")),
         list.flat_map(content, inline),
       )
-    Codeblock(attributes:, ..) -> attrs(attributes)
+    Codeblock(attributes:, ..) ->
+      case code_marks(attributes) {
+        Ok(_) -> []
+        Error(Nil) -> [CodeAttribute]
+      }
     BlockQuote(attributes:, items:) ->
       list.append(attrs(attributes), list.flat_map(items, block))
     BulletList(style:, items:, ..) ->
@@ -352,6 +361,11 @@ pub fn unknown_marks(source: String, known: List(String)) -> List(Problem) {
 fn container_marks(c: Container) -> List(String) {
   case c {
     Paragraph(content:, ..) | Heading(content:, ..) -> inline_marks(content)
+    Codeblock(attributes:, ..) ->
+      case code_marks(attributes) {
+        Ok(CodeMarks(marks:, ..)) -> list.map(marks, fn(mark) { mark.class })
+        Error(Nil) -> []
+      }
     BlockQuote(items:, ..) | Div(items:, ..) ->
       list.flat_map(items, container_marks)
     BulletList(items:, ..) | OrderedList(items:, ..) ->
@@ -389,19 +403,149 @@ pub fn span_classes(attributes: Dict(String, String)) -> List(String) {
 // Code blocks ------------------------------------------------------------------
 
 /// The code blocks of a cell body that name a language, as pairs of language
-/// and text, at any depth.
+/// and text, at any depth. The text is as drawn: without mark delimiters.
 pub fn code_blocks(source: String) -> List(#(String, String)) {
   list.flat_map(parse(source).content, block_code)
 }
 
 fn block_code(c: Container) -> List(#(String, String)) {
   case c {
-    Codeblock(language: Some(language), content:, ..) -> [#(language, content)]
+    Codeblock(language: Some(language), content:, attributes:) -> [
+      #(language, marked_code(content, code_marks_or_none(attributes)).0),
+    ]
     BlockQuote(items:, ..) | Div(items:, ..) -> list.flat_map(items, block_code)
     BulletList(items:, ..) | OrderedList(items:, ..) ->
       list.flat_map(items, list.flat_map(_, block_code))
     _ -> []
   }
+}
+
+// Code attributes ---------------------------------------------------------------
+
+/// What a code block's attribute line asks for (D28): its lit lines, counted
+/// from 1, and its marks, each a class with an opening and a closing
+/// delimiter.
+pub type CodeMarks {
+  CodeMarks(lit: List(Int), marks: List(CodeMark))
+}
+
+pub type CodeMark {
+  CodeMark(class: String, open: String, close: String)
+}
+
+/// A piece of a code block's text: inside a mark or not, never across a line.
+pub type Marked {
+  Marked(mark: Option(String), text: String)
+}
+
+/// The attribute line of a code block as `CodeMarks`: `lit="2 5-7"` (spaces
+/// or commas between numbers and ranges), and any other key a mark class
+/// whose value is two different characters, such as `now="⟦⟧"`.
+pub fn code_marks(attributes: Dict(String, String)) -> Result(CodeMarks, Nil) {
+  dict.to_list(attributes)
+  |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
+  |> list.try_fold(CodeMarks([], []), fn(acc, pair) {
+    case pair {
+      #("lit", value) -> {
+        use lit <- result.map(line_numbers(value))
+        CodeMarks(..acc, lit:)
+      }
+      #("class", _) | #("id", _) -> Error(Nil)
+      #(class, value) ->
+        case string.to_graphemes(value) {
+          [open, close] if open != close && open != " " && close != " " ->
+            Ok(
+              CodeMarks(..acc, marks: [
+                CodeMark(class, open, close),
+                ..acc.marks
+              ]),
+            )
+          _ -> Error(Nil)
+        }
+    }
+  })
+  |> result.map(fn(m) { CodeMarks(..m, marks: list.reverse(m.marks)) })
+}
+
+pub fn code_marks_or_none(attributes: Dict(String, String)) -> CodeMarks {
+  code_marks(attributes) |> result.unwrap(CodeMarks([], []))
+}
+
+fn line_numbers(value: String) -> Result(List(Int), Nil) {
+  string.replace(value, ",", " ")
+  |> string.split(" ")
+  |> list.filter(fn(part) { part != "" })
+  |> list.try_map(fn(part) {
+    case string.split(part, "-") {
+      [one] -> int.parse(one) |> result.map(fn(n) { [n] })
+      [from, to] -> {
+        use from <- result.try(int.parse(from))
+        use to <- result.try(int.parse(to))
+        case from <= to {
+          True -> Ok(int.range(from, to + 1, [], list.prepend) |> list.reverse)
+          False -> Error(Nil)
+        }
+      }
+      _ -> Error(Nil)
+    }
+  })
+  |> result.map(list.flatten)
+  |> result.try(fn(lines) {
+    case lines != [] && list.all(lines, fn(n) { n >= 1 }) {
+      True -> Ok(list.unique(lines))
+      False -> Error(Nil)
+    }
+  })
+}
+
+/// A code block's text without its mark delimiters, and the same text in
+/// pieces by mark. A mark ends at its closing delimiter or at the end of its
+/// line; marks do not nest, so inside one the other delimiters are text.
+pub fn marked_code(
+  content: String,
+  marks: CodeMarks,
+) -> #(String, List(Marked)) {
+  case marks.marks {
+    [] -> #(content, [Marked(None, content)])
+    _ -> {
+      let pieces =
+        string.split(content, "\n")
+        |> list.map(marked_line(_, marks.marks))
+        |> list.intersperse([Marked(None, "\n")])
+        |> list.flatten
+        |> list.filter(fn(piece) { piece.text != "" })
+      #(string.concat(list.map(pieces, fn(piece) { piece.text })), pieces)
+    }
+  }
+}
+
+fn marked_line(line: String, marks: List(CodeMark)) -> List(Marked) {
+  let #(done, current, open) =
+    list.fold(string.to_graphemes(line), #([], [], None), fn(acc, g) {
+      let #(done, current, open) = acc
+      let flush = fn(mark) {
+        [Marked(mark, current |> list.reverse |> string.concat), ..done]
+      }
+      case open {
+        Some(CodeMark(close:, class:, ..)) if g == close -> #(
+          flush(Some(class)),
+          [],
+          None,
+        )
+        Some(_) -> #(done, [g, ..current], open)
+        None ->
+          case list.find(marks, fn(mark) { mark.open == g }) {
+            Ok(mark) -> #(flush(None), [], Some(mark))
+            Error(Nil) -> #(done, [g, ..current], None)
+          }
+      }
+    })
+  let last =
+    Marked(
+      option.map(open, fn(mark) { mark.class }),
+      current |> list.reverse |> string.concat,
+    )
+  list.reverse([last, ..done])
 }
 
 // Images ------------------------------------------------------------------------

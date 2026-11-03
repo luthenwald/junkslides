@@ -6,6 +6,7 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/order
 import gleam/string
 import jot
 import lustre/attribute.{type Attribute, attribute, class}
@@ -218,11 +219,16 @@ fn container(
       let #(children, lines) = inlines(content, lines)
       #(element.element("h" <> int.to_string(level), [], children), lines)
     }
-    jot.Codeblock(language:, content:, ..) -> #(
+    jot.Codeblock(language:, content:, attributes:) -> #(
       html.pre([], [
         html.code(
           option.values([option.map(language, attribute.data("language", _))]),
-          code(language, content, highlights),
+          code(
+            language,
+            content,
+            dialect.code_marks_or_none(attributes),
+            highlights,
+          ),
         ),
       ]),
       lines,
@@ -287,28 +293,135 @@ fn column_align(align: dialect.ColumnAlign) -> List(Attribute(msg)) {
   }
 }
 
-/// A code block's text, with the tokens the server sent for it, if any.
+/// A code block's text, with the tokens the server sent for it, if any. With
+/// an attribute line (D28) it is drawn line by line: lit lines inside
+/// `span.zeno-lit`, marks as `span.<mark>` around their tokens, and the
+/// delimiters left out. The server highlights the text without them.
 fn code(
   language: Option(String),
   content: String,
+  marks: dialect.CodeMarks,
   highlights: Highlights,
 ) -> List(Element(msg)) {
+  let #(text, pieces) = dialect.marked_code(content, marks)
   let tokens =
     option.then(language, fn(language) {
-      dict.get(highlights, CodeBlock(language, content))
+      dict.get(highlights, CodeBlock(language, text))
       |> option.from_result
     })
-  case tokens {
-    None -> [text(content)]
-    Some(tokens) ->
-      list.map(tokens, fn(token) {
-        case token.kind {
-          Some(kind) ->
-            html.span([class(token_classes(kind))], [text(token.text)])
-          None -> text(token.text)
+  case marks, tokens {
+    dialect.CodeMarks(lit: [], marks: []), None -> [element.text(text)]
+    dialect.CodeMarks(lit: [], marks: []), Some(tokens) ->
+      list.map(tokens, token_element)
+    _, _ -> {
+      let tokens = option.unwrap(tokens, [protocol.Token(None, text)])
+      code_lines(merge(tokens, pieces), marks.lit)
+    }
+  }
+}
+
+fn token_element(token: Token) -> Element(msg) {
+  case token.kind {
+    Some(kind) -> html.span([class(token_classes(kind))], [text(token.text)])
+    None -> text(token.text)
+  }
+}
+
+/// A piece of code with its token kind and its mark.
+type Piece {
+  Piece(kind: Option(String), mark: Option(String), text: String)
+}
+
+/// Tokens and marked pieces cut at each other's edges. Both cover the same
+/// text; if they do not (tokens of an older text), the tokens are dropped.
+fn merge(tokens: List(Token), pieces: List(dialect.Marked)) -> List(Piece) {
+  let same =
+    string.concat(list.map(tokens, fn(t) { t.text }))
+    == string.concat(list.map(pieces, fn(p) { p.text }))
+  case same {
+    True -> merge_loop(tokens, pieces, [])
+    False -> list.map(pieces, fn(p) { Piece(None, p.mark, p.text) })
+  }
+}
+
+fn merge_loop(
+  tokens: List(Token),
+  pieces: List(dialect.Marked),
+  done: List(Piece),
+) -> List(Piece) {
+  case tokens, pieces {
+    [protocol.Token(text: "", ..), ..tokens], _ ->
+      merge_loop(tokens, pieces, done)
+    _, [dialect.Marked(text: "", ..), ..pieces] ->
+      merge_loop(tokens, pieces, done)
+    [t, ..ts], [p, ..ps] -> {
+      let lt = string.length(t.text)
+      let lp = string.length(p.text)
+      case int.compare(lt, lp) {
+        order.Eq -> merge_loop(ts, ps, [Piece(t.kind, p.mark, t.text), ..done])
+        order.Lt ->
+          merge_loop(
+            ts,
+            [dialect.Marked(p.mark, string.drop_start(p.text, lt)), ..ps],
+            [Piece(t.kind, p.mark, t.text), ..done],
+          )
+        order.Gt ->
+          merge_loop(
+            [protocol.Token(t.kind, string.drop_start(t.text, lp)), ..ts],
+            ps,
+            [Piece(t.kind, p.mark, p.text), ..done],
+          )
+      }
+    }
+    _, _ -> list.reverse(done)
+  }
+}
+
+/// Pieces as lines: each line's pieces grouped by mark, a lit line wrapped,
+/// the line breaks between them as text.
+fn code_lines(pieces: List(Piece), lit: List(Int)) -> List(Element(msg)) {
+  let lines =
+    list.fold(pieces, [[]], fn(lines, piece) {
+      string.split(piece.text, "\n")
+      |> list.index_fold(lines, fn(lines, part, i) {
+        let lines = case i, lines {
+          0, _ -> lines
+          _, _ -> [[], ..lines]
+        }
+        case part, lines {
+          "", _ -> lines
+          _, [line, ..rest] -> [[Piece(..piece, text: part), ..line], ..rest]
+          _, [] -> lines
         }
       })
-  }
+    })
+    |> list.reverse
+    |> list.map(list.reverse)
+  list.index_map(lines, fn(line, i) {
+    let children =
+      list.chunk(line, fn(piece) { piece.mark })
+      |> list.flat_map(fn(group) {
+        let tokens =
+          list.map(group, fn(piece) {
+            token_element(protocol.Token(piece.kind, piece.text))
+          })
+        case group {
+          [Piece(mark: Some(mark), ..), ..] -> [
+            html.span([class(mark)], tokens),
+          ]
+          _ -> tokens
+        }
+      })
+    let line = case list.contains(lit, i + 1) {
+      True -> [html.span([class("zeno-lit")], children)]
+      False -> children
+    }
+    case i {
+      0 -> line
+      _ -> [text("\n"), ..line]
+    }
+  })
+  |> list.flatten
 }
 
 /// `punctuation.bracket` gives `zeno-tok-punctuation` and

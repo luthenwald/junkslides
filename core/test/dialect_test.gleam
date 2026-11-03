@@ -67,6 +67,25 @@ pub fn marks_test() {
   assert dialect.marks("no marks, `[x]{.now}` in code") == []
 }
 
+pub fn code_attributes_test() {
+  let fine = "{lit=\"2 4-5,7\" now=\"⟦⟧\"}\n```gcl\nx ⟦y⟧\n```"
+  assert dialect.problems(fine) == []
+  assert dialect.marks(fine) == ["now"]
+  assert dialect.code_blocks(fine) == [#("gcl", "x y\n")]
+  list.each(
+    [
+      "{lit=0}\n```\nx\n```", "{lit=3-1}\n```\nx\n```", "{lit=a}\n```\nx\n```",
+      "{now=\"⟦\"}\n```\nx\n```", "{now=\"⟦⟦\"}\n```\nx\n```",
+      "{.gcl}\n```\nx\n```",
+    ],
+    fn(source) {
+      assert dialect.problems(source) == [dialect.CodeAttribute]
+    },
+  )
+  // An attribute line before anything else stays forbidden.
+  assert list.contains(dialect.problems("{lit=1}\nPara"), AttributesUsed)
+}
+
 pub fn safe_url_test() {
   assert dialect.safe_url("assets/a.png") == Some("assets/a.png")
   assert dialect.safe_url("https://x.org/a:b") == Some("https://x.org/a:b")

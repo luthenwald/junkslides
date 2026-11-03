@@ -312,6 +312,7 @@ const problems = [
   #("ordinal_spelling", dialect.OrdinalSpelling),
   #("table_shape", dialect.TableShape),
   #("unknown_mark", dialect.UnknownMark),
+  #("code_attribute", dialect.CodeAttribute),
 ]
 
 fn problem_value(problem: Problem) -> Value {

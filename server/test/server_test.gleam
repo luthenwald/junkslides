@@ -779,8 +779,17 @@ pub fn export_highlights_code_test() {
 pub fn settings_read_code_keywords_test() {
   let assert Ok(read) =
     settings.parse("[code]\nkeywords = [\"while\", \"do'\"]\n")
-  assert settings.keywords(Some(read)) == ["while", "do'"]
-  assert settings.keywords(None) == shade.default_keywords
+  assert settings.shading(Some(read))
+    == shade.Rules(["while", "do'"], shade.default_comments, [])
+  assert settings.shading(None) == shade.default_rules
+  let assert Ok(read) =
+    settings.parse(
+      "[code]\ncomments = [\"--\"]\nsimple = [\"haskell\", \"c++\"]\n",
+    )
+  assert settings.shading(Some(read))
+    == shade.Rules(shade.default_keywords, ["--"], ["haskell", "c++"])
+  let assert Error(_) = settings.parse("[code]\ncomments = [\"- -\"]\n")
+  let assert Error(_) = settings.parse("[code]\nsimple = [\"a b\"]\n")
   let assert Error(_) = settings.parse("[code]\nkeywords = [\"a b\"]\n")
   let assert Error(_) = settings.parse("[code]\nkeywords = \"while\"\n")
   let assert Error(_) = settings.parse("[code]\nwords = []\n")

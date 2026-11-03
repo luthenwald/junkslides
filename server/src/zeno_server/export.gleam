@@ -107,7 +107,7 @@ pub fn write(
     highlighter.highlight(
       tree_sitter,
       protocol.code_blocks(deck),
-      settings.keywords(settings),
+      settings.shading(settings),
     )
     |> list.map(fn(highlight) { #(highlight.block, highlight.tokens) })
     |> dict.from_list

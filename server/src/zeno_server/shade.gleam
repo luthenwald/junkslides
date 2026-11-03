@@ -2,7 +2,8 @@
 //// plain rules, read left to right, into the token kinds tree-sitter's
 //// highlight names use, so a theme styles both alike.
 ////
-//// - `--` or `//` to the end of the line: `comment`
+//// - a comment marker to the end of the line: `comment`; the markers are
+////   `--` and `//` unless zeno.toml names others
 //// - a word (ASCII letters, digits, `_` and `'`, not starting with a digit):
 ////   `keyword` if it is in the list, `type` if it starts with a capital,
 ////   else plain; `\case` is a keyword too, as in Haskell
@@ -18,6 +19,19 @@ import gleam/option.{type Option, None, Some}
 import gleam/string
 import zeno/protocol.{type Token, Token}
 
+/// How code is shaded by these rules: its keywords, the markers that start a
+/// comment, and the languages shaded by them even where a grammar exists
+/// (`simple`), such as excerpts that would not parse.
+pub type Rules {
+  Rules(keywords: List(String), comments: List(String), simple: List(String))
+}
+
+/// The comment markers when zeno.toml names none.
+pub const default_comments = ["--", "//"]
+
+/// The rules when zeno.toml names none.
+pub const default_rules = Rules(default_keywords, default_comments, [])
+
 /// The keywords shaded when zeno.toml names none.
 pub const default_keywords = [
   "case", "of", "let", "in", "if", "then", "else", "do", "where", "return",
@@ -26,37 +40,45 @@ pub const default_keywords = [
 
 /// The tokens of `code`, covering it exactly. Neighbouring plain text is one
 /// token.
-pub fn tokens(code: String, keywords: List(String)) -> List(Token) {
-  loop(string.to_graphemes(code), keywords, [])
+pub fn tokens(code: String, rules: Rules) -> List(Token) {
+  let ctx = Ctx(rules.keywords, list.map(rules.comments, string.to_graphemes))
+  loop(string.to_graphemes(code), ctx, [])
   |> join_plain
 }
 
-fn loop(
-  rest: List(String),
-  keywords: List(String),
-  done: List(Token),
-) -> List(Token) {
-  case rest {
-    [] -> list.reverse(done)
-    ["-", "-", ..] | ["/", "/", ..] -> {
-      let #(comment, rest) = list.split_while(rest, fn(g) { g != "\n" })
-      loop(rest, keywords, [token(Some("comment"), comment), ..done])
-    }
-    ["\\", "c", "a", "s", "e", ..after] ->
-      case word_next(after) {
-        False ->
-          loop(after, keywords, [Token(Some("keyword"), "\\case"), ..done])
-        True -> general(rest, keywords, done)
-      }
-    _ -> general(rest, keywords, done)
+/// The rules as the loop reads them: comment markers as graphemes.
+type Ctx {
+  Ctx(keywords: List(String), comments: List(List(String)))
+}
+
+fn starts_with(rest: List(String), marker: List(String)) -> Bool {
+  case marker, rest {
+    [], _ -> True
+    [m, ..marker], [g, ..rest] if m == g -> starts_with(rest, marker)
+    _, _ -> False
   }
 }
 
-fn general(
-  rest: List(String),
-  keywords: List(String),
-  done: List(Token),
-) -> List(Token) {
+fn loop(rest: List(String), ctx: Ctx, done: List(Token)) -> List(Token) {
+  let comment =
+    rest != []
+    && list.any(ctx.comments, fn(m) { m != [] && starts_with(rest, m) })
+  case rest {
+    [] -> list.reverse(done)
+    _ if comment -> {
+      let #(comment, rest) = list.split_while(rest, fn(g) { g != "\n" })
+      loop(rest, ctx, [token(Some("comment"), comment), ..done])
+    }
+    ["\\", "c", "a", "s", "e", ..after] ->
+      case word_next(after) {
+        False -> loop(after, ctx, [Token(Some("keyword"), "\\case"), ..done])
+        True -> general(rest, ctx, done)
+      }
+    _ -> general(rest, ctx, done)
+  }
+}
+
+fn general(rest: List(String), ctx: Ctx, done: List(Token)) -> List(Token) {
   case rest {
     [] -> list.reverse(done)
     [g, ..] ->
@@ -64,23 +86,23 @@ fn general(
         True, _, _, _ -> {
           let #(word, rest) = list.split_while(rest, is_word)
           let text = string.concat(word)
-          let kind = case list.contains(keywords, text), is_capital(g) {
+          let kind = case list.contains(ctx.keywords, text), is_capital(g) {
             True, _ -> Some("keyword")
             False, True -> Some("type")
             False, False -> None
           }
-          loop(rest, keywords, [Token(kind, text), ..done])
+          loop(rest, ctx, [Token(kind, text), ..done])
         }
         _, True, _, _ -> {
           let #(digits, rest) = list.split_while(rest, is_digit)
-          loop(rest, keywords, [token(Some("number"), digits), ..done])
+          loop(rest, ctx, [token(Some("number"), digits), ..done])
         }
         _, _, True, _ -> {
           let #(run, rest) = list.split_while(rest, is_operator)
-          loop(rest, keywords, [token(Some("operator"), run), ..done])
+          loop(rest, ctx, [token(Some("operator"), run), ..done])
         }
-        _, _, _, True -> plain_or(rest, keywords, done, Some("punctuation"))
-        _, _, _, _ -> plain_char(rest, keywords, done)
+        _, _, _, True -> plain_or(rest, ctx, done, Some("punctuation"))
+        _, _, _, _ -> plain_char(rest, ctx, done)
       }
   }
 }
@@ -92,22 +114,18 @@ fn word_next(rest: List(String)) -> Bool {
   }
 }
 
-fn plain_char(
-  rest: List(String),
-  keywords: List(String),
-  done: List(Token),
-) -> List(Token) {
-  plain_or(rest, keywords, done, None)
+fn plain_char(rest: List(String), ctx: Ctx, done: List(Token)) -> List(Token) {
+  plain_or(rest, ctx, done, None)
 }
 
 fn plain_or(
   rest: List(String),
-  keywords: List(String),
+  ctx: Ctx,
   done: List(Token),
   kind: Option(String),
 ) -> List(Token) {
   case rest {
-    [g, ..rest] -> loop(rest, keywords, [Token(kind, g), ..done])
+    [g, ..rest] -> loop(rest, ctx, [Token(kind, g), ..done])
     [] -> list.reverse(done)
   }
 }

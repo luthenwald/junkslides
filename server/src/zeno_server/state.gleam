@@ -100,8 +100,8 @@ type SettingsFile {
     css: String,
     problem: Option(String),
     missing: List(String),
-    /// For code without a grammar (D30), from the last settings that read.
-    keywords: List(String),
+    /// The simple shading's rules (D30), from the last settings that read.
+    shading: shade.Rules,
   )
 }
 
@@ -169,7 +169,7 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
   let settings_file =
     read_settings(
       config,
-      SettingsFile(store.missing, "", None, [], shade.default_keywords),
+      SettingsFile(store.missing, "", None, [], shade.default_rules),
     )
   let initialise = fn(self) {
     process.send(self, Flush(0))
@@ -495,7 +495,7 @@ fn request_highlights(state: State) -> Nil {
         subject,
         highlighter.Request(
           protocol.code_blocks(state.deck),
-          state.settings_file.keywords,
+          state.settings_file.shading,
           fn(blocks) { process.send(state.self, Highlighted(blocks)) },
         ),
       )
@@ -696,7 +696,7 @@ fn poll_settings(state: State) -> State {
         False -> broadcast(state, protocol.ReloadTheme)
       }
       let state = State(..state, settings_file: after)
-      case after.keywords == before.keywords {
+      case after.shading == before.shading {
         True -> Nil
         False -> request_highlights(state)
       }
@@ -712,7 +712,7 @@ const settings_name = "zeno.toml"
 fn read_settings(config: Config, last: SettingsFile) -> SettingsFile {
   case store.read(path(config, settings_name)) {
     Error(Nil) ->
-      SettingsFile(store.missing, "", None, [], shade.default_keywords)
+      SettingsFile(store.missing, "", None, [], shade.default_rules)
     Ok(#(bytes, hash)) -> {
       let parsed =
         bit_array.to_string(bytes)
@@ -737,7 +737,7 @@ fn read_settings(config: Config, last: SettingsFile) -> SettingsFile {
               |> list.filter(fn(file) {
                 simplifile.is_file(path(config, file)) != Ok(True)
               }),
-            keywords: settings.keywords(Some(read)),
+            shading: settings.shading(Some(read)),
           )
       }
     }

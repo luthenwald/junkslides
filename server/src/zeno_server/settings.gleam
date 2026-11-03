@@ -32,6 +32,10 @@ pub type Settings {
     gap: Option(Float),
     /// Keywords for code without a tree-sitter grammar (D30).
     keywords: Option(List(String)),
+    /// The markers that start a comment, for the same code.
+    comments: Option(List(String)),
+    /// Languages shaded by the simple rules even with a grammar.
+    simple: Option(List(String)),
   )
 }
 
@@ -73,6 +77,8 @@ pub const empty =
     margin: None,
     gap: None,
     keywords: None,
+    comments: None,
+    simple: None,
   )
 
 /// The faces in the order of their keys in a font table.
@@ -140,7 +146,9 @@ pub fn parse(source: String) -> Result(Settings, String) {
     section(top, "type", ["size", "line-height", "code-scale"]),
   )
   use slide <- result.try(section(top, "slide", ["numbers", "margin", "gap"]))
-  use code <- result.try(section(top, "code", ["keywords"]))
+  use code <- result.try(
+    section(top, "code", ["keywords", "comments", "simple"]),
+  )
 
   use text_font <- result.try(field(font, "font", "text", read_font))
   use code_font <- result.try(field(font, "font", "code", read_font))
@@ -165,6 +173,8 @@ pub fn parse(source: String) -> Result(Settings, String) {
   use margin <- result.try(field(slide, "slide", "margin", read_margin))
   use gap <- result.try(field(slide, "slide", "gap", number(0.0, 1080.0)))
   use keywords <- result.try(field(code, "code", "keywords", read_keywords))
+  use comments <- result.try(field(code, "code", "comments", read_comments))
+  use simple <- result.try(field(code, "code", "simple", read_languages))
   Ok(Settings(
     text_font:,
     code_font:,
@@ -179,14 +189,68 @@ pub fn parse(source: String) -> Result(Settings, String) {
     margin:,
     gap:,
     keywords:,
+    comments:,
+    simple:,
   ))
 }
 
-/// The keywords to shade code without a grammar with: the settings' own, or
-/// the default list.
-pub fn keywords(settings: Option(Settings)) -> List(String) {
-  option.then(settings, fn(s) { s.keywords })
-  |> option.unwrap(shade.default_keywords)
+/// The rules of the simple shading (D30): the settings' own, or the
+/// defaults for what they leave out.
+pub fn shading(settings: Option(Settings)) -> shade.Rules {
+  let pick = fn(get, default) {
+    option.then(settings, get) |> option.unwrap(default)
+  }
+  shade.Rules(
+    keywords: pick(fn(s: Settings) { s.keywords }, shade.default_keywords),
+    comments: pick(fn(s: Settings) { s.comments }, shade.default_comments),
+    simple: pick(fn(s: Settings) { s.simple }, []),
+  )
+}
+
+/// A list of comment markers, each a few characters without spaces.
+fn read_comments(value: Toml, path: String) -> Result(List(String), String) {
+  strings(value, path, "comment markers without spaces", fn(text) {
+    text != ""
+    && string.length(text) <= 4
+    && !list.any(string.to_graphemes(text), fn(g) { string.trim(g) == "" })
+  })
+}
+
+/// A list of language names, as fences write them.
+fn read_languages(value: Toml, path: String) -> Result(List(String), String) {
+  strings(value, path, "language names", fn(text) {
+    text != ""
+    && list.all(string.to_graphemes(text), fn(g) {
+      string.contains(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-+#.",
+        g,
+      )
+    })
+  })
+}
+
+fn strings(
+  value: Toml,
+  path: String,
+  what: String,
+  ok: fn(String) -> Bool,
+) -> Result(List(String), String) {
+  let message =
+    "zeno.toml: " <> path <> " should be a list of " <> what <> " in quotes."
+  case value {
+    tom.Array(items) ->
+      list.try_map(items, fn(item) {
+        case item {
+          tom.String(text) ->
+            case ok(text) {
+              True -> Ok(text)
+              False -> Error(message)
+            }
+          _ -> Error(message)
+        }
+      })
+    _ -> Error(message)
+  }
 }
 
 /// A list of words, each of letters, digits, `_` and `'`.

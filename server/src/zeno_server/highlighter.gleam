@@ -25,10 +25,11 @@ import zeno_server/shade
 pub type Message {
   /// Highlights for these blocks, sent back whole to `reply`. Nothing is
   /// sent when the answer is the same as the last one.
-  /// `keywords` are for blocks without a grammar (D30).
+  /// `rules` shade the blocks without a grammar, and those of the languages
+  /// they name (D30).
   Request(
     blocks: List(CodeBlock),
-    keywords: List(String),
+    rules: shade.Rules,
     reply: fn(List(Highlight)) -> Nil,
   )
 }
@@ -43,7 +44,7 @@ type State {
     /// highlighted is kept with no tokens, so it is not tried again.
     known: Dict(CodeBlock, List(Token)),
     sent: List(Highlight),
-    keywords: List(String),
+    rules: shade.Rules,
   )
 }
 
@@ -56,7 +57,14 @@ pub fn languages(command: String) -> Result(Dict(String, String), Nil) {
 
 pub fn start(command: String) -> Result(Subject(Message), Nil) {
   let scopes = languages(command) |> result.unwrap(dict.new())
-  actor.new(State(command, temporary_file(), scopes, dict.new(), [], []))
+  actor.new(State(
+    command,
+    temporary_file(),
+    scopes,
+    dict.new(),
+    [],
+    shade.default_rules,
+  ))
   |> actor.on_message(handle)
   |> actor.start
   |> result.map(fn(started) { started.data })
@@ -68,10 +76,10 @@ pub fn start(command: String) -> Result(Subject(Message), Nil) {
 pub fn highlight(
   command: String,
   blocks: List(CodeBlock),
-  keywords: List(String),
+  rules: shade.Rules,
 ) -> List(Highlight) {
   let scopes = languages(command) |> result.unwrap(dict.new())
-  let state = State(command, temporary_file(), scopes, dict.new(), [], keywords)
+  let state = State(command, temporary_file(), scopes, dict.new(), [], rules)
   list.filter_map(blocks, fn(block) {
     case run(state, block) {
       [] -> Error(Nil)
@@ -88,11 +96,11 @@ fn temporary_file() -> String {
 }
 
 fn handle(state: State, message: Message) -> actor.Next(State, Message) {
-  let Request(blocks:, keywords:, reply:) = message
-  // Other keywords shade the blocks without a grammar differently.
-  let state = case keywords == state.keywords {
+  let Request(blocks:, rules:, reply:) = message
+  // Other rules shade the blocks differently.
+  let state = case rules == state.rules {
     True -> state
-    False -> State(..state, keywords:, known: dict.new())
+    False -> State(..state, rules:, known: dict.new())
   }
   let known =
     list.map(blocks, fn(block) {
@@ -116,11 +124,12 @@ fn handle(state: State, message: Message) -> actor.Next(State, Message) {
 }
 
 /// The block's tokens, or none when it stays plain. A language without a
-/// grammar is shaded by simple rules.
+/// grammar, or one the rules name, is shaded by the simple rules.
 fn run(state: State, block: CodeBlock) -> List(Token) {
-  case dict.get(state.scopes, block.language) {
-    Ok(scope) -> run_tree_sitter(state, block, scope)
-    Error(Nil) -> shade.tokens(block.code, state.keywords)
+  let simple = list.contains(state.rules.simple, block.language)
+  case dict.get(state.scopes, block.language), simple {
+    Ok(scope), False -> run_tree_sitter(state, block, scope)
+    _, _ -> shade.tokens(block.code, state.rules)
   }
 }
 

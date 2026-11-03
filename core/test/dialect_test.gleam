@@ -86,6 +86,18 @@ pub fn code_attributes_test() {
   assert list.contains(dialect.problems("{lit=1}\nPara"), AttributesUsed)
 }
 
+pub fn figure_kinds_test() {
+  assert dialect.figure_kind("assets/fan.svg") == Some(dialect.Drawing)
+  assert dialect.figure_kind("data/a.JSON?v=2") == Some(dialect.Chart)
+  assert dialect.figure_kind("assets/search.html#start") == Some(dialect.Page)
+  assert dialect.figure_kind("assets/a.png") == None
+  assert dialect.figure_kind("assets/svg") == None
+  assert dialect.figures(
+      "![a](a.svg)\n\n![b](b.json) and ![c](c.html) ![d](d.png)",
+    )
+    == ["a.svg", "b.json"]
+}
+
 pub fn safe_url_test() {
   assert dialect.safe_url("assets/a.png") == Some("assets/a.png")
   assert dialect.safe_url("https://x.org/a:b") == Some("https://x.org/a:b")

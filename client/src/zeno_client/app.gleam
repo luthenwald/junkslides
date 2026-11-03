@@ -45,6 +45,10 @@ pub type Model {
     /// The tokens of code blocks, from the server. A block without an entry
     /// is drawn plain.
     highlights: Dict(CodeBlock, List(Token)),
+    /// The text of drawings and charts, from the server (D29).
+    figures: Dict(String, String),
+    /// Counts figure updates, for the overflow probes' memo key.
+    figures_seen: Int,
     /// A cell being moved or resized on the canvas.
     drag: Option(Drag),
     /// What each cell's overflow probe reported last; see `slide`.
@@ -170,6 +174,8 @@ pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
       typing: 0,
       dragging_divider: False,
       highlights: dict.new(),
+      figures: dict.new(),
+      figures_seen: 0,
       drag: None,
       overflow: dict.new(),
       theme: 0,
@@ -444,6 +450,14 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
         highlights: blocks
           |> list.map(fn(h) { #(h.block, h.tokens) })
           |> dict.from_list,
+      ),
+      effect.none(),
+    )
+    protocol.Figures(files) -> #(
+      Model(
+        ..model,
+        figures: dict.from_list(files),
+        figures_seen: model.figures_seen + 1,
       ),
       effect.none(),
     )

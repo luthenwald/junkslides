@@ -70,6 +70,18 @@ pub type ServerMsg {
   /// The tokens of the deck's code blocks, as far as the server has them.
   /// A block without an entry is drawn plain.
   Highlights(blocks: List(Highlight))
+  /// The text of the drawings and charts the deck's cells name (D29), by
+  /// their path as written, whole. A figure without an entry could not be
+  /// read or used: a drawing is then an `img`, a chart a placeholder.
+  Figures(files: List(#(String, String)))
+}
+
+/// The drawings and charts the deck's content cells name, each once.
+pub fn figures(deck: Deck) -> List(String) {
+  deck.cells(deck)
+  |> list.filter(fn(cell) { cell.kind == deck.Content })
+  |> list.flat_map(fn(cell) { dialect.figures(cell.source) })
+  |> list.unique
 }
 
 /// The code blocks with a language in the deck's content cells, each once.
@@ -188,6 +200,17 @@ pub fn encode_server(msg: ServerMsg) -> String {
       tagged("highlights", [
         #("blocks", Arr(list.map(blocks, highlight_value))),
       ])
+    Figures(files:) ->
+      tagged("figures", [
+        #(
+          "files",
+          Arr(
+            list.map(files, fn(file) {
+              Obj([#("path", Str(file.0)), #("text", Str(file.1))])
+            }),
+          ),
+        ),
+      ])
   }
   |> codec.to_string
 }
@@ -224,6 +247,15 @@ fn server_decoder() -> Decoder(ServerMsg) {
     "highlights" -> {
       use blocks <- decode.field("blocks", decode.list(highlight_decoder()))
       decode.success(Highlights(blocks))
+    }
+    "figures" -> {
+      let file = {
+        use path <- decode.field("path", decode.string)
+        use text <- decode.field("text", decode.string)
+        decode.success(#(path, text))
+      }
+      use files <- decode.field("files", decode.list(file))
+      decode.success(Figures(files))
     }
     _ -> decode.failure(ReloadTheme, "ServerMsg")
   }

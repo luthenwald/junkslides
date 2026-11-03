@@ -128,7 +128,7 @@ pub fn theme_change_reloads_and_updates_variants_test() {
 
 /// A mark is fine once the theme lists it, and diagnosed until then (D28).
 pub fn marks_follow_the_theme_test() {
-  let h = harness.start("marks", 4920)
+  let h = harness.start("marks", 4970)
   let _ = harness.next_state(h)
   let cell = example_id("03")
   harness.send(h, protocol.Apply(1, [op.EditText(cell, "A [word]{.now}.")]))
@@ -143,6 +143,30 @@ fn next_full_state(h: harness.Harness) -> protocol.ServerMsg {
   case harness.next(h) {
     protocol.State(..) as state -> state
     _ -> next_full_state(h)
+  }
+}
+
+/// A drawing's text reaches clients, again after an edit, and one that
+/// could run script is refused with a notice (D29).
+pub fn drawings_reach_clients_test() {
+  let h = harness.start("drawings", 4972)
+  let _ = harness.next_state(h)
+  harness.write(h.folder, "fan.svg", "<svg class=\"fan\"></svg>")
+  let cell = example_id("03")
+  harness.send(h, protocol.Apply(1, [op.EditText(cell, "![paths](fan.svg)")]))
+  assert next_figures(h) == [#("fan.svg", "<svg class=\"fan\"></svg>")]
+  harness.write(h.folder, "fan.svg", "<svg class=\"fan two\"></svg>")
+  assert next_figures(h) == [#("fan.svg", "<svg class=\"fan two\"></svg>")]
+  harness.write(h.folder, "fan.svg", "<svg onload=\"x()\"></svg>")
+  assert next_figures(h) == []
+  assert harness.next_notice(h)
+    == "The figure fan.svg cannot be drawn: it has event handler attributes."
+}
+
+fn next_figures(h: harness.Harness) -> List(#(String, String)) {
+  case harness.next(h) {
+    protocol.Figures(files) -> files
+    _ -> next_figures(h)
   }
 }
 
@@ -759,7 +783,7 @@ pub fn settings_read_code_keywords_test() {
 /// The example's gleam block has no grammar here, so it is shaded, and new
 /// keywords in zeno.toml shade it again (D30).
 pub fn keywords_from_settings_shade_again_test() {
-  let h = harness.start("keywords", 4921)
+  let h = harness.start("keywords", 4971)
   let assert protocol.Highlights([block]) = harness.next_highlights(h)
   assert list.contains(block.tokens, Token(Some("keyword"), "fn"))
   harness.write(h.folder, "zeno.toml", "[code]\nkeywords = [\"pub\"]\n")

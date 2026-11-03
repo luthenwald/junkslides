@@ -548,6 +548,54 @@ fn marked_line(line: String, marks: List(CodeMark)) -> List(Marked) {
   list.reverse([last, ..done])
 }
 
+// Figures -----------------------------------------------------------------------
+
+/// What an image path draws, by its extension (D29). Other images are
+/// pictures, drawn as `img`.
+pub type FigureKind {
+  /// `.svg`: drawn inline, so the theme's rules and fonts reach it.
+  Drawing
+  /// `.json`: a chart spec Zeno draws.
+  Chart
+  /// `.html`: a page in a frame, running its own script.
+  Page
+}
+
+/// The kind of figure an image path names, if any. A query or fragment is
+/// not part of the extension, and case does not matter.
+pub fn figure_kind(url: String) -> Option(FigureKind) {
+  let path =
+    url
+    |> string.split("#")
+    |> list.first
+    |> result.unwrap("")
+    |> string.split("?")
+    |> list.first
+    |> result.unwrap("")
+    |> string.lowercase
+  case string.ends_with(path, ".svg"), string.ends_with(path, ".json") {
+    True, _ -> Some(Drawing)
+    _, True -> Some(Chart)
+    _, _ ->
+      case string.ends_with(path, ".html") || string.ends_with(path, ".htm") {
+        True -> Some(Page)
+        False -> None
+      }
+  }
+}
+
+/// The images of a cell body whose file the slide needs to read: drawings
+/// and charts, as written.
+pub fn figures(source: String) -> List(String) {
+  images(source)
+  |> list.filter(fn(url) {
+    case figure_kind(url) {
+      Some(Drawing) | Some(Chart) -> True
+      _ -> False
+    }
+  })
+}
+
 // Images ------------------------------------------------------------------------
 
 /// The images a cell body draws that are not at a URL with a scheme: paths for

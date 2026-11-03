@@ -60,6 +60,18 @@ pub const base_css =
   color: color-mix(in srgb, currentColor 50%, transparent);
 }
 
+/* A figure alone in its paragraph (D29): a block as wide as the cell. A
+   drawing scales to that width; the theme styles its marks by class. */
+:where(.zeno-figure) {
+  display: block;
+}
+
+:where(.zeno-figure > svg) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
 /* A lit line of code (D28): a faint band across the block, with a rule at its
    left edge. */
 :where(.zeno-lit) {

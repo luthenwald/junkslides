@@ -11,7 +11,7 @@ fn render(source: String) -> String {
 }
 
 fn render_with(source: String, highlights: render.Highlights) -> String {
-  render.body(source, highlights)
+  render.body(source, render.Context(..render.bare(""), highlights:))
   |> list.map(element.to_string)
   |> string.concat
 }
@@ -128,4 +128,21 @@ pub fn marks_in_code_cut_tokens_test() {
   // Tokens of another text are not used.
   assert render_with("{now=\"⟦⟧\"}\n```hs\nab⟦cd⟧x\n```", highlights)
     == "<pre><code data-language=\"hs\">ab<span class=\"now\">cd</span>x\n</code></pre>"
+}
+
+pub fn drawings_are_inline_when_alone_test() {
+  let figures =
+    dict.from_list([#("assets/fan.svg", "<svg class=\"fan\"></svg>")])
+  let draw = fn(source) {
+    render.body(source, render.Context(..render.bare(""), figures:))
+    |> list.map(element.to_string)
+    |> string.concat
+  }
+  assert draw("![paths](assets/fan.svg)")
+    == "<div aria-label=\"paths\" class=\"zeno-figure\" data-figure=\"drawing\" role=\"img\"><svg class=\"fan\"></svg></div>"
+  // Among text, or without its text from the server, it is a picture.
+  assert draw("a ![p](assets/fan.svg)")
+    == "<p>a <img alt=\"p\" src=\"assets/fan.svg\"></p>"
+  assert draw("![p](assets/other.svg)")
+    == "<p><img alt=\"p\" src=\"assets/other.svg\"></p>"
 }

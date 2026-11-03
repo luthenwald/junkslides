@@ -94,6 +94,7 @@ pub fn server_messages_round_trip_test() {
         protocol.Token(option.Some("punctuation.bracket"), "="),
       ]),
     ]),
+    protocol.Figures([#("assets/fan.svg", "<svg>\"</svg>"), #("d.json", "{}")]),
   ]
   check_server(messages)
 }

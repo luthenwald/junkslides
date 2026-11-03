@@ -14,6 +14,7 @@ import lustre/element.{type Element, text}
 import lustre/element/html
 import zeno/deck.{type Cell, type Deck, type Slide}
 import zeno/dialect
+import zeno/id
 import zeno/layout.{type Area, type CellRecord, type Layout}
 import zeno/protocol.{type CodeBlock, type Token, CodeBlock}
 import zeno/render/styles
@@ -26,6 +27,7 @@ pub fn document(
   deck deck: Deck,
   layout layout: Layout,
   highlights highlights: Highlights,
+  figures figures: Figures,
   title title: String,
   has_settings has_settings: Bool,
   has_theme has_theme: Bool,
@@ -62,7 +64,7 @@ pub fn document(
     html.body(
       [],
       list.index_map(deck.slides, fn(slide, index) {
-        frame(slide, index, total, layout, highlights)
+        frame(slide, index, total, layout, Context(highlights, figures, ""))
       }),
     ),
   ])
@@ -74,13 +76,13 @@ fn frame(
   index: Int,
   total: Int,
   layout: Layout,
-  highlights: Highlights,
+  context: Context,
 ) -> Element(msg) {
   let drawn =
     drawn_cells(slide)
     |> list.map(fn(cell) { #(cell, layout.record(layout, cell.id)) })
   let box = fn(pair: #(Cell, CellRecord), area) {
-    cell_box(pair.0, pair.1, area, [], highlights)
+    cell_box(pair.0, pair.1, area, [], context)
   }
   let #(placed, unplaced) =
     list.partition(drawn, fn(pair) { option.is_some({ pair.1 }.place) })
@@ -139,7 +141,7 @@ pub fn cell_box(
   record: CellRecord,
   area: Option(Area),
   extra: List(Attribute(msg)),
-  highlights: Highlights,
+  context: Context,
 ) -> Element(msg) {
   let placement = case area {
     Some(area) -> [attribute("data-placed", ""), ..position(area)]
@@ -159,7 +161,10 @@ pub fn cell_box(
     |> option.values
   html.div(
     [class("zeno-cell"), ..list.flatten([placement, style, extra])],
-    body(cell.source, highlights),
+    body(
+      cell.source,
+      Context(..context, copy: context.copy <> id.to_string(cell.id)),
+    ),
   )
 }
 
@@ -185,11 +190,10 @@ fn position(area: Area) -> List(Attribute(msg)) {
 /// The source's lines are kept (04-layout.md, Line structure): every soft
 /// or hard break is a line break, followed by the indentation its line had
 /// in the source, from `dialect.top_level`.
-pub fn body(source: String, highlights: Highlights) -> List(Element(msg)) {
+pub fn body(source: String, context: Context) -> List(Element(msg)) {
   list.map(dialect.top_level(source), fn(block) {
     case block {
-      dialect.Contained(container: c, lines:) ->
-        container(c, lines, highlights).0
+      dialect.Contained(container: c, lines:) -> container(c, lines, context).0
       dialect.Tabular(table:) -> table_view(table)
     }
   })
@@ -203,22 +207,44 @@ type Lines =
 pub type Highlights =
   Dict(CodeBlock, List(Token))
 
+/// The text of the deck's drawings and charts by their path as written, from
+/// the server (D29).
+pub type Figures =
+  Dict(String, String)
+
+/// What drawing a cell needs besides its source: the code blocks' tokens, the
+/// figures' text, and `copy`, which tells apart the drawn copies of a cell (a
+/// slide and its overflow probe) where a chart's controls must not share a
+/// group. `cell_box` adds the cell's ID to it.
+pub type Context {
+  Context(highlights: Highlights, figures: Figures, copy: String)
+}
+
+/// No tokens and no figures: code is plain, drawings are pictures.
+pub fn bare(copy: String) -> Context {
+  Context(dict.new(), dict.new(), copy)
+}
+
 fn container(
   c: jot.Container,
   lines: Lines,
-  highlights: Highlights,
+  context: Context,
 ) -> #(Element(msg), Lines) {
-  let contained = fn(c, lines) { container(c, lines, highlights) }
+  let contained = fn(c, lines) { container(c, lines, context) }
   let each_item = fn(items, list_layout, lines) {
     each(items, lines, fn(blocks, lines) {
-      item(list_layout, blocks, lines, highlights)
+      item(list_layout, blocks, lines, context)
     })
   }
   case c {
-    jot.Paragraph(content:, ..) -> {
-      let #(children, lines) = inlines(content, lines)
-      #(html.p([], children), lines)
-    }
+    jot.Paragraph(content:, ..) ->
+      case lone_figure(content, context) {
+        Some(figure) -> #(figure, lines)
+        None -> {
+          let #(children, lines) = inlines(content, lines)
+          #(html.p([], children), lines)
+        }
+      }
     jot.Heading(level:, content:, ..) -> {
       let #(children, lines) = inlines(content, lines)
       #(element.element("h" <> int.to_string(level), [], children), lines)
@@ -231,7 +257,7 @@ fn container(
             language,
             content,
             dialect.code_marks_or_none(attributes),
-            highlights,
+            context.highlights,
           ),
         ),
       ]),
@@ -259,6 +285,58 @@ fn container(
       let #(children, lines) = each(items, lines, contained)
       #(html.div([], children), lines)
     }
+  }
+}
+
+// Figures -----------------------------------------------------------------------
+
+/// A figure alone in its paragraph (D29) takes the paragraph's place, as a
+/// block. Images among text stay pictures. jot may put empty text around it.
+fn lone_figure(
+  content: List(jot.Inline),
+  context: Context,
+) -> Option(Element(msg)) {
+  let content =
+    list.filter(content, fn(i) {
+      case i {
+        jot.Text(t) -> string.trim(t) != ""
+        _ -> True
+      }
+    })
+  case content {
+    [jot.Image(content: alt, destination: jot.Url(url), ..)] ->
+      case dialect.safe_url(url), dialect.figure_kind(url) {
+        Some(src), Some(kind) -> figure(kind, src, plain(alt), context)
+        _, _ -> None
+      }
+    _ -> None
+  }
+}
+
+fn figure(
+  kind: dialect.FigureKind,
+  src: String,
+  alt: String,
+  context: Context,
+) -> Option(Element(msg)) {
+  case kind {
+    dialect.Drawing ->
+      dict.get(context.figures, src)
+      |> option.from_result
+      |> option.map(fn(svg) {
+        element.unsafe_raw_html(
+          "",
+          "div",
+          [
+            class("zeno-figure"),
+            attribute.data("figure", "drawing"),
+            attribute.role("img"),
+            attribute("aria-label", alt),
+          ],
+          svg,
+        )
+      })
+    dialect.Chart | dialect.Page -> None
   }
 }
 
@@ -458,9 +536,9 @@ fn item(
   list_layout: jot.ListLayout,
   blocks: List(jot.Container),
   lines: Lines,
-  highlights: Highlights,
+  context: Context,
 ) -> #(Element(msg), Lines) {
-  let contained = fn(c, lines) { container(c, lines, highlights) }
+  let contained = fn(c, lines) { container(c, lines, context) }
   case list_layout {
     jot.Tight -> {
       let #(children, lines) =

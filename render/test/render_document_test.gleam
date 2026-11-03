@@ -40,7 +40,15 @@ fn page_with(has_settings: Bool, has_theme: Bool) -> String {
       deck,
       layout.Place(id_of(placed), layout.Area(120, 60, 600, 300)),
     )
-  render.document(deck, laid, dict.new(), "My <talk>", has_settings, has_theme)
+  render.document(
+    deck,
+    laid,
+    dict.new(),
+    dict.new(),
+    "My <talk>",
+    has_settings,
+    has_theme,
+  )
 }
 
 pub fn every_slide_has_a_numbered_frame_test() {

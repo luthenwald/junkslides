@@ -19,6 +19,7 @@ import zeno/dialect
 import zeno/layout.{type Layout}
 import zeno/protocol
 import zeno/render
+import zeno_server/figures
 import zeno_server/highlighter
 import zeno_server/pdf
 import zeno_server/settings.{type Settings}
@@ -110,18 +111,27 @@ pub fn write(
     )
     |> list.map(fn(highlight) { #(highlight.block, highlight.tokens) })
     |> dict.from_list
+  let figure_files =
+    protocol.figures(deck)
+    |> list.map(fn(url) { #(url, figures.read(folder, url)) })
+  let figure_warnings =
+    list.filter_map(figure_files, fn(pair) { figures.problem(pair.0, pair.1) })
+  let figures =
+    figures.usable(figure_files)
+    |> dict.from_list
   let page = filepath.join(out, "index.html")
   let html =
     render.document(
       deck:,
       layout:,
       highlights:,
+      figures:,
       title: filepath.base_name(folder),
       has_settings:,
       has_theme:,
     )
   use _ <- result.try(store.write_atomic(page, bit_array.from_string(html)))
-  Ok(Report(page, warnings))
+  Ok(Report(page, list.append(warnings, figure_warnings)))
 }
 
 /// Exports to the folder `out`, and prints the page to a PDF there, named after

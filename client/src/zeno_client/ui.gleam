@@ -56,7 +56,7 @@ pub fn view(model: Model) -> Element(app.Msg) {
         },
         // Memoised per slide inside; a memo around this one would lose the
         // inner memos' cache whenever it is kept.
-        slide.probes(shared),
+        slide.probes(shared, model.figures, model.figures_seen),
       ])
     }
   }

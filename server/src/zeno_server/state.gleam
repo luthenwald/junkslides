@@ -23,6 +23,7 @@ import zeno/layout.{type Layout}
 import zeno/op.{type Op}
 import zeno/protocol.{type ClientMsg, type Highlight, type ServerMsg, type View}
 import zeno_server/export
+import zeno_server/figures
 import zeno_server/highlighter
 import zeno_server/pdf
 import zeno_server/settings
@@ -129,6 +130,8 @@ type State {
     /// Absent if it could not be started; code blocks then stay plain.
     highlighter: Option(Subject(highlighter.Message)),
     highlights: List(Highlight),
+    /// The deck's drawings and charts as last read (D29).
+    figures: List(#(String, figures.File)),
   )
 }
 
@@ -193,8 +196,11 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
         highlighter: highlighter.start(config.tree_sitter)
           |> option.from_result,
         highlights: [],
+        figures: [],
       )
     request_highlights(state)
+    // No client yet, so the figures are only read.
+    let state = poll_figures(state)
     actor.initialised(state) |> actor.returning(self) |> Ok
   }
   actor.new_with_initialiser(1000, initialise)
@@ -291,7 +297,9 @@ fn handle(state: State, message: Message) -> actor.Next(State, Message) {
     FromClient(client, msg) -> actor.continue(from_client(state, client, msg))
     Poll -> {
       process.send_after(state.self, state.config.poll, Poll)
-      actor.continue(state |> poll_files |> poll_theme |> poll_settings)
+      actor.continue(
+        state |> poll_files |> poll_theme |> poll_settings |> poll_figures,
+      )
     }
     Flush(generation) if generation == state.generation ->
       actor.continue(state |> poll_files |> write_files)
@@ -449,7 +457,33 @@ fn changed(state: State) -> State {
   let state = State(..state, version: state.version + 1)
   broadcast(state, state_msg(state))
   request_highlights(state)
-  schedule_flush(state)
+  state |> poll_figures |> schedule_flush
+}
+
+/// Reads the figures the deck names again. Clients get their text when what
+/// can be drawn changes, and a notice for each figure that newly cannot.
+fn poll_figures(state: State) -> State {
+  let files =
+    protocol.figures(state.deck)
+    |> list.map(fn(url) { #(url, figures.read(state.config.folder, url)) })
+  case files == state.figures {
+    True -> state
+    False -> {
+      let usable = figures.usable(files)
+      case usable == figures.usable(state.figures) {
+        True -> Nil
+        False -> broadcast(state, protocol.Figures(usable))
+      }
+      let before =
+        list.filter_map(state.figures, fn(pair) {
+          figures.problem(pair.0, pair.1)
+        })
+      list.filter_map(files, fn(pair) { figures.problem(pair.0, pair.1) })
+      |> list.filter(fn(problem) { !list.contains(before, problem) })
+      |> list.each(fn(problem) { broadcast(state, protocol.Notice(problem)) })
+      State(..state, figures: files)
+    }
+  }
 }
 
 /// Asks for the tokens of the deck's code blocks; the answer comes back as
@@ -817,6 +851,10 @@ fn greet(state: State, client: Subject(ServerMsg)) -> Nil {
     [] -> Nil
     blocks -> send(client, protocol.Highlights(blocks))
   }
+  case figures.usable(state.figures) {
+    [] -> Nil
+    files -> send(client, protocol.Figures(files))
+  }
   [
     state.deck_file.problem,
     state.layout_file.problem,
@@ -824,6 +862,9 @@ fn greet(state: State, client: Subject(ServerMsg)) -> Nil {
   ]
   |> option.values
   |> list.append(missing_notices(state.settings_file))
+  |> list.append(
+    list.filter_map(state.figures, fn(pair) { figures.problem(pair.0, pair.1) }),
+  )
   |> list.each(fn(problem) { send(client, protocol.Notice(problem)) })
 }
 

@@ -14,7 +14,7 @@
 //// to and including it: the cell overflows when that copy does.
 
 import gleam/bool
-import gleam/dict
+import gleam/dict.{type Dict}
 import gleam/dynamic/decode.{type Decoder}
 import gleam/float
 import gleam/int
@@ -76,7 +76,7 @@ pub fn view(
         layout.record(shared.layout, cell.id),
         area,
         decorations,
-        model.highlights,
+        render.Context(model.highlights, model.figures, "s"),
       ),
     )
   }
@@ -239,7 +239,11 @@ fn drag_surface() -> Element(app.Msg) {
 /// Hidden copies of every slide, one probe per drawn cell. Kept out of the
 /// panes so that overflow is known for every slide, also with the slide
 /// pane hidden.
-pub fn probes(shared: Shared) -> Element(app.Msg) {
+pub fn probes(
+  shared: Shared,
+  figures: Dict(String, String),
+  figures_seen: Int,
+) -> Element(app.Msg) {
   keyed.div(
     [class("ze-probes"), attribute.aria_hidden(True)],
     list.map(shared.deck.slides, fn(slide) {
@@ -254,15 +258,23 @@ pub fn probes(shared: Shared) -> Element(app.Msg) {
           <> cell.source
         })
         |> string.join("\u{0}")
+        |> string.append(int.to_string(figures_seen))
       #(
         id.to_string(slide.id),
-        element.memo([element.ref(key)], fn() { probe_slide(shared, slide) }),
+        element.memo([element.ref(key)], fn() {
+          probe_slide(shared, slide, figures)
+        }),
       )
     }),
   )
 }
 
-fn probe_slide(shared: Shared, slide: Slide) -> Element(app.Msg) {
+fn probe_slide(
+  shared: Shared,
+  slide: Slide,
+  figures: Dict(String, String),
+) -> Element(app.Msg) {
+  let context = render.Context(dict.new(), figures, "p")
   let record = fn(cell: Cell) { layout.record(shared.layout, cell.id) }
   let unplaced =
     list.filter(render.drawn_cells(slide), fn(cell) {
@@ -272,9 +284,7 @@ fn probe_slide(shared: Shared, slide: Slide) -> Element(app.Msg) {
     list.index_map(unplaced, fn(cell, index) {
       let flow =
         list.take(unplaced, index + 1)
-        |> list.map(fn(c) {
-          render.cell_box(c, record(c), None, [], dict.new())
-        })
+        |> list.map(fn(c) { render.cell_box(c, record(c), None, [], context) })
       #(
         "b" <> id.to_string(cell.id),
         html.div([class("zeno-body ze-probe"), on_probe(cell)], flow),
@@ -287,7 +297,7 @@ fn probe_slide(shared: Shared, slide: Slide) -> Element(app.Msg) {
           let probe = [class("ze-probe"), on_probe(cell)]
           Ok(#(
             "p" <> id.to_string(cell.id),
-            render.cell_box(cell, record(cell), Some(area), probe, dict.new()),
+            render.cell_box(cell, record(cell), Some(area), probe, context),
           ))
         }
         None -> Error(Nil)

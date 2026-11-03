@@ -559,3 +559,27 @@ pub fn dragging_a_flowing_table_keeps_its_width_test() {
   let assert Ok(after) = cdp.box(page, ".ze-fit table")
   assert after.w == before.w
 }
+
+/// A drawing alone in its paragraph is inline on the slide, so the theme's
+/// rules reach its marks (D29).
+pub fn drawings_are_inline_and_styled_by_the_theme_test() {
+  let #(page, folder) = open("drawing", 4954)
+  let assert Ok(_) =
+    simplifile.write(
+      filepath.join(folder, "fan.svg"),
+      "<?xml version=\"1.0\"?>\n<svg class=\"fan\" viewBox=\"0 0 10 10\"><path d=\"M0,5 H10\"/></svg>\n",
+    )
+  let assert Ok(_) =
+    simplifile.write(
+      filepath.join(folder, "theme.css"),
+      ".fan path { stroke: rgb(1, 2, 3); }\n",
+    )
+  with_table(folder, "04", "![paths](fan.svg)")
+  assert eventually(fn() {
+    cdp.count(page, ".ze-fit .zeno-figure svg path") == 1
+  })
+  assert eventually(fn() {
+    cdp.computed(page, ".ze-fit .zeno-figure path", "stroke")
+    == Ok("rgb(1, 2, 3)")
+  })
+}

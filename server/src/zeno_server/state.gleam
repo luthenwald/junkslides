@@ -26,6 +26,7 @@ import zeno_server/export
 import zeno_server/highlighter
 import zeno_server/pdf
 import zeno_server/settings
+import zeno_server/shade
 import zeno_server/store
 import zeno_server/theme
 import zeno_server/view
@@ -98,6 +99,8 @@ type SettingsFile {
     css: String,
     problem: Option(String),
     missing: List(String),
+    /// For code without a grammar (D30), from the last settings that read.
+    keywords: List(String),
   )
 }
 
@@ -161,7 +164,10 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
   let layout = layout.consistency(layout, deck, now)
   let #(variants, marks, theme_seen) = read_theme(config)
   let settings_file =
-    read_settings(config, SettingsFile(store.missing, "", None, []))
+    read_settings(
+      config,
+      SettingsFile(store.missing, "", None, [], shade.default_keywords),
+    )
   let initialise = fn(self) {
     process.send(self, Flush(0))
     process.send_after(self, config.poll, Poll)
@@ -453,9 +459,11 @@ fn request_highlights(state: State) -> Nil {
     Some(subject) ->
       process.send(
         subject,
-        highlighter.Request(protocol.code_blocks(state.deck), fn(blocks) {
-          process.send(state.self, Highlighted(blocks))
-        }),
+        highlighter.Request(
+          protocol.code_blocks(state.deck),
+          state.settings_file.keywords,
+          fn(blocks) { process.send(state.self, Highlighted(blocks)) },
+        ),
       )
     None -> Nil
   }
@@ -653,7 +661,12 @@ fn poll_settings(state: State) -> State {
         True -> Nil
         False -> broadcast(state, protocol.ReloadTheme)
       }
-      State(..state, settings_file: after)
+      let state = State(..state, settings_file: after)
+      case after.keywords == before.keywords {
+        True -> Nil
+        False -> request_highlights(state)
+      }
+      state
     }
   }
 }
@@ -664,7 +677,8 @@ const settings_name = "zeno.toml"
 /// when it does not read.
 fn read_settings(config: Config, last: SettingsFile) -> SettingsFile {
   case store.read(path(config, settings_name)) {
-    Error(Nil) -> SettingsFile(store.missing, "", None, [])
+    Error(Nil) ->
+      SettingsFile(store.missing, "", None, [], shade.default_keywords)
     Ok(#(bytes, hash)) -> {
       let parsed =
         bit_array.to_string(bytes)
@@ -689,6 +703,7 @@ fn read_settings(config: Config, last: SettingsFile) -> SettingsFile {
               |> list.filter(fn(file) {
                 simplifile.is_file(path(config, file)) != Ok(True)
               }),
+            keywords: settings.keywords(Some(read)),
           )
       }
     }

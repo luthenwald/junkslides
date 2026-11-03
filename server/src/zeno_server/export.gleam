@@ -103,7 +103,11 @@ pub fn write(
       |> result.replace(Nil)
   })
   let highlights =
-    highlighter.highlight(tree_sitter, protocol.code_blocks(deck))
+    highlighter.highlight(
+      tree_sitter,
+      protocol.code_blocks(deck),
+      settings.keywords(settings),
+    )
     |> list.map(fn(highlight) { #(highlight.block, highlight.tokens) })
     |> dict.from_list
   let page = filepath.join(out, "index.html")

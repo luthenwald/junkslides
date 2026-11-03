@@ -2,7 +2,7 @@
 //// 06-runtime.md, Highlighting). The command runs in this actor, so the
 //// deck's owner is never held up by it. A block's language picks a grammar
 //// among those `tree-sitter dump-languages` lists; a language without one,
-//// or a machine without tree-sitter, leaves the block plain.
+//// or a machine without tree-sitter, is shaded by `shade` (D30).
 
 import envoy
 import filepath
@@ -20,11 +20,17 @@ import simplifile
 import zeno/protocol.{
   type CodeBlock, type Highlight, type Token, Highlight, Token,
 }
+import zeno_server/shade
 
 pub type Message {
   /// Highlights for these blocks, sent back whole to `reply`. Nothing is
   /// sent when the answer is the same as the last one.
-  Request(blocks: List(CodeBlock), reply: fn(List(Highlight)) -> Nil)
+  /// `keywords` are for blocks without a grammar (D30).
+  Request(
+    blocks: List(CodeBlock),
+    keywords: List(String),
+    reply: fn(List(Highlight)) -> Nil,
+  )
 }
 
 type State {
@@ -37,6 +43,7 @@ type State {
     /// highlighted is kept with no tokens, so it is not tried again.
     known: Dict(CodeBlock, List(Token)),
     sent: List(Highlight),
+    keywords: List(String),
   )
 }
 
@@ -49,7 +56,7 @@ pub fn languages(command: String) -> Result(Dict(String, String), Nil) {
 
 pub fn start(command: String) -> Result(Subject(Message), Nil) {
   let scopes = languages(command) |> result.unwrap(dict.new())
-  actor.new(State(command, temporary_file(), scopes, dict.new(), []))
+  actor.new(State(command, temporary_file(), scopes, dict.new(), [], []))
   |> actor.on_message(handle)
   |> actor.start
   |> result.map(fn(started) { started.data })
@@ -58,9 +65,13 @@ pub fn start(command: String) -> Result(Subject(Message), Nil) {
 
 /// Highlights for these blocks at once, for a caller that can wait. A block
 /// that stays plain has no entry.
-pub fn highlight(command: String, blocks: List(CodeBlock)) -> List(Highlight) {
+pub fn highlight(
+  command: String,
+  blocks: List(CodeBlock),
+  keywords: List(String),
+) -> List(Highlight) {
   let scopes = languages(command) |> result.unwrap(dict.new())
-  let state = State(command, temporary_file(), scopes, dict.new(), [])
+  let state = State(command, temporary_file(), scopes, dict.new(), [], keywords)
   list.filter_map(blocks, fn(block) {
     case run(state, block) {
       [] -> Error(Nil)
@@ -77,7 +88,12 @@ fn temporary_file() -> String {
 }
 
 fn handle(state: State, message: Message) -> actor.Next(State, Message) {
-  let Request(blocks:, reply:) = message
+  let Request(blocks:, keywords:, reply:) = message
+  // Other keywords shade the blocks without a grammar differently.
+  let state = case keywords == state.keywords {
+    True -> state
+    False -> State(..state, keywords:, known: dict.new())
+  }
   let known =
     list.map(blocks, fn(block) {
       case dict.get(state.known, block) {
@@ -99,10 +115,21 @@ fn handle(state: State, message: Message) -> actor.Next(State, Message) {
   actor.continue(State(..state, known: dict.from_list(known), sent: highlights))
 }
 
-/// The block's tokens, or none when it stays plain.
+/// The block's tokens, or none when it stays plain. A language without a
+/// grammar is shaded by simple rules.
 fn run(state: State, block: CodeBlock) -> List(Token) {
+  case dict.get(state.scopes, block.language) {
+    Ok(scope) -> run_tree_sitter(state, block, scope)
+    Error(Nil) -> shade.tokens(block.code, state.keywords)
+  }
+}
+
+fn run_tree_sitter(
+  state: State,
+  block: CodeBlock,
+  scope: String,
+) -> List(Token) {
   {
-    use scope <- result.try(dict.get(state.scopes, block.language))
     use Nil <- result.try(
       simplifile.write(state.temporary, block.code) |> result.replace_error(Nil),
     )

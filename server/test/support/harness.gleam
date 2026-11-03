@@ -132,8 +132,18 @@ pub fn send(harness: Harness, msg: ClientMsg) -> Nil {
   process.send(harness.socket, stratus.to_user_message(msg))
 }
 
-/// The next message, within two seconds.
+/// The next message other than highlights, within two seconds. Highlights
+/// come whenever the highlighter answers (blocks without a grammar are
+/// shaded too, D30), so tests that want them ask with `next_highlights`.
 pub fn next(harness: Harness) -> ServerMsg {
+  case next_any(harness) {
+    protocol.Highlights(_) -> next(harness)
+    msg -> msg
+  }
+}
+
+/// The next message of any kind, within two seconds.
+pub fn next_any(harness: Harness) -> ServerMsg {
   let assert Ok(msg) = process.receive(harness.inbox, 2000)
   msg
 }
@@ -148,7 +158,7 @@ pub fn next_state(harness: Harness) -> #(Deck, Layout) {
 
 /// Skips messages up to the next highlights.
 pub fn next_highlights(harness: Harness) -> ServerMsg {
-  case next(harness) {
+  case next_any(harness) {
     protocol.Highlights(_) as msg -> msg
     _ -> next_highlights(harness)
   }

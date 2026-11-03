@@ -22,6 +22,7 @@ import zeno_server
 import zeno_server/highlighter
 import zeno_server/pdf
 import zeno_server/settings
+import zeno_server/shade
 import zeno_server/state
 import zeno_server/store
 import zeno_server/theme
@@ -743,6 +744,28 @@ pub fn export_highlights_code_test() {
     harness.read(filepath.directory_name(report.page), "index.html"),
     "zeno-tok-",
   )
+}
+
+pub fn settings_read_code_keywords_test() {
+  let assert Ok(read) =
+    settings.parse("[code]\nkeywords = [\"while\", \"do'\"]\n")
+  assert settings.keywords(Some(read)) == ["while", "do'"]
+  assert settings.keywords(None) == shade.default_keywords
+  let assert Error(_) = settings.parse("[code]\nkeywords = [\"a b\"]\n")
+  let assert Error(_) = settings.parse("[code]\nkeywords = \"while\"\n")
+  let assert Error(_) = settings.parse("[code]\nwords = []\n")
+}
+
+/// The example's gleam block has no grammar here, so it is shaded, and new
+/// keywords in zeno.toml shade it again (D30).
+pub fn keywords_from_settings_shade_again_test() {
+  let h = harness.start("keywords", 4921)
+  let assert protocol.Highlights([block]) = harness.next_highlights(h)
+  assert list.contains(block.tokens, Token(Some("keyword"), "fn"))
+  harness.write(h.folder, "zeno.toml", "[code]\nkeywords = [\"pub\"]\n")
+  let assert protocol.Highlights([block]) = harness.next_highlights(h)
+  assert list.contains(block.tokens, Token(Some("keyword"), "pub"))
+  assert !list.contains(block.tokens, Token(Some("keyword"), "fn"))
 }
 
 pub fn settings_reload_and_keep_the_last_good_sheet_test() {

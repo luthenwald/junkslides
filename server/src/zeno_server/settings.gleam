@@ -13,6 +13,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import tom.{type Toml}
+import zeno_server/shade
 
 pub type Settings {
   Settings(
@@ -29,6 +30,8 @@ pub type Settings {
     /// The body area's inset in rows and columns of the theme grid.
     margin: Option(#(Int, Int)),
     gap: Option(Float),
+    /// Keywords for code without a tree-sitter grammar (D30).
+    keywords: Option(List(String)),
   )
 }
 
@@ -68,6 +71,7 @@ pub const empty =
     numbers: None,
     margin: None,
     gap: None,
+    keywords: None,
   )
 
 /// The faces in the order of their keys in a font table.
@@ -125,7 +129,7 @@ pub fn parse(source: String) -> Result(Settings, String) {
     tom.parse(source) |> result.map_error(syntax_message),
   )
   use top <- result.try(
-    keys(document, "", ["font", "palette", "type", "slide"]),
+    keys(document, "", ["font", "palette", "type", "slide", "code"]),
   )
   use font <- result.try(section(top, "font", ["text", "code"]))
   use palette <- result.try(
@@ -135,6 +139,7 @@ pub fn parse(source: String) -> Result(Settings, String) {
     section(top, "type", ["size", "line-height", "code-scale"]),
   )
   use slide <- result.try(section(top, "slide", ["numbers", "margin", "gap"]))
+  use code <- result.try(section(top, "code", ["keywords"]))
 
   use text_font <- result.try(field(font, "font", "text", read_font))
   use code_font <- result.try(field(font, "font", "code", read_font))
@@ -158,6 +163,7 @@ pub fn parse(source: String) -> Result(Settings, String) {
   use numbers <- result.try(field(slide, "slide", "numbers", read_numbers))
   use margin <- result.try(field(slide, "slide", "margin", read_margin))
   use gap <- result.try(field(slide, "slide", "gap", number(0.0, 1080.0)))
+  use keywords <- result.try(field(code, "code", "keywords", read_keywords))
   Ok(Settings(
     text_font:,
     code_font:,
@@ -171,7 +177,43 @@ pub fn parse(source: String) -> Result(Settings, String) {
     numbers:,
     margin:,
     gap:,
+    keywords:,
   ))
+}
+
+/// The keywords to shade code without a grammar with: the settings' own, or
+/// the default list.
+pub fn keywords(settings: Option(Settings)) -> List(String) {
+  option.then(settings, fn(s) { s.keywords })
+  |> option.unwrap(shade.default_keywords)
+}
+
+/// A list of words, each of letters, digits, `_` and `'`.
+fn read_keywords(value: Toml, path: String) -> Result(List(String), String) {
+  let message = "zeno.toml: " <> path <> " should be a list of words in quotes."
+  let word = fn(text) {
+    text != ""
+    && list.all(string.to_graphemes(text), fn(g) {
+      string.contains(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_'",
+        g,
+      )
+    })
+  }
+  case value {
+    tom.Array(items) ->
+      list.try_map(items, fn(item) {
+        case item {
+          tom.String(text) ->
+            case word(text) {
+              True -> Ok(text)
+              False -> Error(message)
+            }
+          _ -> Error(message)
+        }
+      })
+    _ -> Error(message)
+  }
 }
 
 fn syntax_message(error: tom.ParseError) -> String {

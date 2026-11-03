@@ -1,5 +1,18 @@
 ## Unreleased
 
+## Marks, charts and embedded figures
+
+2026-11-03 · `vtqumtsx::qyqytuws`
+
+- New: mark words for your theme with a span and a class, such as `[2,040]{.now}`. Your theme lists the classes it knows in `--zeno-marks` and decides how they look; a cell that uses another class gets a note.
+- New: a line of attributes above a code block lights some of its lines (`lit="2 5-7"`) and marks words inside it between two characters you choose, such as `now="⟦⟧"`.
+- New: code in a language without a tree-sitter grammar is shaded by simple rules, with comments, keywords, capitalised names, numbers and operators. The `[code]` settings choose the keywords and comment markers, and can send a language to these rules even when it has a grammar.
+- New: an `.svg` image alone in its paragraph is drawn into the slide, so your theme's rules and fonts reach the drawing. One with scripts or links to other files stays a plain image, and Zeno tells you why.
+- New: a `.json` image is a chart that Zeno draws at the size of its cell: lines, dots, stacked bars or bars, with log scales, a legend, several panels, and a switch between measures that works in the exported page without scripts.
+- New: an `.html` image is a page of your own in a frame, with its script running, such as an animation. It is kept apart from the editor and from your deck's files. In the editor a press on it selects the cell.
+- New: slide numbers can also show as `01 / 12`.
+- Improved: the editor's live connection only accepts the editor's own page, so another site open in your browser cannot reach your deck.
+
 ## Deck settings
 
 2026-11-02 · `krmyskqr::tosxonru`

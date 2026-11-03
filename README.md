@@ -81,8 +81,49 @@ continued lines.
 Code blocks are highlighted by [tree-sitter](https://tree-sitter.github.io/),
 using the command and the grammars you have installed. Name the language after
 the opening fence, such as `haskell` or `hs`: a grammar's name or one of its
-file types both work. Without the command or a matching grammar, code is drawn
-plain.
+file types both work. Without the command or a matching grammar, Zeno shades
+the code by simple rules: comments, keywords from a list, capitalised names,
+numbers and operators. The `[code]` settings choose the keywords and comment
+markers, and can send a language to these rules even when it has a grammar,
+which helps with excerpts that would not parse.
+
+Words can be marked for the theme with a span and a class, such as
+`[2,040]{.now}` or `[aside]{.quiet}`. The class says what the word is, and
+the theme decides how it looks; it lists the classes it knows (see Themes),
+and a cell that uses another one gets a note.
+
+A code block can light some of its lines and mark words inside them, with one
+line of attributes right above the fence:
+
+````
+{lit="2 5-7" now="⟦⟧"}
+```gcl
+x := e
+assert p   ⟦and ask: is π ∧ ¬pθ satisfiable?⟧
+```
+````
+
+`lit` lists the lines to light, counted from 1. Every other key is a mark
+class with two characters that open and close it; the text between them is
+drawn as that mark, and the two characters are left out. Pick characters the
+code does not use.
+
+An image alone in its paragraph becomes a figure when its file is one of
+these:
+
+- `.svg`: the drawing goes into the slide itself, so your theme's rules and
+  fonts reach it. A drawing with scripts, event handlers or links to other
+  files is shown as a plain image instead, and Zeno tells you why.
+- `.json`: a chart, drawn by Zeno at the size of its cell. The spec gives
+  the kind (`lines`, `dots`, `stacked` or `bars`), the axes with their labels
+  and log scales, and panels of series. A chart can hold several measures
+  with a switch above it that shows one at a time.
+- `.html`: a page of your own in a frame that fills the cell, with its
+  script running, such as an animation. It runs apart from the editor and
+  from the deck's other files. In the editor a press on it selects the cell;
+  in the exported page you can use it.
+
+A chart spec that does not read is drawn as a quiet box that says why.
 
 A table is a block of pipe rows, with a header row and a line of dashes below it:
 
@@ -109,7 +150,7 @@ gleam run export ~/talks/lenses --out ~/site/lenses
 gleam run export ~/talks/lenses --pdf               # and ~/talks/lenses/export/lenses.pdf
 ```
 
-You get a folder with `index.html`, your settings as `settings.css` with the fonts they name, your `theme.css` with the fonts and other files it loads, and a copy of `assets/`, ready to open, host or zip. Licence files next to a font go with it. The page has no scripts. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.
+You get a folder with `index.html`, your settings as `settings.css` with the fonts they name, your `theme.css` with the fonts and other files it loads, and a copy of `assets/`, ready to open, host or zip. Licence files next to a font go with it. The page has no scripts of its own; an embedded `.html` figure runs its script inside its frame. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.
 
 For a PDF with one slide per page, add `--pdf` or press `F` in command mode. Zeno prints the exported page with Chrome, Chromium, Edge or Brave, whichever it finds first; set `ZENO_CHROME` to choose a program. If printing fails, your last PDF stays as it was. A CSS `filter` in your theme makes that element an image in the PDF, so its text can't be searched or copied.
 
@@ -150,6 +191,11 @@ code-scale = 1   # code size against its text, such as 0.875
 numbers = "01/12"  # or "01 / 12", "01", or "none"
 margin = 2         # body inset in 60 px grid units, or [rows, columns]
 gap = 24           # pixels between cells that flow
+
+[code]
+keywords = ["if", "then", "else", "do"]  # for code shaded by the simple rules
+comments = ["--", "//"]                  # where a comment starts there
+simple = []                              # languages always shaded that way
 ```
 
 To use another font, put its files anywhere in the deck's folder and name them
@@ -183,11 +229,22 @@ tree-sitter's highlight names. Tables are plain `table`, `th` and `td` elements,
 drawn in shades of the text colour until your theme says otherwise; a column's
 alignment is in the `data-align` attribute of its cells, and
 `.zeno-cell table { width: 100%; }` makes tables fill their cells.
-List the theme's variants on `:root`:
+List the theme's variants and marks on `:root`:
 
 ```css
-:root { --zeno-variants: "large small quiet emphasis"; }
+:root {
+  --zeno-variants: "large small quiet emphasis";
+  --zeno-marks: "now quiet";
+}
+.zeno-slide .now { color: var(--zeno-accent); }
 ```
+
+A mark is a `span` with its classes, also inside code. A lit line of code is
+`.zeno-lit`. Figures sit in `.zeno-figure`, and an inline drawing keeps the
+classes it was drawn with, so `.zeno-figure .edge { stroke: … }` reaches its
+lines. A chart is `.zeno-chart`, with its parts named `.zeno-chart-legend`,
+`.zeno-chart-panel`, `.zeno-chart-xlabel` and so on, and its series and
+markers carry the shade, shape and dash the spec gives them as classes.
 
 Your settings are custom properties on `:root` that the theme can use, such
 as `var(--zeno-accent)`, `var(--zeno-quiet)` and `var(--zeno-font-code)`.

@@ -1,4 +1,4 @@
-# zeno_e2e
+# junkslides_e2e
 
 The editor in headless Chrome for Testing against an in-process server, on
 a copy of examples/talk. The page is driven over the DevTools protocol from

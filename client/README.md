@@ -1,6 +1,6 @@
-# zeno_client
+# junkslides_client
 
-The Zeno editor in the browser, on the JavaScript target with Lustre: the
+The junkslides editor in the browser, on the JavaScript target with Lustre: the
 cells pane with command and edit modes, the slide pane with canvas mode,
 the panes and divider, and the status line.
 

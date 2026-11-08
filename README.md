@@ -1,34 +1,34 @@
-# Zeno
+# junkslides
 
-Zeno is a slide maker that keeps content and layout apart.
+junkslides is a slide maker that keeps content and layout apart.
 
 You write the content of a talk as cells in one text file, using a strict
 djot-flavoured markdown dialect. You arrange, resize and restyle those cells
-visually in a browser. Zeno remembers every layout edit in a separate file,
-keyed by stable cell IDs, so content edits never lose layout and layout edits
-never touch content.
+visually in a browser. junkslides remembers every layout edit in a separate
+file, keyed by stable cell IDs, so content edits never lose layout and layout
+edits never touch content.
 
 ## A deck on disk
 
 ```
 talk/
-  deck.md        content: slides and cells, with ID markers
-  layout.json    placement and style per cell
-  zeno.toml      settings: fonts, colours, sizes, slide numbers
-  theme.css      the look, in CSS, for anything the settings don't cover
-  fonts/         the fonts zeno.toml names
-  assets/        images, referenced by paths relative to the deck
+  deck.md          content: slides and cells, with ID markers
+  layout.json      placement and style per cell
+  junkslides.toml  settings: fonts, colours, sizes, slide numbers
+  theme.css        the look, in CSS, for anything the settings don't cover
+  fonts/           the fonts junkslides.toml names
+  assets/          images, referenced by paths relative to the deck
 ```
 
-deck.md stays readable in any markdown viewer. Slides are separated by a
-`---` line, and each cell and slide carries an ID in an HTML comment that
-Zeno writes for you. You can edit deck.md in another editor while Zeno runs;
+deck.md stays readable in any markdown viewer. Slides are separated by a `---`
+line, and each cell and slide carries an ID in an HTML comment that junkslides
+writes for you. You can edit deck.md in another editor while junkslides runs;
 it picks up the change and keeps the layout of every cell it can still
 recognise.
 
 ## Running it
 
-Zeno is written in Gleam. With Gleam, Erlang and `just` installed, and
+junkslides is written in Gleam. With Gleam, Erlang and `just` installed, and
 optionally the `tree-sitter` command for highlighting, from this folder:
 
 ```sh
@@ -37,13 +37,13 @@ gleam run serve ~/talks/lenses    # then open http://127.0.0.1:4870/
 gleam run export ~/talks/lenses   # a static page, see Exporting
 ```
 
-`gleam run` builds Zeno and the editor first. Relative folders are read from
-where you run it, which can be any folder of this project except the
+`gleam run` builds junkslides and the editor first. Relative folders are read
+from where you run it, which can be any folder of this project except the
 packages inside it (`core`, `server`, `client` and the others), where it runs
 that package instead.
 
-`just zeno serve ~/talks/lenses` does the same from any folder of the
-project, and `just run serve ~/talks/lenses` starts the last `just zeno`
+`just junkslides serve ~/talks/lenses` does the same from any folder of the
+project, and `just run serve ~/talks/lenses` starts the last `just junkslides`
 build straight away.
 
 The editor targets Chromium-based browsers for now.
@@ -81,11 +81,11 @@ continued lines.
 Code blocks are highlighted by [tree-sitter](https://tree-sitter.github.io/),
 using the command and the grammars you have installed. Name the language after
 the opening fence, such as `haskell` or `hs`: a grammar's name or one of its
-file types both work. Without the command or a matching grammar, Zeno shades
-the code by simple rules: comments, keywords from a list, capitalised names,
-numbers and operators. The `[code]` settings choose the keywords and comment
-markers, and can send a language to these rules even when it has a grammar,
-which helps with excerpts that would not parse.
+file types both work. Without the command or a matching grammar, junkslides
+shades the code by simple rules: comments, keywords from a list, capitalised
+names, numbers and operators. The `[code]` settings choose the keywords and
+comment markers, and can send a language to these rules even when it has a
+grammar, which helps with excerpts that would not parse.
 
 Words can be marked for the theme with a span and a class, such as
 `[2,040]{.now}` or `[aside]{.quiet}`. The class says what the word is, and
@@ -113,8 +113,8 @@ these:
 
 - `.svg`: the drawing goes into the slide itself, so your theme's rules and
   fonts reach it. A drawing with scripts, event handlers or links to other
-  files is shown as a plain image instead, and Zeno tells you why.
-- `.json`: a chart, drawn by Zeno at the size of its cell. The spec gives
+  files is shown as a plain image instead, and junkslides tells you why.
+- `.json`: a chart, drawn by junkslides at the size of its cell. The spec gives
   the kind (`lines`, `dots`, `stacked` or `bars`), the axes with their labels
   and log scales, and panels of series. A chart can hold several measures
   with a switch above it that shows one at a time.
@@ -152,14 +152,14 @@ gleam run export ~/talks/lenses --pdf               # and ~/talks/lenses/export/
 
 You get a folder with `index.html`, your settings as `settings.css` with the fonts they name, your `theme.css` with the fonts and other files it loads, and a copy of `assets/`, ready to open, host or zip. Licence files next to a font go with it. The page has no scripts of its own; an embedded `.html` figure runs its script inside its frame. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.
 
-For a PDF with one slide per page, add `--pdf` or press `F` in command mode. Zeno prints the exported page with Chrome, Chromium, Edge or Brave, whichever it finds first; set `ZENO_CHROME` to choose a program. If printing fails, your last PDF stays as it was. A CSS `filter` in your theme makes that element an image in the PDF, so its text can't be searched or copied.
+For a PDF with one slide per page, add `--pdf` or press `F` in command mode. junkslides prints the exported page with Chrome, Chromium, Edge or Brave, whichever it finds first; set `JUNKSLIDES_CHROME` to choose a program. If printing fails, your last PDF stays as it was. A CSS `filter` in your theme makes that element an image in the PDF, so its text can't be searched or copied.
 
-Exporting again replaces those files and deletes nothing. If `zeno.toml` has a mistake, nothing is exported until you fix it. Zeno tells you about images, fonts and theme files it could not find, and leaves out any outside the deck's folder. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
+Exporting again replaces those files and deletes nothing. If `junkslides.toml` has a mistake, nothing is exported until you fix it. junkslides tells you about images, fonts and theme files it could not find, and leaves out any outside the deck's folder. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
 
 ## Settings
 
-`zeno.toml` in the deck's folder holds the choices most decks change. A new
-deck gets this one, and every line in it is optional:
+`junkslides.toml` in the deck's folder holds the choices most decks change. A
+new deck gets this one, and every line in it is optional:
 
 ```toml
 [font.text]
@@ -180,7 +180,7 @@ bold = "fonts/victor-mono-bold.woff2"
 background = "#fafafa"
 text = "#222"
 quiet = "#777"   # slide numbers and the quiet variant
-accent = "#222"  # for your theme, as var(--zeno-accent)
+accent = "#222"  # for your theme, as var(--js-accent)
 
 [type]
 size = 32        # pixels on a 1920 by 1080 slide
@@ -212,42 +212,42 @@ regular = "fonts/Inter-Regular.woff2"
 bold = "fonts/Inter-Bold.woff2"
 ```
 
-Colours are CSS colours, such as `"#1d1d1f"`, `"white"` or
-`"rgb(20 20 20 / 80%)"`. Zeno applies changes as soon as you save. If the file
-has a mistake, such as a misspelt key, Zeno says which key and keeps the
+Colours are CSS colours, such as `"#1d1d1f"`, `"white"` or `"rgb(20 20 20 /
+80%)"`. junkslides applies changes as soon as you save. If the file has a
+mistake, such as a misspelt key, junkslides says which key and keeps the
 settings it had.
 
 ## Themes
 
 theme.css is plain CSS, and it comes after your settings, so any rule in it
 wins. Slides are 1920 by 1080 pixels and are drawn as
-`.zeno-slide`; the flowing cells sit in `.zeno-body` and every cell is a
-`.zeno-cell`, with `data-variant` and `data-align` attributes for its style.
-The slide number is `.zeno-page`, and code tokens carry classes such as
-`.zeno-tok-keyword`, `.zeno-tok-string` and `.zeno-tok-comment`, named after
+`.js-slide`; the flowing cells sit in `.js-body` and every cell is a
+`.js-cell`, with `data-variant` and `data-align` attributes for its style.
+The slide number is `.js-page`, and code tokens carry classes such as
+`.js-tok-keyword`, `.js-tok-string` and `.js-tok-comment`, named after
 tree-sitter's highlight names. Tables are plain `table`, `th` and `td` elements,
 drawn in shades of the text colour until your theme says otherwise; a column's
 alignment is in the `data-align` attribute of its cells, and
-`.zeno-cell table { width: 100%; }` makes tables fill their cells.
+`.js-cell table { width: 100%; }` makes tables fill their cells.
 List the theme's variants and marks on `:root`:
 
 ```css
 :root {
-  --zeno-variants: "large small quiet emphasis";
-  --zeno-marks: "now quiet";
+  --js-variants: "large small quiet emphasis";
+  --js-marks: "now quiet";
 }
-.zeno-slide .now { color: var(--zeno-accent); }
+.js-slide .now { color: var(--js-accent); }
 ```
 
 A mark is a `span` with its classes, also inside code. A lit line of code is
-`.zeno-lit`. Figures sit in `.zeno-figure`, and an inline drawing keeps the
-classes it was drawn with, so `.zeno-figure .edge { stroke: … }` reaches its
-lines. A chart is `.zeno-chart`, with its parts named `.zeno-chart-legend`,
-`.zeno-chart-panel`, `.zeno-chart-xlabel` and so on, and its series and
+`.js-lit`. Figures sit in `.js-figure`, and an inline drawing keeps the
+classes it was drawn with, so `.js-figure .edge { stroke: … }` reaches its
+lines. A chart is `.js-chart`, with its parts named `.js-chart-legend`,
+`.js-chart-panel`, `.js-chart-xlabel` and so on, and its series and
 markers carry the shade, shape and dash the spec gives them as classes.
 
 Your settings are custom properties on `:root` that the theme can use, such
-as `var(--zeno-accent)`, `var(--zeno-quiet)` and `var(--zeno-font-code)`.
+as `var(--js-accent)`, `var(--js-quiet)` and `var(--js-font-code)`.
 
 A theme can also load fonts itself, from anywhere in the deck's folder, with a
 relative path that does not start with `/`. Exports and PDFs include them:
@@ -257,11 +257,11 @@ relative path that does not start with `/`. Exports and PDFs include them:
   font-family: "Inter";
   src: url("fonts/Inter.woff2") format("woff2");
 }
-.zeno-slide { font-family: "Inter", sans-serif; }
+.js-slide { font-family: "Inter", sans-serif; }
 pre, code { font-family: Menlo, monospace; }
 ```
 
 Where neither your settings nor your theme name a font, the browser's default
 is used.
 
-Zeno reloads the theme when the file changes.
+junkslides reloads the theme when the file changes.

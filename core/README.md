@@ -1,6 +1,6 @@
-# zeno_core
+# junkslides_core
 
-The pure core of Zeno, shared by the server (Erlang) and the client
+The pure core of junkslides, shared by the server (Erlang) and the client
 (JavaScript): IDs, the deck, operations and their effects, layout, history,
 the cell dialect, deck.md and layout.json, and the protocol codecs.
 

@@ -1,4 +1,4 @@
-import zeno/id.{type CellTag, type Id}
+import junkslides/id.{type CellTag, type Id}
 
 pub fn fresh_ids_are_v7_and_parse_test() {
   let supply =

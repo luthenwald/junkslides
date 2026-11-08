@@ -23,7 +23,7 @@ fn exported(name: String, port: Int) -> #(Page, String) {
   assert deck(folder) == before
   let url = "file://" <> filepath.join(folder, "export/index.html")
   let assert Ok(_) = cdp.viewport(page, 1280, 800)
-  let assert Ok(_) = cdp.open(page, url, ".zeno-frame")
+  let assert Ok(_) = cdp.open(page, url, ".js-frame")
   #(page, url)
 }
 
@@ -33,14 +33,14 @@ fn close(a: Float, b: Float) -> Bool {
 
 pub fn the_page_holds_every_slide_and_no_script_test() {
   let #(page, _) = exported("export-page", 4941)
-  assert cdp.count(page, ".zeno-frame") == 7
-  assert cdp.count(page, ".zeno-frame .zeno-slide") == 7
-  assert cdp.count(page, ".zeno-page") == 7
+  assert cdp.count(page, ".js-frame") == 7
+  assert cdp.count(page, ".js-frame .js-slide") == 7
+  assert cdp.count(page, ".js-page") == 7
   assert cdp.count(page, "table") == 1
   assert cdp.count(page, "script") == 0
   // Placed cells kept their box, and the theme is there.
-  assert cdp.count(page, ".zeno-cell[data-placed]") > 0
-  assert cdp.computed(page, ".zeno-slide", "background-color")
+  assert cdp.count(page, ".js-cell[data-placed]") > 0
+  assert cdp.computed(page, ".js-slide", "background-color")
     == Ok("rgb(250, 250, 250)")
 }
 
@@ -70,7 +70,7 @@ pub fn the_page_loads_a_font_the_theme_keeps_in_the_deck_test() {
     simplifile.append(
       filepath.join(folder, "theme.css"),
       "@font-face { font-family: \"Deck Font\"; src: url(\"fonts/deck-font.woff2\"); }
-.zeno-slide { font-family: \"Deck Font\"; }
+.js-slide { font-family: \"Deck Font\"; }
 ",
     )
   let #(page, _, _, _) = harness.open_folder(folder, 4950)
@@ -80,7 +80,7 @@ pub fn the_page_loads_a_font_the_theme_keeps_in_the_deck_test() {
     cdp.open(
       page,
       "file://" <> filepath.join(folder, "export/index.html"),
-      ".zeno-frame",
+      ".js-frame",
     )
   assert eventually(fn() {
     case cdp.loaded_fonts(page) {
@@ -90,7 +90,7 @@ pub fn the_page_loads_a_font_the_theme_keeps_in_the_deck_test() {
   })
 }
 
-/// A font named only in zeno.toml is in the export and loads from there.
+/// A font named only in junkslides.toml is in the export and loads from there.
 pub fn the_page_loads_a_font_the_settings_name_test() {
   let folder = harness.prepare("export-settings-font")
   let assert Ok(Nil) =
@@ -104,7 +104,7 @@ pub fn the_page_loads_a_font_the_settings_name_test() {
     simplifile.write(filepath.join(folder, "theme.css"), ".x { }\n")
   let assert Ok(Nil) =
     simplifile.write(
-      filepath.join(folder, "zeno.toml"),
+      filepath.join(folder, "junkslides.toml"),
       "[font.text]\nfamily = \"Settings Font\"\n"
         <> "regular = \"type/settings-font.woff2\"\n",
     )
@@ -115,7 +115,7 @@ pub fn the_page_loads_a_font_the_settings_name_test() {
     cdp.open(
       page,
       "file://" <> filepath.join(folder, "export/index.html"),
-      ".zeno-frame",
+      ".js-frame",
     )
   assert eventually(fn() {
     case cdp.loaded_fonts(page) {
@@ -128,15 +128,15 @@ pub fn the_page_loads_a_font_the_settings_name_test() {
 pub fn a_slide_fits_the_window_at_any_size_test() {
   let #(page, url) = exported("export-fit", 4942)
   // Wider than 16:9 or narrower, the slide is whole and centred.
-  let assert Ok(box) = cdp.box(page, "[id='1'] .zeno-slide")
+  let assert Ok(box) = cdp.box(page, "[id='1'] .js-slide")
   assert close(box.w, 1280.0)
   assert close(box.h, 720.0)
   assert close(box.y, 40.0)
   assert close(box.x, 0.0)
   let assert Ok(_) = cdp.viewport(page, 1000, 400)
-  let assert Ok(_) = cdp.open(page, url, ".zeno-frame")
+  let assert Ok(_) = cdp.open(page, url, ".js-frame")
   assert eventually(fn() {
-    case cdp.box(page, "[id='1'] .zeno-slide") {
+    case cdp.box(page, "[id='1'] .js-slide") {
       Ok(box) -> close(box.h, 400.0) && close(box.x, 144.5)
       Error(_) -> False
     }
@@ -162,7 +162,7 @@ pub fn keys_step_from_slide_to_slide_test() {
 
 pub fn a_link_opens_its_slide_test() {
   let #(page, url) = exported("export-link", 4944)
-  let assert Ok(_) = cdp.open(page, url <> "#3", ".zeno-frame")
+  let assert Ok(_) = cdp.open(page, url <> "#3", ".js-frame")
   assert eventually(fn() {
     case cdp.box(page, "[id='3']") {
       Ok(box) -> close(box.y, 0.0)
@@ -251,7 +251,7 @@ pub fn a_charts_switch_shows_one_row_at_a_time_test() {
     )
   let #(page, _, _, _) = harness.open_folder(folder, 4955)
   assert eventually(fn() {
-    cdp.count(page, ".ze-fit .zeno-chart-panel svg") == 2
+    cdp.count(page, ".jse-fit .js-chart-panel svg") == 2
   })
   press(page, "E")
   assert eventually(fn() { string.contains(status(page), "Exported to ") })
@@ -259,15 +259,14 @@ pub fn a_charts_switch_shows_one_row_at_a_time_test() {
     cdp.open(
       page,
       "file://" <> filepath.join(folder, "export/index.html"),
-      ".zeno-frame",
+      ".js-frame",
     )
   let display = fn(n) {
-    cdp.computed(page, ".zeno-chart-row:nth-child(" <> n <> ")", "display")
+    cdp.computed(page, ".js-chart-row:nth-child(" <> n <> ")", "display")
   }
   assert display("1") == Ok("grid")
   assert display("2") == Ok("none")
-  let assert Ok(_) =
-    cdp.click(page, ".zeno-chart-switch > label:nth-of-type(2)")
+  let assert Ok(_) = cdp.click(page, ".js-chart-switch > label:nth-of-type(2)")
   assert eventually(fn() { display("2") == Ok("grid") })
   assert display("1") == Ok("none")
 }
@@ -331,9 +330,9 @@ pub fn an_embedded_page_runs_its_script_test() {
       ),
     )
   let #(page, _, _, _) = harness.open_folder(folder, 4956)
-  assert eventually(fn() { cdp.count(page, ".ze-fit iframe") == 1 })
-  assert cdp.count(page, ".ze-probes iframe") == 0
-  assert cdp.computed(page, ".ze-fit iframe", "pointer-events") == Ok("none")
+  assert eventually(fn() { cdp.count(page, ".jse-fit iframe") == 1 })
+  assert cdp.count(page, ".jse-probes iframe") == 0
+  assert cdp.computed(page, ".jse-fit iframe", "pointer-events") == Ok("none")
   assert eventually(fn() { frame_text(page) == Ok("ran") })
   press(page, "E")
   assert eventually(fn() { string.contains(status(page), "Exported to ") })
@@ -341,7 +340,7 @@ pub fn an_embedded_page_runs_its_script_test() {
     cdp.open(
       page,
       "file://" <> filepath.join(folder, "export/index.html"),
-      ".zeno-frame",
+      ".js-frame",
     )
   assert cdp.attribute(page, "iframe", "sandbox") == Ok("allow-scripts")
   assert eventually(fn() { frame_text(page) == Ok("ran") })

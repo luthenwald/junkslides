@@ -1,0 +1,373 @@
+/* The editor (05-editor.md, Visual style): grayscale, one sans and one
+   mono typeface, hairline rules, no shadows. Classes start with `jse-` so
+   they never meet the theme's `js-` classes. */
+
+/* Victor Mono for the source text, from /.js/fonts beside this file. The
+   slides take their fonts from the theme. */
+@font-face {
+  font-family: "Victor Mono";
+  src: url("fonts/victor-mono-regular.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Victor Mono";
+  src: url("fonts/victor-mono-italic.woff2") format("woff2");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Victor Mono";
+  src: url("fonts/victor-mono-bold.woff2") format("woff2");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --jse-ink: #222;
+  --jse-quiet: #777;
+  --jse-faint: #aaa;
+  --jse-rule: #ddd;
+  --jse-paper: #fff;
+  --jse-ground: #f4f4f4;
+  --jse-sans: system-ui, sans-serif;
+  --jse-mono: "Victor Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+#app {
+  height: 100%;
+}
+
+.jse-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font: 14px/1.5 var(--jse-sans);
+  color: var(--jse-ink);
+  background: var(--jse-paper);
+  outline: none;
+}
+
+.jse-panes {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* Cells pane */
+
+.jse-cells-pane {
+  flex: 0 0 40%;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.jse-cells-pane.jse-alone {
+  flex: 1 1 auto;
+}
+
+.jse-cells {
+  padding: 8px 24px 50vh;
+}
+
+.jse-slide {
+  margin-top: 16px;
+}
+
+.jse-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--jse-quiet);
+  font-variant-numeric: tabular-nums;
+}
+
+.jse-rule::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--jse-rule);
+}
+
+.jse-cell {
+  position: relative;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  outline: none;
+}
+
+.jse-cell.jse-selected {
+  border-color: var(--jse-quiet);
+}
+
+.jse-cell.jse-editing {
+  border-color: var(--jse-ink);
+}
+
+.jse-empty {
+  color: var(--jse-faint);
+  font-size: 12px;
+}
+
+.jse-label {
+  display: block;
+  font-size: 11px;
+  color: var(--jse-faint);
+}
+
+.jse-notes .jse-source,
+.jse-notes .jse-grow::after {
+  color: var(--jse-quiet);
+}
+
+/* A text area that grows with its text (S2, the mirror): the text is shown
+   again, hidden, in the same grid cell. */
+.jse-grow {
+  display: grid;
+}
+
+.jse-grow::after {
+  content: attr(data-value) " ";
+  visibility: hidden;
+  white-space: pre-wrap;
+}
+
+.jse-grow > .jse-source,
+.jse-grow::after {
+  grid-area: 1 / 1 / 2 / 2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: 13px/1.5 var(--jse-mono);
+  overflow-wrap: anywhere;
+}
+
+.jse-source {
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: var(--jse-ink);
+  outline: none;
+}
+
+.jse-problem {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--jse-quiet);
+}
+
+/* Divider */
+
+.jse-divider {
+  flex: 0 0 5px;
+  cursor: col-resize;
+  border-left: 1px solid var(--jse-rule);
+}
+
+.jse-divider:hover {
+  border-left-color: var(--jse-quiet);
+}
+
+.jse-divider-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 10;
+}
+
+.jse-strip {
+  flex: 1;
+}
+
+/* Slide pane */
+
+.jse-slide-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--jse-ground);
+  outline: none;
+}
+
+.jse-stage {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  container-type: size;
+}
+
+/* The 1920x1080 design space, scaled to fit and centred (spike S1). */
+.jse-fit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  translate: -50% -50%;
+  scale: min(100cqw / 1920px, 100cqh / 1080px);
+  user-select: none;
+  touch-action: none;
+}
+
+.jse-fit .js-slide {
+  outline: 1px solid var(--jse-rule);
+}
+
+/* Drawn cells take the pointer themselves, never their content, so that
+   `offsetX` is always relative to the cell. */
+.jse-fit .js-cell {
+  outline: none;
+}
+
+.jse-fit .js-cell *,
+.jse-fit .js-page {
+  pointer-events: none;
+}
+
+.jse-fit .js-cell.jse-selected {
+  outline: 3px solid var(--jse-quiet);
+  outline-offset: 4px;
+}
+
+.jse-canvas .jse-fit .js-cell.jse-selected {
+  outline-color: var(--jse-ink);
+}
+
+.jse-fit .js-cell.jse-overflow {
+  outline: 3px dashed var(--jse-quiet);
+  outline-offset: 4px;
+}
+
+.jse-fit .js-cell.jse-overflow.jse-selected {
+  outline-color: var(--jse-ink);
+}
+
+/* The editor's layer above the slide, in the slide's design pixels. */
+.jse-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.jse-handle {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  /* Mostly inside the cell, so it stays reachable at the slide's edge. */
+  translate: -18px -18px;
+  background: var(--jse-paper);
+  border: 3px solid var(--jse-ink);
+  cursor: nwse-resize;
+  pointer-events: auto;
+}
+
+/* The drag surface reaches twice the slide's size past each edge (slide.gleam). */
+.jse-drag {
+  position: absolute;
+  inset: -2160px -3840px;
+  pointer-events: auto;
+  cursor: grabbing;
+}
+
+/* Overflow probes (spike S2): hidden copies of every slide. Each probe is
+   a scroll-state container, and its flag runs `jse-fits` or `jse-overflows`;
+   Lustre hears `animationstart`. The flag is a pseudo-element, so that it
+   is never a child the theme's selectors could count. */
+.jse-probes {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.jse-probes > .js-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.jse-probe {
+  position: relative;
+  overflow: hidden;
+  container-type: scroll-state;
+}
+
+.jse-probe::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  animation: jse-fits 1ms;
+}
+
+@container scroll-state((scrollable: bottom) or (scrollable: right)) {
+  .jse-probe::after {
+    animation: jse-overflows 1ms;
+  }
+}
+
+@keyframes jse-fits {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes jse-overflows {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Status line */
+
+.jse-status {
+  display: flex;
+  gap: 16px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--jse-rule);
+  font-size: 12px;
+  color: var(--jse-quiet);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.jse-snap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.jse-snap select {
+  font: inherit;
+  color: var(--jse-ink);
+  background: transparent;
+  border: 1px solid var(--jse-rule);
+  border-radius: 0;
+  padding: 0 4px;
+}
+
+.jse-notice {
+  color: var(--jse-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -1,9 +1,9 @@
 import gleam/dict
 import gleam/string
-import zeno/deck.{Cell, Content, Deck, Notes, Slide}
-import zeno/id
-import zeno/layout
-import zeno/render
+import junkslides/deck.{Cell, Content, Deck, Notes, Slide}
+import junkslides/id
+import junkslides/layout
+import junkslides/render
 
 const slide_a = "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e01"
 
@@ -54,13 +54,13 @@ fn page_with(has_settings: Bool, has_theme: Bool) -> String {
 pub fn every_slide_has_a_numbered_frame_test() {
   let html = page(True)
   assert string.starts_with(string.lowercase(html), "<!doctype html>")
-  assert string.contains(html, "<section class=\"zeno-frame\" id=\"1\">")
-  assert string.contains(html, "<section class=\"zeno-frame\" id=\"2\">")
+  assert string.contains(html, "<section class=\"js-frame\" id=\"1\">")
+  assert string.contains(html, "<section class=\"js-frame\" id=\"2\">")
   assert string.contains(html, ">01</span>")
   // A slide with nothing drawn stays, so numbers match the editor's.
   assert string.contains(
     html,
-    ">02</span><span class=\"zeno-page-total\"><span class=\"zeno-page-slash\">/</span>02</span>",
+    ">02</span><span class=\"js-page-total\"><span class=\"js-page-slash\">/</span>02</span>",
   )
 }
 
@@ -75,7 +75,7 @@ pub fn placed_cells_keep_their_box_and_leave_the_flow_test() {
   assert string.contains(html, "width:600px")
   assert string.contains(html, "height:300px")
   let assert Ok(#(_, after_body)) =
-    string.split_once(html, "<div class=\"zeno-body\">")
+    string.split_once(html, "<div class=\"js-body\">")
   let assert Ok(#(in_body, _)) = string.split_once(after_body, "data-placed")
   assert string.contains(in_body, "a &lt;b&gt; &amp; c")
   assert !string.contains(in_body, "there")

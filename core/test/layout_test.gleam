@@ -1,13 +1,13 @@
 import gleam/dict
 import gleam/option.{None, Some}
 import gleam/time/timestamp
-import support/fixture.{cell, slide}
-import zeno/deck.{Position}
-import zeno/layout.{
+import junkslides/deck.{Position}
+import junkslides/layout.{
   Area, CellOrphan, CellRecord, Center, Place, PurgeOrphans, SetAlign,
   SetVariant, Unplace,
 }
-import zeno/op.{AreaOffSlide, Fresh, Retired, Revived, UnknownCell}
+import junkslides/op.{AreaOffSlide, Fresh, Retired, Revived, UnknownCell}
+import support/fixture.{cell, slide}
 
 const now = timestamp.unix_epoch
 

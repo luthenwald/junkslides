@@ -8,13 +8,13 @@ import gleam/list
 import gleam/option.{Some}
 import gleam/result
 import gleam/string
+import junkslides/deck.{type Deck, Content, Position}
+import junkslides/file
+import junkslides/id
+import junkslides/layout.{type Layout, Area, CellOrphan}
+import junkslides/op
+import junkslides/protocol
 import support/harness.{example_id}
-import zeno/deck.{type Deck, Content, Position}
-import zeno/file
-import zeno/id
-import zeno/layout.{type Layout, Area, CellOrphan}
-import zeno/op
-import zeno/protocol
 
 fn orphaned(layout: Layout, cell) -> Bool {
   list.any(layout.orphans, fn(orphan) {
@@ -168,7 +168,7 @@ pub fn s6_copied_marker_gets_a_fresh_id_test() {
   assert on_disk(h, deck)
 }
 
-/// 7. Introduce a parse error: Zeno keeps state, shows the line, does not
+/// 7. Introduce a parse error: junkslides keeps state, shows the line, does not
 /// write; fixing the error resumes normally.
 pub fn s7_parse_error_keeps_state_and_does_not_write_test() {
   let h = harness.start("s7", 4887)
@@ -183,7 +183,7 @@ pub fn s7_parse_error_keeps_state_and_does_not_write_test() {
   harness.write(h.folder, "deck.md", broken)
   let notice = harness.next_notice(h)
   assert string.contains(notice, "line 12")
-  // Edits in Zeno go on, but deck.md is not written while it is broken.
+  // Edits in junkslides go on, but deck.md is not written while it is broken.
   let laws = example_id("08")
   harness.send(h, protocol.Apply(1, [op.EditText(laws, "## The laws, kept")]))
   let #(deck, _) = harness.next_state(h)
@@ -200,7 +200,7 @@ pub fn s7_parse_error_keeps_state_and_does_not_write_test() {
   assert string.contains(harness.read(h.folder, "deck.md"), "## The laws, kept")
 }
 
-/// 8. Edit while a Zeno write is pending: pending ops are rebased; ops on
+/// 8. Edit while a junkslides write is pending: pending ops are rebased; ops on
 /// removed cells are dropped with a notice.
 pub fn s8_pending_ops_are_rebased_onto_an_outside_edit_test() {
   let h = harness.serve(harness.folder("s8"), 4888, 1000)
@@ -211,7 +211,10 @@ pub fn s8_pending_ops_are_rebased_onto_an_outside_edit_test() {
     example_id("08"),
     example_id("0d"),
   )
-  harness.send(h, protocol.Apply(1, [op.EditText(lens, "Changed in Zeno.")]))
+  harness.send(
+    h,
+    protocol.Apply(1, [op.EditText(lens, "Changed in junkslides.")]),
+  )
   let _ = harness.next_state(h)
   harness.send(h, protocol.Apply(2, [op.EditText(gleam, "### In Gleam!")]))
   let _ = harness.next_state(h)
@@ -236,7 +239,7 @@ pub fn s8_pending_ops_are_rebased_onto_an_outside_edit_test() {
     let assert Ok(cell) = harness.find(deck, cell)
     cell.source
   }
-  assert source(lens) == "Changed in Zeno."
+  assert source(lens) == "Changed in junkslides."
   assert source(laws) == "## The three laws"
   assert harness.find(deck, gleam) == Error(Nil)
   // The inserted cell is replayed with the same ID, so its placement holds.
@@ -246,7 +249,7 @@ pub fn s8_pending_ops_are_rebased_onto_an_outside_edit_test() {
   assert on_disk(h, deck)
 }
 
-/// 9. Corrupt layout.json: Zeno keeps its layout and reports it.
+/// 9. Corrupt layout.json: junkslides keeps its layout and reports it.
 pub fn s9_corrupt_layout_is_kept_and_reported_test() {
   let h = harness.start("s9", 4889)
   let _ = harness.next_state(h)
@@ -306,13 +309,16 @@ pub fn s8_flush_reads_the_file_before_writing_test() {
   let h = harness.serve_with(harness.folder("s8-flush"), 4897, 60_000, 150)
   let _ = harness.next_state(h)
   let lens = example_id("03")
-  harness.send(h, protocol.Apply(1, [op.EditText(lens, "Changed in Zeno.")]))
+  harness.send(
+    h,
+    protocol.Apply(1, [op.EditText(lens, "Changed in junkslides.")]),
+  )
   let _ = harness.next_state(h)
   harness.edit(h.folder, "deck.md", "## The laws\n", "## The three laws\n")
   let #(deck, _) = harness.next_state(h)
   let assert Ok(laws) = harness.find(deck, example_id("08"))
   assert laws.source == "## The three laws"
   let assert Ok(cell) = harness.find(deck, lens)
-  assert cell.source == "Changed in Zeno."
+  assert cell.source == "Changed in junkslides."
   assert on_disk(h, deck)
 }

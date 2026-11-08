@@ -1,4 +1,4 @@
-# Zeno. Run `just --list` for recipes.
+# junkslides. Run `just --list` for recipes.
 
 default:
    @just --list
@@ -37,18 +37,18 @@ e2e: client
 # Everything that is not a spike
 test: core-test render-test server-test client-test e2e
 
-# The zeno command, run from where just is called: `just zeno serve examples/talk`
+# The junkslides command, run from where just is called: `just junkslides serve examples/talk`
 [no-cd]
-zeno *args: client
+junkslides *args: client
    cd "{{justfile_directory()}}/server" && gleam export erlang-shipment > /dev/null
    "{{justfile_directory()}}/server/build/erlang-shipment/entrypoint.sh" run {{args}}
 
-# The zeno command as last built, without compiling: `just run serve <folder>`
+# The junkslides command as last built, without compiling: `just run serve <folder>`
 [no-cd]
 run *args:
    #!/usr/bin/env bash
    entry="{{justfile_directory()}}/server/build/erlang-shipment/entrypoint.sh"
-   [ -x "$entry" ] || { echo "No build yet. Run just zeno once first." >&2; exit 1; }
+   [ -x "$entry" ] || { echo "No build yet. Run just junkslides once first." >&2; exit 1; }
    exec "$entry" run {{args}}
 
 # S5: jot coverage and the block splitter, on both targets
@@ -72,7 +72,7 @@ s3:
 chrome := env("HOME") / "Library/Caches/zeno-cft/156/chrome-headless-shell-mac-arm64/chrome-headless-shell"
 
 # The browser that prints PDFs: yours if set, or else the one the browser checks use.
-export ZENO_CHROME := env("ZENO_CHROME", if path_exists(chrome) == "true" { chrome } else { "" })
+export JUNKSLIDES_CHROME := env("JUNKSLIDES_CHROME", if path_exists(chrome) == "true" { chrome } else { "" })
 
 # Build the S1 and S2 pages and the S3 client
 browser-build:

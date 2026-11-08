@@ -1,10 +1,10 @@
-name = "zeno_server"
+name = "junkslides_server"
 version = "1.0.0"
 target = "erlang"
 
 [dependencies]
-zeno_core = { path = "../core" }
-zeno_render = { path = "../render" }
+junkslides_core = { path = "../core" }
+junkslides_render = { path = "../render" }
 gleam_stdlib = ">= 1.0.0 and < 2.0.0"
 gleam_erlang = ">= 1.3.0 and < 2.0.0"
 gleam_otp = ">= 1.3.0 and < 2.0.0"

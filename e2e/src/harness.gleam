@@ -10,14 +10,14 @@ import gleam/list
 import gleam/otp/actor
 import gleam/otp/static_supervisor
 import gleam/result
+import junkslides/file
+import junkslides/id
+import junkslides/layout
+import junkslides/protocol
+import junkslides_server/state
+import junkslides_server/view
+import junkslides_server/web
 import simplifile
-import zeno/file
-import zeno/id
-import zeno/layout
-import zeno/protocol
-import zeno_server/state
-import zeno_server/view
-import zeno_server/web
 
 const chrome = 9334
 
@@ -46,13 +46,16 @@ pub fn prepare(name: String) -> String {
   let _ = simplifile.delete(folder)
   let _ = simplifile.delete(folder <> ".view.json")
   let assert Ok(Nil) = simplifile.create_directory_all(folder)
-  list.each(["deck.md", "layout.json", "theme.css", "zeno.toml"], fn(file) {
-    let assert Ok(Nil) =
-      simplifile.copy_file(
-        filepath.join("../examples/talk", file),
-        filepath.join(folder, file),
-      )
-  })
+  list.each(
+    ["deck.md", "layout.json", "theme.css", "junkslides.toml"],
+    fn(file) {
+      let assert Ok(Nil) =
+        simplifile.copy_file(
+          filepath.join("../examples/talk", file),
+          filepath.join(folder, file),
+        )
+    },
+  )
   let assert Ok(Nil) =
     simplifile.copy_directory(
       "../examples/talk/fonts",
@@ -87,7 +90,7 @@ pub fn open_folder(
   let assert Ok(page) = cdp.connect(chrome)
   let assert Ok(_) = cdp.viewport(page, 1280, 800)
   let url = "http://127.0.0.1:" <> int.to_string(port) <> "/"
-  let assert Ok(_) = cdp.open(page, url, ".ze-selected")
+  let assert Ok(_) = cdp.open(page, url, ".jse-selected")
   #(page, folder, owner, web)
 }
 
@@ -108,19 +111,19 @@ pub fn key(page: Page, name: String, modifiers: List(cdp.Modifier)) -> Nil {
 }
 
 pub fn selected(page: Page) -> String {
-  cdp.attribute(page, ".ze-selected", "data-cell") |> result.unwrap("")
+  cdp.attribute(page, ".jse-selected", "data-cell") |> result.unwrap("")
 }
 
 pub fn cells(page: Page) -> Int {
-  cdp.count(page, ".ze-cell:not(.ze-empty)")
+  cdp.count(page, ".jse-cell:not(.jse-empty)")
 }
 
 pub fn status(page: Page) -> String {
-  cdp.html(page, ".ze-status") |> result.unwrap("")
+  cdp.html(page, ".jse-status") |> result.unwrap("")
 }
 
 pub fn problem(page: Page) -> String {
-  cdp.html(page, ".ze-problem") |> result.unwrap("")
+  cdp.html(page, ".jse-problem") |> result.unwrap("")
 }
 
 pub fn deck(folder: String) -> String {

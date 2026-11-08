@@ -1,5 +1,5 @@
 import gleam/list
-import zeno_server/figures
+import junkslides_server/figures
 
 pub fn drawings_start_at_their_svg_test() {
   assert figures.drawing(

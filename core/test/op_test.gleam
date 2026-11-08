@@ -1,12 +1,12 @@
 import gleam/option.{None, Some}
-import support/fixture.{cell, slide, sources}
-import zeno/deck.{Cell, Content, Notes, Position}
-import zeno/op.{
+import junkslides/deck.{Cell, Content, Notes, Position}
+import junkslides/op.{
   CycleKind, Delete, DeleteOnlySlide, DeleteSlide, Duplicate, EditText, Fresh,
   Insert, InsertBreak, MarkerLine, MergeWithNext, Move, MoveSlide, NoNextCell,
   Paste, PositionOutOfRange, RemoveBreak, RemoveFirstBreak, Retired, Revived,
   SlideFresh, SlideRetired, Split, Unnormalised,
 }
+import support/fixture.{cell, slide, sources}
 
 pub fn edit_text_test() {
   let #(deck, supply) = fixture.deck()

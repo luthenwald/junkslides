@@ -2,15 +2,15 @@ import gleam/dict
 import gleam/list
 import gleam/option.{Some}
 import gleam/string
-import simplifile
-import zeno/deck.{type Deck, Cell, Content, Deck, Notes, Slide}
-import zeno/dialect
-import zeno/file.{
+import junkslides/deck.{type Deck, Cell, Content, Deck, Notes, Slide}
+import junkslides/dialect
+import junkslides/file.{
   MisplacedHeader, ParseError, SlideMarkerWithoutBreak, UnknownVersion,
 }
-import zeno/id
-import zeno/layout
-import zeno/line
+import junkslides/id
+import junkslides/layout
+import junkslides/line
+import simplifile
 
 const example = "../examples/talk/deck.md"
 

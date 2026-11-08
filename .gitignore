@@ -1,7 +1,7 @@
 build/
 node_modules/
 server/priv/static/
-*.zeno-tmp
+*.js-tmp
 .DS_Store
 dist/
 .lustre/

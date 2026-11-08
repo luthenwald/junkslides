@@ -8,16 +8,16 @@ import gleam/option.{type Option, None, Some}
 import gleam/string
 import gleam/time/duration
 import gleam/time/timestamp.{type Timestamp}
-import qcheck.{type Generator}
-import zeno/deck.{
+import junkslides/deck.{
   type Cell, type Deck, Cell, Content, Deck, Notes, Position, Slide,
 }
-import zeno/file
-import zeno/history.{type History}
-import zeno/id.{type CellTag, type Id, type IdSupply}
-import zeno/layout.{type Layout}
-import zeno/line
-import zeno/op.{type Effect, type Op}
+import junkslides/file
+import junkslides/history.{type History}
+import junkslides/id.{type CellTag, type Id, type IdSupply}
+import junkslides/layout.{type Layout}
+import junkslides/line
+import junkslides/op.{type Effect, type Op}
+import qcheck.{type Generator}
 
 // Generators ---------------------------------------------------------------
 

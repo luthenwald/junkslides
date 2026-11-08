@@ -1,5 +1,5 @@
 //// The server apart from the outside edit scenarios: protocol replies,
-//// undo, view state, the theme, static files, `zeno init` and the store.
+//// undo, view state, the theme, static files, `junkslides init` and the store.
 
 import envoy
 import filepath
@@ -11,24 +11,24 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
+import junkslides/dialect
+import junkslides/file
+import junkslides/op
+import junkslides/protocol.{Token, View}
+import junkslides/render/styles
+import junkslides_server
+import junkslides_server/highlighter
+import junkslides_server/pdf
+import junkslides_server/settings
+import junkslides_server/shade
+import junkslides_server/state
+import junkslides_server/store
+import junkslides_server/theme
+import junkslides_server/view
+import junkslides_server/web
 import simplifile
 import stratus
 import support/harness.{example_id}
-import zeno/dialect
-import zeno/file
-import zeno/op
-import zeno/protocol.{Token, View}
-import zeno/render/styles
-import zeno_server
-import zeno_server/highlighter
-import zeno_server/pdf
-import zeno_server/settings
-import zeno_server/shade
-import zeno_server/state
-import zeno_server/store
-import zeno_server/theme
-import zeno_server/view
-import zeno_server/web
 
 pub fn failed_op_is_rejected_and_changes_nothing_test() {
   let h = harness.start("rejected", 4891)
@@ -86,7 +86,7 @@ pub fn view_is_stored_per_deck_test() {
 }
 
 pub fn view_file_keeps_other_decks_test() {
-  let file = filepath.join(scratch("views"), "zeno/view.json")
+  let file = filepath.join(scratch("views"), "junkslides/view.json")
   let a = View(30, False, False, 30)
   let b = View(70, False, True, 120)
   assert view.load(file, "/a") == protocol.default_view
@@ -94,11 +94,11 @@ pub fn view_file_keeps_other_decks_test() {
   let assert Ok(Nil) = view.save(file, "/b", b)
   assert view.load(file, "/a") == a
   assert view.load(file, "/b") == b
-  assert view.default_file("/home/u") == "/home/u/.config/zeno/view.json"
+  assert view.default_file("/home/u") == "/home/u/.config/junkslides/view.json"
 }
 
 pub fn view_file_without_snap_loads_test() {
-  let file = filepath.join(scratch("old-views"), "zeno/view.json")
+  let file = filepath.join(scratch("old-views"), "junkslides/view.json")
   let assert Ok(Nil) =
     simplifile.create_directory_all(filepath.directory_name(file))
   let assert Ok(Nil) =
@@ -114,7 +114,7 @@ pub fn theme_change_reloads_and_updates_variants_test() {
   let h = harness.start("theme", 4894)
   let assert protocol.State(variants:, ..) = harness.next(h)
   assert variants == ["large", "small", "quiet", "emphasis"]
-  harness.write(h.folder, "theme.css", ":root { --zeno-variants: \"loud\"; }\n")
+  harness.write(h.folder, "theme.css", ":root { --js-variants: \"loud\"; }\n")
   assert harness.next(h) == protocol.ReloadTheme
   let assert protocol.State(variants:, ..) = harness.next(h)
   assert variants == ["loud"]
@@ -122,7 +122,7 @@ pub fn theme_change_reloads_and_updates_variants_test() {
   harness.write(
     h.folder,
     "theme.css",
-    ":root { --zeno-variants: \"loud\"; }\n.zeno-slide { color: #000; }\n",
+    ":root { --js-variants: \"loud\"; }\n.js-slide { color: #000; }\n",
   )
   assert harness.next(h) == protocol.ReloadTheme
   assert harness.quiet(h, 200)
@@ -136,7 +136,7 @@ pub fn marks_follow_the_theme_test() {
   harness.send(h, protocol.Apply(1, [op.EditText(cell, "A [word]{.now}.")]))
   let assert protocol.State(diagnostics:, ..) = next_full_state(h)
   assert diagnostics == [protocol.Diagnostic(cell, [dialect.UnknownMark])]
-  harness.write(h.folder, "theme.css", ":root { --zeno-marks: \"now\"; }\n")
+  harness.write(h.folder, "theme.css", ":root { --js-marks: \"now\"; }\n")
   let assert protocol.State(diagnostics:, ..) = next_full_state(h)
   assert diagnostics == []
 }
@@ -178,18 +178,16 @@ fn next_figures(h: harness.Harness) -> List(#(String, String)) {
 
 pub fn variants_are_read_from_the_theme_test() {
   assert theme.marks(
-      ":root { --zeno-marks: \"now quiet\"; --zeno-variants: \"a\" }",
+      ":root { --js-marks: \"now quiet\"; --js-variants: \"a\" }",
     )
     == ["now", "quiet"]
   assert theme.marks(theme.default_css) == []
   assert theme.variants(theme.default_css)
     == ["large", "small", "quiet", "emphasis"]
-  assert theme.variants(
-      ":root {\n  --zeno-variants:\n    'a  b'\n    \"c\" ;\n}",
-    )
+  assert theme.variants(":root {\n  --js-variants:\n    'a  b'\n    \"c\" ;\n}")
     == ["a", "b", "c"]
   assert theme.variants(".x { color: red; }") == []
-  assert theme.variants(":root { --zeno-variants: \"a a\" }") == ["a"]
+  assert theme.variants(":root { --js-variants: \"a a\" }") == ["a"]
 }
 
 pub fn files_the_theme_loads_are_read_test() {
@@ -209,7 +207,7 @@ pub fn files_the_theme_loads_are_read_test() {
 pub fn default_theme_is_the_example_theme_test() {
   let assert Ok(css) = simplifile.read("../examples/talk/theme.css")
   assert theme.default_css == css
-  let assert Ok(toml) = simplifile.read("../examples/talk/zeno.toml")
+  let assert Ok(toml) = simplifile.read("../examples/talk/junkslides.toml")
   assert settings.default_toml == toml
   let assert Ok(defaults) = settings.parse(toml)
   assert list.all(settings.files(defaults), fn(file) {
@@ -233,31 +231,31 @@ pub fn static_files_stay_inside_the_deck_folder_test() {
   }
   let #(status, body) = get("/")
   assert status == 200
-  assert string.contains(body, "/.zeno/zeno_client.js")
-  assert string.contains(body, "/.zeno/base.css")
-  assert get("/.zeno/base.css") == #(200, styles.base_css)
+  assert string.contains(body, "/.js/junkslides_client.js")
+  assert string.contains(body, "/.js/base.css")
+  assert get("/.js/base.css") == #(200, styles.base_css)
   // The default fonts, as raw files, and nothing else from around them.
   let assert Ok(req) =
-    request.to("http://127.0.0.1:4895/.zeno/fonts/et-book-roman.woff2")
+    request.to("http://127.0.0.1:4895/.js/fonts/et-book-roman.woff2")
   let assert Ok(font) = httpc.send_bits(request.set_body(req, <<>>))
   assert font.status == 200
   assert response.get_header(font, "content-type") == Ok("font/woff2")
-  assert get("/.zeno/fonts/victor-mono.LICENSE").0 == 200
-  assert get("/.zeno/fonts/%2e%2e/static/zeno.css").0 == 404
+  assert get("/.js/fonts/victor-mono.LICENSE").0 == 200
+  assert get("/.js/fonts/%2e%2e/static/junkslides.css").0 == 404
   assert get("/theme.css") == #(200, harness.read(h.folder, "theme.css"))
   let assert Ok(Nil) =
     simplifile.write(filepath.join(h.folder, "a b.txt"), "spaced")
   assert get("/a%20b.txt") == #(200, "spaced")
   // The editor's own paths start with a dot, so they hide no deck file.
   let assert Ok(Nil) =
-    simplifile.create_directory_all(filepath.join(h.folder, "zeno"))
+    simplifile.create_directory_all(filepath.join(h.folder, "js"))
   let assert Ok(Nil) =
-    simplifile.write(filepath.join(h.folder, "zeno/zeno.css"), "mine")
-  assert get("/zeno/zeno.css") == #(200, "mine")
+    simplifile.write(filepath.join(h.folder, "js/junkslides.css"), "mine")
+  assert get("/js/junkslides.css") == #(200, "mine")
   let assert Ok(Nil) = simplifile.write(filepath.join(h.folder, "ws"), "too")
   assert get("/ws") == #(200, "too")
   assert get("/missing.png").0 == 404
-  assert get("/.deck.md.zeno-tmp").0 == 404
+  assert get("/.deck.md.js-tmp").0 == 404
   assert get("/%2e%2e/static/theme.css").0 == 404
   assert get("/a%2f..%2f..%2fstatic%2ftheme.css").0 == 404
 }
@@ -265,7 +263,7 @@ pub fn static_files_stay_inside_the_deck_folder_test() {
 pub fn serve_says_when_the_port_is_taken_test() {
   let h = harness.start("port-taken", 4899)
   let _ = harness.next_state(h)
-  let assert Error(message) = zeno_server.serve(h.folder, 4899)
+  let assert Error(message) = junkslides_server.serve(h.folder, 4899)
   assert string.contains(message, "Could not listen on 127.0.0.1:4899.")
   assert string.contains(message, "--port N")
 }
@@ -284,7 +282,7 @@ pub fn resolve_refuses_paths_leaving_the_folder_test() {
 
 pub fn init_creates_a_deck_and_never_replaces_one_test() {
   let folder = filepath.join(scratch("init"), "new deck")
-  let assert Ok(Nil) = zeno_server.init(folder)
+  let assert Ok(Nil) = junkslides_server.init(folder)
   let assert Ok(text) = simplifile.read(filepath.join(folder, "deck.md"))
   let assert Ok(#(deck, _)) = file.parse(text, state.new_supply())
   assert file.print(deck) == text
@@ -293,7 +291,7 @@ pub fn init_creates_a_deck_and_never_replaces_one_test() {
   assert cell.source == "# Untitled"
   assert simplifile.read(filepath.join(folder, "theme.css"))
     == Ok(theme.default_css)
-  assert simplifile.read(filepath.join(folder, "zeno.toml"))
+  assert simplifile.read(filepath.join(folder, "junkslides.toml"))
     == Ok(settings.default_toml)
   // The fonts the default settings name, with their licences.
   let assert Ok(fonts) = theme.fonts_folder()
@@ -309,7 +307,7 @@ pub fn init_creates_a_deck_and_never_replaces_one_test() {
   })
   let assert Ok(layout) = simplifile.read(filepath.join(folder, "layout.json"))
   assert result.is_ok(file.parse_layout(layout))
-  let assert Error(message) = zeno_server.init(folder)
+  let assert Error(message) = junkslides_server.init(folder)
   assert string.contains(message, "already")
   assert simplifile.read(filepath.join(folder, "deck.md")) == Ok(text)
 }
@@ -319,17 +317,18 @@ pub fn init_keeps_an_existing_theme_and_settings_test() {
   let assert Ok(Nil) =
     simplifile.write(filepath.join(folder, "theme.css"), "mine")
   let assert Ok(Nil) =
-    simplifile.write(filepath.join(folder, "zeno.toml"), "# mine")
-  let assert Ok(Nil) = zeno_server.init(folder)
+    simplifile.write(filepath.join(folder, "junkslides.toml"), "# mine")
+  let assert Ok(Nil) = junkslides_server.init(folder)
   assert simplifile.read(filepath.join(folder, "theme.css")) == Ok("mine")
-  assert simplifile.read(filepath.join(folder, "zeno.toml")) == Ok("# mine")
+  assert simplifile.read(filepath.join(folder, "junkslides.toml"))
+    == Ok("# mine")
   // Settings of its own bring their own fonts.
   assert simplifile.is_directory(filepath.join(folder, "fonts")) == Ok(False)
 }
 
 pub fn serve_refuses_a_folder_without_a_deck_test() {
-  let assert Error(message) = zeno_server.serve(scratch("empty"), 4896)
-  assert string.contains(message, "zeno init")
+  let assert Error(message) = junkslides_server.serve(scratch("empty"), 4896)
+  assert string.contains(message, "junkslides init")
 }
 
 pub fn atomic_write_leaves_no_temporary_file_test() {
@@ -442,7 +441,7 @@ pub fn code_blocks_are_highlighted_for_clients_test() {
 }
 
 pub fn a_missing_command_leaves_code_plain_test() {
-  assert highlighter.languages("zeno-no-such-command") == Error(Nil)
+  assert highlighter.languages("js-no-such-command") == Error(Nil)
 }
 
 // Export ---------------------------------------------------------------------
@@ -498,7 +497,7 @@ pub fn a_pdf_is_written_beside_the_page_named_after_the_deck_test() {
   let browser =
     fake_browser("export-pdf-browser", "printf '%%PDF-1.7 x' > \"$out\"")
   let assert Ok(report) =
-    zeno_server.export_pdf(folder, None, "no-such-command", browser)
+    junkslides_server.export_pdf(folder, None, "no-such-command", browser)
   let out = filepath.join(folder, "export")
   assert report.page == filepath.join(out, "export-pdf.pdf")
   assert harness.read(out, "export-pdf.pdf") == "%PDF-1.7 x"
@@ -506,7 +505,7 @@ pub fn a_pdf_is_written_beside_the_page_named_after_the_deck_test() {
   assert report.warnings != []
   assert harness.read(folder, "deck.md") == deck
   assert simplifile.read_directory(out)
-    |> result.map(list.filter(_, string.ends_with(_, ".zeno-tmp")))
+    |> result.map(list.filter(_, string.ends_with(_, ".js-tmp")))
     == Ok([])
 }
 
@@ -517,7 +516,7 @@ pub fn a_failed_pdf_leaves_the_last_one_alone_test() {
   let assert Ok(Nil) =
     simplifile.write(filepath.join(out, "export-pdf-fails.pdf"), "the last one")
   let attempt = fn(name, body) {
-    zeno_server.export_pdf(
+    junkslides_server.export_pdf(
       folder,
       None,
       "no-such-command",
@@ -540,23 +539,24 @@ pub fn a_deck_that_does_not_read_makes_no_pdf_test() {
     simplifile.write(filepath.join(folder, "layout.json"), "not json")
   let browser = fake_browser("export-pdf-broken-browser", "echo x > \"$out\"")
   let assert Error(_) =
-    zeno_server.export_pdf(folder, None, "no-such-command", browser)
+    junkslides_server.export_pdf(folder, None, "no-such-command", browser)
   assert !exists(folder, "export/export-pdf-broken.pdf")
 }
 
 pub fn the_browser_named_by_the_environment_comes_first_test() {
   let browser = fake_browser("export-pdf-find", "exit 0")
-  let before = envoy.get("ZENO_CHROME")
-  envoy.set("ZENO_CHROME", browser)
+  let before = envoy.get("JUNKSLIDES_CHROME")
+  envoy.set("JUNKSLIDES_CHROME", browser)
   let found = pdf.find()
-  envoy.set("ZENO_CHROME", "/no/such/browser")
+  envoy.set("JUNKSLIDES_CHROME", "/no/such/browser")
   let missing = pdf.find()
   case before {
-    Ok(value) -> envoy.set("ZENO_CHROME", value)
-    Error(Nil) -> envoy.unset("ZENO_CHROME")
+    Ok(value) -> envoy.set("JUNKSLIDES_CHROME", value)
+    Error(Nil) -> envoy.unset("JUNKSLIDES_CHROME")
   }
   assert found == Ok(browser)
-  assert missing == Error("ZENO_CHROME names no program: /no/such/browser")
+  assert missing
+    == Error("JUNKSLIDES_CHROME names no program: /no/such/browser")
 }
 
 pub fn a_file_address_escapes_what_would_break_it_test() {
@@ -573,7 +573,7 @@ pub fn export_writes_a_folder_and_leaves_the_deck_alone_test() {
   let deck = harness.read(folder, "deck.md")
   let layout = harness.read(folder, "layout.json")
   let assert Ok(report) =
-    zeno_server.export_deck(folder, None, "no-such-command")
+    junkslides_server.export_deck(folder, None, "no-such-command")
   let out = filepath.join(folder, "export")
   assert report.page == filepath.join(out, "index.html")
   assert harness.read(out, "theme.css") == harness.read(folder, "theme.css")
@@ -609,7 +609,8 @@ pub fn export_writes_a_folder_and_leaves_the_deck_alone_test() {
 pub fn export_copies_the_files_the_theme_loads_test() {
   let folder = export_deck("export-theme-files")
   // Only the theme loads files here.
-  let assert Ok(Nil) = simplifile.delete(filepath.join(folder, "zeno.toml"))
+  let assert Ok(Nil) =
+    simplifile.delete(filepath.join(folder, "junkslides.toml"))
   let write = fn(relative, contents) {
     let path = filepath.join(folder, relative)
     let assert Ok(Nil) =
@@ -625,14 +626,14 @@ pub fn export_copies_the_files_the_theme_loads_test() {
   write(
     "theme.css",
     "@font-face { src: url(\"fonts/custom.woff2\") format(\"woff2\"); }
-.zeno-slide { background: url('./art/paper.png?v=2'), url(gone.woff2); }
+.js-slide { background: url('./art/paper.png?v=2'), url(gone.woff2); }
 .a { background: url(../export-theme-files-outside.woff2); }
 .b { background: url(/art/paper.png); }
 .c { background: url(assets/sub/font.woff2); }
 ",
   )
   let assert Ok(report) =
-    zeno_server.export_deck(folder, None, "no-such-command")
+    junkslides_server.export_deck(folder, None, "no-such-command")
   let out = filepath.join(folder, "export")
   assert harness.read(out, "fonts/custom.woff2") == "custom"
   assert harness.read(out, "art/paper.png") == "paper"
@@ -640,8 +641,8 @@ pub fn export_copies_the_files_the_theme_loads_test() {
   assert exists(out, "fonts/et-book.LICENSE")
   assert exists(out, "fonts/OFL-licence.txt")
   assert !exists(out, "fonts/.LICENSE.swp")
-  // Not loaded by this theme, so not exported, though Zeno ships it and the
-  // default zeno.toml names it.
+  // Not loaded by this theme, so not exported, though junkslides ships it and the
+  // default junkslides.toml names it.
   assert !exists(out, "fonts/et-book-roman.woff2")
   assert !exists(out, "../export-theme-files-outside.woff2")
   assert report.warnings
@@ -654,7 +655,7 @@ pub fn export_copies_the_files_the_theme_loads_test() {
     ]
 }
 
-/// The fonts zeno.toml names reach the export with their licences, and its
+/// The fonts junkslides.toml names reach the export with their licences, and its
 /// settings.css names them by paths beside the page.
 pub fn export_writes_the_settings_and_their_fonts_test() {
   let folder = export_deck("export-settings")
@@ -669,7 +670,7 @@ pub fn export_writes_the_settings_and_their_fonts_test() {
   write("type/LICENSE.txt", "licence")
   write("type/unused.woff2", "unused")
   write(
-    "zeno.toml",
+    "junkslides.toml",
     "[font.text]\nfamily = \"Serif\"\nregular = \"type/serif.woff2\"\n"
       <> "italic = \"type/gone.woff2\"\n[palette]\ntext = \"#333\"\n",
   )
@@ -677,14 +678,14 @@ pub fn export_writes_the_settings_and_their_fonts_test() {
   write("settings.css", "mine")
   write("theme.css", ".x { background: url(settings.css); }\n")
   let assert Ok(report) =
-    zeno_server.export_deck(folder, None, "no-such-command")
+    junkslides_server.export_deck(folder, None, "no-such-command")
   let out = filepath.join(folder, "export")
   assert harness.read(out, "type/serif.woff2") == "serif"
   assert exists(out, "type/LICENSE.txt")
   assert !exists(out, "type/unused.woff2")
   let css = harness.read(out, "settings.css")
   assert string.contains(css, "url(\"type/serif.woff2\")")
-  assert string.contains(css, "--zeno-text: #333;")
+  assert string.contains(css, "--js-text: #333;")
   let page = harness.read(out, "index.html")
   let assert Ok(#(before_theme, _)) =
     string.split_once(page, "href=\"theme.css\"")
@@ -693,15 +694,16 @@ pub fn export_writes_the_settings_and_their_fonts_test() {
     == [
       "Missing image: gone.png",
       "Left out an image outside the deck: ../export-settings-secret.png",
-      "Missing file in zeno.toml: type/gone.woff2",
-      "theme.css loads settings.css, which the export writes from zeno.toml.",
+      "Missing file in junkslides.toml: type/gone.woff2",
+      "theme.css loads settings.css, which the export writes from junkslides.toml.",
     ]
 }
 
 pub fn export_without_settings_links_none_test() {
   let folder = export_deck("export-no-settings")
-  let _ = simplifile.delete(filepath.join(folder, "zeno.toml"))
-  let assert Ok(_) = zeno_server.export_deck(folder, None, "no-such-command")
+  let _ = simplifile.delete(filepath.join(folder, "junkslides.toml"))
+  let assert Ok(_) =
+    junkslides_server.export_deck(folder, None, "no-such-command")
   let out = filepath.join(folder, "export")
   assert !exists(out, "settings.css")
   assert !string.contains(harness.read(out, "index.html"), "settings.css")
@@ -713,11 +715,11 @@ pub fn export_again_replaces_and_deletes_nothing_test() {
   let assert Ok(Nil) = simplifile.create_directory_all(out)
   let assert Ok(Nil) = simplifile.write(filepath.join(out, "mine.txt"), "mine")
   let assert Ok(_) =
-    zeno_server.export_deck(folder, Some(out), "no-such-command")
+    junkslides_server.export_deck(folder, Some(out), "no-such-command")
   let assert Ok(Nil) =
     simplifile.write(filepath.join(folder, "theme.css"), "new")
   let assert Ok(_) =
-    zeno_server.export_deck(folder, Some(out), "no-such-command")
+    junkslides_server.export_deck(folder, Some(out), "no-such-command")
   assert harness.read(out, "theme.css") == "new"
   assert harness.read(out, "mine.txt") == "mine"
 }
@@ -725,9 +727,9 @@ pub fn export_again_replaces_and_deletes_nothing_test() {
 pub fn export_refuses_the_deck_folder_and_its_assets_test() {
   let folder = export_deck("export-refuses")
   let assert Error(_) =
-    zeno_server.export_deck(folder, Some(folder), "no-such-command")
+    junkslides_server.export_deck(folder, Some(folder), "no-such-command")
   let assert Error(_) =
-    zeno_server.export_deck(
+    junkslides_server.export_deck(
       folder,
       Some(filepath.join(folder, "assets/out")),
       "no-such-command",
@@ -740,19 +742,21 @@ pub fn export_writes_nothing_when_a_file_does_not_read_test() {
   let folder = export_deck("export-broken-deck")
   let assert Ok(Nil) =
     simplifile.write(filepath.join(folder, "deck.md"), "<!-- deck v99 -->\n")
-  let assert Error(_) = zeno_server.export_deck(folder, None, "no-such-command")
+  let assert Error(_) =
+    junkslides_server.export_deck(folder, None, "no-such-command")
   assert simplifile.is_directory(filepath.join(folder, "export")) == Ok(False)
   let folder = export_deck("export-broken-layout")
   let assert Ok(Nil) =
     simplifile.write(filepath.join(folder, "layout.json"), "{")
-  let assert Error(_) = zeno_server.export_deck(folder, None, "no-such-command")
+  let assert Error(_) =
+    junkslides_server.export_deck(folder, None, "no-such-command")
   assert simplifile.is_directory(filepath.join(folder, "export")) == Ok(False)
   let folder = export_deck("export-broken-settings")
   let assert Ok(Nil) =
-    simplifile.write(filepath.join(folder, "zeno.toml"), "[fonts]\n")
+    simplifile.write(filepath.join(folder, "junkslides.toml"), "[fonts]\n")
   let assert Error(message) =
-    zeno_server.export_deck(folder, None, "no-such-command")
-  assert message == "zeno.toml: fonts is not a setting."
+    junkslides_server.export_deck(folder, None, "no-such-command")
+  assert message == "junkslides.toml: fonts is not a setting."
   assert simplifile.is_directory(filepath.join(folder, "export")) == Ok(False)
 }
 
@@ -765,14 +769,14 @@ pub fn export_highlights_code_test() {
     )
   let assert Ok(cwd) = simplifile.current_directory()
   let assert Ok(report) =
-    zeno_server.export_deck(
+    junkslides_server.export_deck(
       folder,
       None,
       filepath.join(cwd, "test/fixtures/fake-tree-sitter"),
     )
   assert string.contains(
     harness.read(filepath.directory_name(report.page), "index.html"),
-    "zeno-tok-",
+    "js-tok-",
   )
 }
 
@@ -796,12 +800,12 @@ pub fn settings_read_code_keywords_test() {
 }
 
 /// The example's gleam block has no grammar here, so it is shaded, and new
-/// keywords in zeno.toml shade it again (D30).
+/// keywords in junkslides.toml shade it again (D30).
 pub fn keywords_from_settings_shade_again_test() {
   let h = harness.start("keywords", 4971)
   let assert protocol.Highlights([block]) = harness.next_highlights(h)
   assert list.contains(block.tokens, Token(Some("keyword"), "fn"))
-  harness.write(h.folder, "zeno.toml", "[code]\nkeywords = [\"pub\"]\n")
+  harness.write(h.folder, "junkslides.toml", "[code]\nkeywords = [\"pub\"]\n")
   let assert protocol.Highlights([block]) = harness.next_highlights(h)
   assert list.contains(block.tokens, Token(Some("keyword"), "pub"))
   assert !list.contains(block.tokens, Token(Some("keyword"), "fn"))
@@ -811,22 +815,26 @@ pub fn settings_reload_and_keep_the_last_good_sheet_test() {
   let h = harness.start("settings", 4960)
   let _ = harness.next_state(h)
   let get = fn() {
-    let assert Ok(req) = request.to("http://127.0.0.1:4960/.zeno/settings.css")
+    let assert Ok(req) = request.to("http://127.0.0.1:4960/.js/settings.css")
     let assert Ok(response) = httpc.send(req)
     assert response.status == 200
     response.body
   }
   let good = "[palette]\nbackground = \"#101010\"\n"
   let assert Ok(expected) = settings.parse(good)
-  harness.write(h.folder, "zeno.toml", good)
+  harness.write(h.folder, "junkslides.toml", good)
   assert harness.next(h) == protocol.ReloadTheme
   assert get() == settings.to_css(expected, "/")
   // A file that does not read keeps the sheet, says why, and reloads nothing.
-  harness.write(h.folder, "zeno.toml", "[palette]\nbackgrund = \"#000\"\n")
+  harness.write(
+    h.folder,
+    "junkslides.toml",
+    "[palette]\nbackgrund = \"#000\"\n",
+  )
   let notice = harness.next(h)
   assert notice
     == protocol.Notice(
-      "zeno.toml: palette.backgrund is not a setting. Zeno keeps the settings"
+      "junkslides.toml: palette.backgrund is not a setting. junkslides keeps the settings"
       <> " it last read until the file is fixed.",
     )
   assert harness.quiet(h, 300)
@@ -835,13 +843,14 @@ pub fn settings_reload_and_keep_the_last_good_sheet_test() {
   let late = harness.connect(h.folder, 4960)
   let _ = harness.next_state(late)
   assert harness.next_notice(late)
-    == "zeno.toml: palette.backgrund is not a setting. Zeno keeps the settings it last read until the file is fixed."
-  harness.write(h.folder, "zeno.toml", good <> "accent = \"#fff\"\n")
-  assert harness.next(h) == protocol.Notice("zeno.toml reads again.")
+    == "junkslides.toml: palette.backgrund is not a setting. junkslides keeps the settings it last read until the file is fixed."
+  harness.write(h.folder, "junkslides.toml", good <> "accent = \"#fff\"\n")
+  assert harness.next(h) == protocol.Notice("junkslides.toml reads again.")
   assert harness.next(h) == protocol.ReloadTheme
-  assert string.contains(get(), "--zeno-accent: #fff;")
+  assert string.contains(get(), "--js-accent: #fff;")
   // Without the file there are no settings.
-  let assert Ok(Nil) = simplifile.delete(filepath.join(h.folder, "zeno.toml"))
+  let assert Ok(Nil) =
+    simplifile.delete(filepath.join(h.folder, "junkslides.toml"))
   assert harness.next(h) == protocol.ReloadTheme
   assert get() == ""
 }
@@ -851,12 +860,12 @@ pub fn settings_name_missing_font_files_test() {
   let _ = harness.next_state(h)
   harness.write(
     h.folder,
-    "zeno.toml",
+    "junkslides.toml",
     "[font.text]\nfamily = \"Gone\"\nregular = \"fonts/gone.woff2\"\n",
   )
   assert harness.next(h)
     == protocol.Notice(
-      "zeno.toml names files that are missing: fonts/gone.woff2.",
+      "junkslides.toml names files that are missing: fonts/gone.woff2.",
     )
   assert harness.next(h) == protocol.ReloadTheme
 }
@@ -884,7 +893,7 @@ pub fn only_the_editors_own_page_reaches_the_server_test() {
   let h = harness.start("origins", 4973)
   let _ = harness.next_state(h)
   let open = fn(origin) {
-    let assert Ok(req) = request.to("http://127.0.0.1:4973/.zeno/ws")
+    let assert Ok(req) = request.to("http://127.0.0.1:4973/.js/ws")
     stratus.new(request: request.set_header(req, "origin", origin), state: Nil)
     |> stratus.on_message(fn(state, _, _) { stratus.continue(state) })
     |> stratus.start

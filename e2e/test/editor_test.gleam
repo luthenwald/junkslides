@@ -12,11 +12,11 @@ import harness.{
   cell, cells, deck, eventually, key, open, open_folder, open_with, prepare,
   press, problem, saved_view, selected, serve, status,
 }
+import junkslides/protocol
+import junkslides_server/view
 import simplifile
-import zeno/protocol
-import zeno_server/view
 
-/// The editor's source text is in Victor Mono from Zeno's own fonts, even when
+/// The editor's source text is in Victor Mono from the fonts that come with junkslides, even when
 /// the theme names no font and the deck has none.
 pub fn the_source_text_has_the_editors_own_mono_test() {
   let folder = prepare("editor-mono")
@@ -24,7 +24,7 @@ pub fn the_source_text_has_the_editors_own_mono_test() {
   let assert Ok(Nil) =
     simplifile.write(
       filepath.join(folder, "theme.css"),
-      ".zeno-slide { color: #000; }\n",
+      ".js-slide { color: #000; }\n",
     )
   let #(page, _, _, _) = open_folder(folder, 4951)
   press(page, "Enter")
@@ -40,9 +40,9 @@ pub fn loads_the_deck_test() {
   let #(page, _) = open("load", 4901)
   assert cells(page) == 16
   // The last slide has no cells; it is shown as a place to select.
-  assert cdp.count(page, ".ze-empty") == 1
-  assert cdp.count(page, ".ze-slide") == 7
-  assert cdp.count(page, ".ze-notes") == 2
+  assert cdp.count(page, ".jse-empty") == 1
+  assert cdp.count(page, ".jse-slide") == 7
+  assert cdp.count(page, ".jse-notes") == 2
   assert selected(page) == cell("02")
   assert string.contains(status(page), "command")
   assert string.contains(status(page), "01/07")
@@ -85,14 +85,14 @@ pub fn typing_reaches_the_file_test() {
 pub fn new_cell_with_a_break_starts_a_slide_test() {
   let #(page, folder) = open("new", 4904)
   press(page, "o")
-  assert eventually(fn() { cdp.count(page, ".ze-editing") == 1 })
+  assert eventually(fn() { cdp.count(page, ".jse-editing") == 1 })
   assert cells(page) == 17
   let assert Ok(_) = cdp.type_text(page, "Fresh\n---\nAfter")
   // The break waits for the commit.
   process.sleep(400)
-  assert cdp.count(page, ".ze-slide") == 7
+  assert cdp.count(page, ".jse-slide") == 7
   press(page, "Escape")
-  assert eventually(fn() { cdp.count(page, ".ze-slide") == 8 })
+  assert eventually(fn() { cdp.count(page, ".jse-slide") == 8 })
   assert eventually(fn() {
     let text = deck(folder)
     string.contains(text, "# Why lenses")
@@ -175,10 +175,10 @@ pub fn restructuring_keys_test() {
   // A new slide starting at the second cell, then joined again.
   press(page, "j")
   press(page, "b")
-  assert eventually(fn() { cdp.count(page, ".ze-slide") == 8 })
+  assert eventually(fn() { cdp.count(page, ".jse-slide") == 8 })
   assert has("# Why lenses\n\n---\n<!-- slide ")
   press(page, "B")
-  assert eventually(fn() { cdp.count(page, ".ze-slide") == 7 })
+  assert eventually(fn() { cdp.count(page, ".jse-slide") == 7 })
   press(page, "k")
   press(page, "m")
   assert eventually(fn() { cells(page) == 15 })
@@ -197,8 +197,8 @@ pub fn cut_on_an_empty_slide_deletes_it_test() {
   list.each(list.repeat("}", 6), press(page, _))
   assert eventually(fn() { string.contains(status(page), "07/07") })
   press(page, "d")
-  assert eventually(fn() { cdp.count(page, ".ze-slide") == 6 })
-  assert cdp.count(page, ".ze-empty") == 0
+  assert eventually(fn() { cdp.count(page, ".jse-slide") == 6 })
+  assert cdp.count(page, ".jse-empty") == 0
   assert eventually(fn() { !string.contains(deck(folder), cell("14")) })
   // The end of the slide before it is selected.
   assert selected(page) == cell("17")
@@ -210,7 +210,7 @@ pub fn ctrl_shift_d_deletes_a_slide_with_its_cells_test() {
   let #(page, folder) = open("delete-slide", 4938)
   let original = deck(folder)
   key(page, "D", [cdp.Ctrl, cdp.Shift])
-  assert eventually(fn() { cdp.count(page, ".ze-slide") == 6 })
+  assert eventually(fn() { cdp.count(page, ".jse-slide") == 6 })
   assert cells(page) == 13
   assert string.contains(
     status(page),
@@ -233,7 +233,7 @@ pub fn marker_line_is_shown_and_can_be_dropped_test() {
   assert string.contains(status(page), "Esc twice")
   press(page, "Escape")
   assert string.contains(status(page), "command")
-  assert cdp.count(page, ".ze-problem") == 0
+  assert cdp.count(page, ".jse-problem") == 0
   assert deck(folder) == original
 }
 
@@ -245,7 +245,7 @@ pub fn split_at_the_cursor_test() {
   key(page, "Enter", [cdp.Alt])
   assert eventually(fn() { cells(page) == 17 })
   // Edit mode continues in the new cell, which has the rest of the text.
-  assert eventually(fn() { cdp.count(page, ".ze-editing") == 1 })
+  assert eventually(fn() { cdp.count(page, ".jse-editing") == 1 })
   assert selected(page) != cell("02")
   press(page, "Escape")
   assert eventually(fn() {
@@ -258,17 +258,17 @@ pub fn split_at_the_cursor_test() {
 pub fn panes_hide_and_the_view_is_saved_test() {
   let #(page, folder) = open("hide", 4909)
   key(page, "[", [cdp.Ctrl])
-  assert eventually(fn() { cdp.count(page, ".ze-cells-pane") == 0 })
+  assert eventually(fn() { cdp.count(page, ".jse-cells-pane") == 0 })
   assert eventually(fn() { saved_view(folder).cells_hidden })
   // Hiding the other pane shows this one again: never both hidden.
   key(page, "]", [cdp.Ctrl])
-  assert eventually(fn() { cdp.count(page, ".ze-slide-pane") == 0 })
-  assert cdp.count(page, ".ze-cells-pane") == 1
+  assert eventually(fn() { cdp.count(page, ".jse-slide-pane") == 0 })
+  assert cdp.count(page, ".jse-cells-pane") == 1
   assert eventually(fn() {
     saved_view(folder) == protocol.View(40, False, True, 30)
   })
   key(page, "]", [cdp.Ctrl])
-  assert eventually(fn() { cdp.count(page, ".ze-slide-pane") == 1 })
+  assert eventually(fn() { cdp.count(page, ".jse-slide-pane") == 1 })
 }
 
 pub fn a_view_with_both_panes_hidden_shows_the_cells_test() {
@@ -276,13 +276,13 @@ pub fn a_view_with_both_panes_hidden_shows_the_cells_test() {
   let assert Ok(Nil) =
     view.save(folder <> ".view.json", folder, protocol.View(40, True, True, 30))
   let #(page, _, _, _) = open_folder(folder, 4914)
-  assert cdp.count(page, ".ze-cells-pane") == 1
-  assert cdp.count(page, ".ze-slide-pane") == 0
+  assert cdp.count(page, ".jse-cells-pane") == 1
+  assert cdp.count(page, ".jse-slide-pane") == 0
 }
 
 pub fn divider_drags_and_is_saved_test() {
   let #(page, folder) = open("divider", 4910)
-  let assert Ok(b) = cdp.box(page, ".ze-divider")
+  let assert Ok(b) = cdp.box(page, ".jse-divider")
   let y = b.y +. 100.0
   let assert Ok(_) = cdp.mouse(page, cdp.Press, b.x +. 2.0, y)
   list.each([550, 650, 750, 770], fn(x) {
@@ -291,7 +291,7 @@ pub fn divider_drags_and_is_saved_test() {
   let assert Ok(_) = cdp.mouse(page, cdp.Release, 770.0, y)
   // 770 of 1280 pixels is in the strip for 60 percent.
   assert eventually(fn() { saved_view(folder).cells_width == 60 })
-  let assert Ok(pane) = cdp.box(page, ".ze-cells-pane")
+  let assert Ok(pane) = cdp.box(page, ".jse-cells-pane")
   assert int.absolute_value(cdp.round(pane.w) - 768) <= 2
 }
 
@@ -302,7 +302,7 @@ pub fn outside_edits_appear_test() {
   let assert Ok(Nil) =
     simplifile.write(path, string.replace(text, "# Why lenses", "# Why optics"))
   assert eventually(fn() {
-    cdp.attribute(page, ".ze-selected .ze-grow", "data-value")
+    cdp.attribute(page, ".jse-selected .jse-grow", "data-value")
     == Ok("# Why optics")
   })
 }

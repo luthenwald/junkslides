@@ -1,11 +1,11 @@
 import gleam/option.{None, Some}
 import gleam/time/duration
 import gleam/time/timestamp
+import junkslides/deck
+import junkslides/history
+import junkslides/layout
+import junkslides/op
 import support/fixture.{cell}
-import zeno/deck
-import zeno/history
-import zeno/layout
-import zeno/op
 
 fn edit(d: deck.Deck, text: String) -> deck.Deck {
   let #(_, supply) = fixture.deck()

@@ -49,8 +49,8 @@ packages = [
   { name = "tom", version = "2.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib", "gleam_time"], otp_app = "tom", source = "hex", outer_checksum = "DCF04CB7AB35D58CFC598C66EA2E1816D160759802C89B2BA6238780D59BC256" },
   { name = "websocks", version = "4.0.1", build_tools = ["gleam"], requirements = ["gleam_crypto", "gleam_erlang", "gleam_stdlib"], otp_app = "websocks", source = "hex", outer_checksum = "89B0C31A032CBE28D4C5FB5CC25A8A690669FEBA501C63F99A4E8F5748750B2A" },
   { name = "wisp", version = "2.2.2", build_tools = ["gleam"], requirements = ["directories", "exception", "filepath", "gleam_crypto", "gleam_erlang", "gleam_http", "gleam_json", "gleam_stdlib", "houdini", "logging", "marceau", "mist", "simplifile"], otp_app = "wisp", source = "hex", outer_checksum = "5FF5F1E288C3437252ABB93D8F9CF42FF652CE7AD54480CFE736038DC09C4F22" },
-  { name = "zeno_core", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib", "gleam_time", "jot"], source = "local", path = "../core" },
-  { name = "zeno_render", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib", "jot", "lustre", "zeno_core"], source = "local", path = "../render" },
+  { name = "junkslides_core", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib", "gleam_time", "jot"], source = "local", path = "../core" },
+  { name = "junkslides_render", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib", "jot", "lustre", "junkslides_core"], source = "local", path = "../render" },
 ]
 
 [requirements]
@@ -62,5 +62,5 @@ gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
 lustre = { version = ">= 5.7.1 and < 6.0.0" }
 lustre_dev_tools = { version = ">= 2.4.0 and < 3.0.0" }
 lustre_websocket = { version = ">= 1.1.0 and < 2.0.0" }
-zeno_core = { path = "../core" }
-zeno_render = { path = "../render" }
+junkslides_core = { path = "../core" }
+junkslides_render = { path = "../render" }

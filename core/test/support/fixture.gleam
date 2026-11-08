@@ -1,9 +1,9 @@
 //// Small decks for unit tests, written as deck.md text.
 
 import gleam/list
-import zeno/deck.{type Cell, type Deck, type Slide}
-import zeno/file
-import zeno/id.{type IdSupply}
+import junkslides/deck.{type Cell, type Deck, type Slide}
+import junkslides/file
+import junkslides/id.{type IdSupply}
 
 /// Three slides: [a, b, c], [d], [].
 pub const text =

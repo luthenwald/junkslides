@@ -1,9 +1,9 @@
 /* Default prototype theme: grayscale, calm. Fonts, colours, sizes and the
-   body area come from zeno.toml; any rule here wins over them. */
+   body area come from junkslides.toml; any rule here wins over them. */
 :root {
-  --zeno-variants: "large small quiet emphasis";
+  --js-variants: "large small quiet emphasis";
 }
 
-.zeno-cell[data-variant="large"] { font-size: 64px; }
-.zeno-cell[data-variant="small"] { font-size: 24px; }
-.zeno-cell[data-variant="emphasis"] { font-weight: 600; }
+.js-cell[data-variant="large"] { font-size: 64px; }
+.js-cell[data-variant="small"] { font-size: 24px; }
+.js-cell[data-variant="emphasis"] { font-weight: 600; }

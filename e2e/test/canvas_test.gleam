@@ -14,21 +14,21 @@ import harness.{
   cell, deck, eventually, key, open, press, problem, record, saved_view,
   selected, status,
 }
+import junkslides/layout.{Area}
 import simplifile
-import zeno/layout.{Area}
 
 pub fn draws_the_slide_of_the_selection_test() {
   let #(page, _) = open("draw", 4921)
   // Slide 1: the heading and the paragraph are placed, notes are not drawn.
   assert drawn(page) == 2
-  assert cdp.count(page, ".ze-fit .zeno-cell[data-placed]") == 2
+  assert cdp.count(page, ".jse-fit .js-cell[data-placed]") == 2
   assert cdp.attribute(page, drawn_cell("03"), "data-variant") == Ok("quiet")
   assert cdp.attribute(page, drawn_cell("02"), "data-align") == Ok("start")
-  assert cdp.count(page, ".ze-fit h1") == 1
+  assert cdp.count(page, ".jse-fit h1") == 1
   // The slide's number, in the slide's lower right corner.
   assert page_number(page) == "01/07"
-  let assert Ok(slide) = cdp.box(page, ".ze-fit .zeno-slide")
-  let assert Ok(number) = cdp.box(page, ".ze-fit .zeno-page")
+  let assert Ok(slide) = cdp.box(page, ".jse-fit .js-slide")
+  let assert Ok(number) = cdp.box(page, ".jse-fit .js-page")
   assert number.x >. slide.x +. slide.w *. 0.8
   assert number.y >. slide.y +. slide.h *. 0.8
   press(page, "}")
@@ -36,10 +36,10 @@ pub fn draws_the_slide_of_the_selection_test() {
   // Slide 3: three cells in the flow, lists drawn as lists.
   assert eventually(fn() { drawn(page) == 3 })
   assert page_number(page) == "03/07"
-  assert cdp.count(page, ".ze-fit .zeno-body > .zeno-cell") == 3
-  assert cdp.count(page, ".ze-fit ol > li") == 3
+  assert cdp.count(page, ".jse-fit .js-body > .js-cell") == 3
+  assert cdp.count(page, ".jse-fit ol > li") == 3
   // One probe per drawn cell of the deck, notes cells excepted.
-  assert cdp.count(page, ".ze-probe") == 14
+  assert cdp.count(page, ".jse-probe") == 14
 }
 
 pub fn tab_and_canvas_keys_change_the_layout_test() {
@@ -103,7 +103,7 @@ pub fn click_selects_and_drag_moves_test() {
   assert selected(page) == cell("02")
   // Its handle resizes it, the pointer snapped to 30 pixels becoming the
   // corner.
-  let assert Ok(handle) = cdp.box(page, ".ze-handle")
+  let assert Ok(handle) = cdp.box(page, ".jse-handle")
   let #(x, y) = #(handle.x +. handle.w /. 2.0, handle.y +. handle.h /. 2.0)
   let assert Ok(_) = cdp.mouse(page, cdp.Press, x, y)
   glide(page, #(x, y), grid_point(page, #(20, 10)))
@@ -129,7 +129,7 @@ pub fn dragging_a_flowing_cell_places_it_test() {
   assert eventually(fn() { drawn(page) == 3 })
   // A row well inside the list, away from its edges.
   let assert Ok(list) = cdp.box(page, drawn_cell("09"))
-  let assert Ok(slide) = cdp.box(page, ".ze-fit .zeno-slide")
+  let assert Ok(slide) = cdp.box(page, ".jse-fit .js-slide")
   let row = float.truncate({ list.y -. slide.y } /. { slide.w /. 32.0 }) + 1
   drag(page, #(3, row), #(2, row + 2))
   assert eventually(fn() { place(folder, "09") != None })
@@ -140,7 +140,7 @@ pub fn dragging_a_flowing_cell_places_it_test() {
   assert w == 1680
   assert h > 60 && h <= 300
   assert drawn(page) == 3
-  assert cdp.count(page, ".ze-fit .zeno-cell[data-placed]") == 1
+  assert cdp.count(page, ".jse-fit .js-cell[data-placed]") == 1
 }
 
 pub fn overflow_is_flagged_test() {
@@ -149,11 +149,11 @@ pub fn overflow_is_flagged_test() {
   press(page, "Enter")
   let assert Ok(_) = cdp.type_text(page, "\n\nOne\n\nTwo\n\nThree\n\nFour")
   press(page, "Escape")
-  assert eventually(fn() { cdp.count(page, ".ze-fit .ze-overflow") == 1 })
+  assert eventually(fn() { cdp.count(page, ".jse-fit .jse-overflow") == 1 })
   assert eventually(fn() { string.contains(status(page), "1 cell overflows") })
   assert string.contains(problem(page), "Does not fit its box on the slide.")
   press(page, "u")
-  assert eventually(fn() { cdp.count(page, ".ze-fit .ze-overflow") == 0 })
+  assert eventually(fn() { cdp.count(page, ".jse-fit .jse-overflow") == 0 })
   assert !string.contains(status(page), "overflow")
 }
 
@@ -163,12 +163,12 @@ pub fn source_lines_are_kept_test() {
   press(page, "Enter")
   let assert Ok(_) = cdp.type_text(page, "\n    and why not")
   press(page, "Escape")
-  assert eventually(fn() { cdp.count(page, ".ze-fit h1 br") == 1 })
-  assert cdp.count(page, ".ze-fit h1 .zeno-indent") == 1
-  let assert Ok(heading) = cdp.html(page, ".ze-fit h1")
+  assert eventually(fn() { cdp.count(page, ".jse-fit h1 br") == 1 })
+  assert cdp.count(page, ".jse-fit h1 .js-indent") == 1
+  let assert Ok(heading) = cdp.html(page, ".jse-fit h1")
   assert string.contains(
     heading,
-    "<span class=\"zeno-indent\">  </span>and why not",
+    "<span class=\"js-indent\">  </span>and why not",
   )
 }
 
@@ -177,11 +177,9 @@ pub fn code_is_highlighted_test() {
   // Slide 4 holds a Gleam code block; the fake tree-sitter of these checks
   // makes the first word of each line a keyword.
   list.each([1, 2, 3], fn(_) { press(page, "}") })
-  assert eventually(fn() { cdp.count(page, ".ze-fit pre code") == 1 })
-  assert eventually(fn() {
-    cdp.count(page, ".ze-fit pre .zeno-tok-keyword") > 2
-  })
-  let assert Ok(html) = cdp.html(page, ".ze-fit pre .zeno-tok-keyword")
+  assert eventually(fn() { cdp.count(page, ".jse-fit pre code") == 1 })
+  assert eventually(fn() { cdp.count(page, ".jse-fit pre .js-tok-keyword") > 2 })
+  let assert Ok(html) = cdp.html(page, ".jse-fit pre .js-tok-keyword")
   assert string.contains(html, "pub")
   // A changed block is highlighted again.
   press(page, "j")
@@ -192,22 +190,22 @@ pub fn code_is_highlighted_test() {
   press(page, "Escape")
   assert eventually(fn() { string.contains(deck(folder), "extra ") })
   assert eventually(fn() {
-    let assert Ok(code) = cdp.html(page, ".ze-fit pre code")
+    let assert Ok(code) = cdp.html(page, ".jse-fit pre code")
     string.contains(code, "extra")
-    && cdp.count(page, ".ze-fit pre .zeno-tok-keyword") > 2
+    && cdp.count(page, ".jse-fit pre .js-tok-keyword") > 2
   })
 }
 
 pub fn tokens_have_a_look_in_any_theme_test() {
   let #(page, folder) = open("code-look", 4931)
   let weight = fn() {
-    cdp.computed(page, ".ze-fit pre .zeno-tok-keyword", "font-weight")
+    cdp.computed(page, ".jse-fit pre .js-tok-keyword", "font-weight")
   }
   // A theme that says nothing about tokens still shows them.
   let assert Ok(_) =
     simplifile.write(
       filepath.join(folder, "theme.css"),
-      ".zeno-slide { color: #123; }\n",
+      ".js-slide { color: #123; }\n",
     )
   list.each([1, 2, 3], fn(_) { press(page, "}") })
   assert eventually(fn() { weight() == Ok("600") })
@@ -215,7 +213,7 @@ pub fn tokens_have_a_look_in_any_theme_test() {
   let assert Ok(_) =
     simplifile.write(
       filepath.join(folder, "theme.css"),
-      ".zeno-tok-keyword { font-weight: 300; }\n",
+      ".js-tok-keyword { font-weight: 300; }\n",
     )
   assert eventually(fn() { weight() == Ok("300") })
 }
@@ -236,34 +234,35 @@ pub fn default_fonts_load_and_any_theme_can_change_them_test() {
     }
   }
   list.each([1, 2, 3], fn(_) { press(page, "}") })
-  assert eventually(fn() { cdp.count(page, ".ze-fit pre code") == 1 })
-  assert uses(".ze-fit .zeno-slide", "et-book")
-  assert uses(".ze-fit pre code", "\"Victor Mono\"")
+  assert eventually(fn() { cdp.count(page, ".jse-fit pre code") == 1 })
+  assert uses(".jse-fit .js-slide", "et-book")
+  assert uses(".jse-fit pre code", "\"Victor Mono\"")
   assert eventually(fn() { loaded("et-book normal") })
   assert eventually(fn() { loaded("Victor Mono normal") })
   // Code stays at the size of the text around it.
-  assert cdp.computed(page, ".ze-fit pre code", "font-size") == Ok("32px")
+  assert cdp.computed(page, ".jse-fit pre code", "font-size") == Ok("32px")
   // The editor's source text is in the same mono.
   press(page, "j")
   press(page, "Enter")
-  assert uses(".ze-source", "\"Victor Mono\"")
+  assert uses(".jse-source", "\"Victor Mono\"")
   press(page, "Escape")
-  // zeno.toml names them; another family there shows at once.
-  let assert Ok(toml) = simplifile.read(filepath.join(folder, "zeno.toml"))
+  // junkslides.toml names them; another family there shows at once.
+  let assert Ok(toml) =
+    simplifile.read(filepath.join(folder, "junkslides.toml"))
   let assert Ok(_) =
     simplifile.write(
-      filepath.join(folder, "zeno.toml"),
+      filepath.join(folder, "junkslides.toml"),
       string.replace(toml, "family = \"et-book\"", "family = \"Optima\""),
     )
-  assert eventually(fn() { uses(".ze-fit .zeno-slide", "Optima") })
+  assert eventually(fn() { uses(".jse-fit .js-slide", "Optima") })
   // A theme's own fonts win.
   let assert Ok(_) =
     simplifile.write(
       filepath.join(folder, "theme.css"),
-      ".zeno-slide { font-family: Georgia; }\ncode { font-family: Menlo; }\n",
+      ".js-slide { font-family: Georgia; }\ncode { font-family: Menlo; }\n",
     )
-  assert eventually(fn() { uses(".ze-fit .zeno-slide", "Georgia") })
-  assert eventually(fn() { uses(".ze-fit pre code", "Menlo") })
+  assert eventually(fn() { uses(".jse-fit .js-slide", "Georgia") })
+  assert eventually(fn() { uses(".jse-fit pre code", "Menlo") })
 }
 
 pub fn settings_apply_live_below_the_theme_test() {
@@ -273,28 +272,28 @@ pub fn settings_apply_live_below_the_theme_test() {
     Nil
   }
   let look = fn(selector, property) { cdp.computed(page, selector, property) }
-  write("theme.css", ":root { --zeno-variants: \"large\"; }\n")
+  write("theme.css", ":root { --js-variants: \"large\"; }\n")
   write(
-    "zeno.toml",
+    "junkslides.toml",
     "[font.text]\nfamily = \"Georgia\"\n[palette]\nbackground = \"#101010\"\n"
       <> "[slide]\nnumbers = \"01\"\n",
   )
   assert eventually(fn() {
-    look(".ze-fit .zeno-slide", "background-color") == Ok("rgb(16, 16, 16)")
+    look(".jse-fit .js-slide", "background-color") == Ok("rgb(16, 16, 16)")
   })
-  assert look(".ze-fit .zeno-slide", "font-family") == Ok("Georgia")
-  assert look(".ze-fit .zeno-page-total", "display") == Ok("none")
+  assert look(".jse-fit .js-slide", "font-family") == Ok("Georgia")
+  assert look(".jse-fit .js-page-total", "display") == Ok("none")
   // The previous pair of links goes once both new sheets have loaded.
   assert eventually(fn() {
-    cdp.count(page, "link[href^=\"/.zeno/settings.css\"]") == 1
+    cdp.count(page, "link[href^=\"/.js/settings.css\"]") == 1
     && cdp.count(page, "link[href^=\"/theme.css\"]") == 1
   })
   // The theme wins over the settings.
-  write("theme.css", ".zeno-slide { background: #fff; }\n")
+  write("theme.css", ".js-slide { background: #fff; }\n")
   assert eventually(fn() {
-    look(".ze-fit .zeno-slide", "background-color") == Ok("rgb(255, 255, 255)")
+    look(".jse-fit .js-slide", "background-color") == Ok("rgb(255, 255, 255)")
   })
-  assert look(".ze-fit .zeno-slide", "font-family") == Ok("Georgia")
+  assert look(".jse-fit .js-slide", "font-family") == Ok("Georgia")
 }
 
 pub fn theme_reloads_test() {
@@ -302,9 +301,9 @@ pub fn theme_reloads_test() {
   let assert Ok(_) =
     simplifile.write(
       filepath.join(folder, "theme.css"),
-      ":root { --zeno-variants: \"loud\"; }\n"
-        <> ".zeno-body { grid-area: 3 / 3 / 17 / 31; }\n"
-        <> ".zeno-cell[data-variant=\"large\"] { font-size: 400px; }\n",
+      ":root { --js-variants: \"loud\"; }\n"
+        <> ".js-body { grid-area: 3 / 3 / 17 / 31; }\n"
+        <> ".js-cell[data-variant=\"large\"] { font-size: 400px; }\n",
     )
   assert eventually(fn() {
     cdp.count(page, "link[href=\"/theme.css?v=1\"]") == 1
@@ -312,7 +311,7 @@ pub fn theme_reloads_test() {
   // The previous theme's link goes once the new one has loaded.
   assert eventually(fn() { cdp.count(page, "link[href^=\"/theme.css\"]") == 1 })
   // The new theme makes the large heading overflow its placed box.
-  assert eventually(fn() { cdp.count(page, ".ze-fit .ze-overflow") == 1 })
+  assert eventually(fn() { cdp.count(page, ".jse-fit .jse-overflow") == 1 })
   // Variants come from the new list: `large` is gone, so none, then `loud`.
   press(page, "Tab")
   press(page, "v")
@@ -325,7 +324,7 @@ pub fn theme_reloads_test() {
 
 pub fn dragging_past_the_edges_test() {
   let #(page, folder) = open("drag-edges", 4927)
-  let assert Ok(slide) = cdp.box(page, ".ze-fit .zeno-slide")
+  let assert Ok(slide) = cdp.box(page, ".jse-fit .js-slide")
   // The heading moves sixteen grid cells right, with the pointer let go in
   // the pane's margin below the slide: it hangs off the right and bottom
   // edges, ten pixels of it left on the slide at the bottom.
@@ -342,7 +341,7 @@ pub fn dragging_past_the_edges_test() {
   assert box.x +. box.w >. slide.x +. slide.w
   assert box.y +. box.h >. slide.y +. slide.h
   // Opened again, it is drawn where it was left.
-  let assert Ok(_) = cdp.open(page, "http://127.0.0.1:4927/", ".ze-selected")
+  let assert Ok(_) = cdp.open(page, "http://127.0.0.1:4927/", ".jse-selected")
   assert eventually(fn() {
     let style = cdp.attribute(page, drawn_cell("02"), "style")
     let style = result.unwrap(style, "")
@@ -370,7 +369,7 @@ pub fn dragging_past_the_edges_test() {
 pub fn snap_step_is_chosen_and_kept_test() {
   let #(page, folder) = open("snap", 4928)
   assert string.contains(status(page), "snap")
-  assert cdp.attribute(page, ".ze-snap option[selected]", "value") == Ok("30")
+  assert cdp.attribute(page, ".jse-snap option[selected]", "value") == Ok("30")
   press(page, "Tab")
   // Finer, then back to coarser twice: 20, then 30, then 60.
   press(page, "g")
@@ -380,7 +379,7 @@ pub fn snap_step_is_chosen_and_kept_test() {
   press(page, "G")
   assert eventually(fn() { saved_view(folder).snap == 60 })
   assert eventually(fn() {
-    cdp.attribute(page, ".ze-snap option[selected]", "value") == Ok("60")
+    cdp.attribute(page, ".jse-snap option[selected]", "value") == Ok("60")
   })
   // Keys still reach the canvas, and nudges use the new step.
   press(page, "ArrowRight")
@@ -392,7 +391,7 @@ pub fn snap_step_is_chosen_and_kept_test() {
   list.each([1, 2, 3, 4, 5, 6], fn(_) { press(page, "g") })
   assert eventually(fn() { saved_view(folder).snap == 0 })
   assert eventually(fn() { string.contains(status(page), "snap off") })
-  let assert Ok(slide) = cdp.box(page, ".ze-fit .zeno-slide")
+  let assert Ok(slide) = cdp.box(page, ".jse-fit .js-slide")
   let start = grid_point(page, #(6, 4))
   let end = #(start.0 +. slide.w /. 32.0 *. 1.3, start.1)
   let assert Ok(_) = cdp.mouse(page, cdp.Press, start.0, start.1)
@@ -407,7 +406,7 @@ pub fn snap_step_is_chosen_and_kept_test() {
 }
 
 fn page_number(page: Page) -> String {
-  let assert Ok(html) = cdp.html(page, ".ze-fit .zeno-page")
+  let assert Ok(html) = cdp.html(page, ".jse-fit .js-page")
   // The number's parts are spans; their text is what shows.
   string.split(html, ">")
   |> list.map(fn(part) {
@@ -420,11 +419,11 @@ fn page_number(page: Page) -> String {
 }
 
 fn drawn(page: Page) -> Int {
-  cdp.count(page, ".ze-fit .zeno-cell")
+  cdp.count(page, ".jse-fit .js-cell")
 }
 
 fn drawn_cell(suffix: String) -> String {
-  ".ze-fit .zeno-cell[data-cell=\"" <> cell(suffix) <> "\"]"
+  ".jse-fit .js-cell[data-cell=\"" <> cell(suffix) <> "\"]"
 }
 
 /// The next line of the snap step after `px`.
@@ -438,7 +437,7 @@ fn place(folder: String, suffix: String) -> option.Option(layout.Area) {
 
 /// The centre of a grid cell of the visible slide, in viewport pixels.
 fn grid_point(page: Page, at: #(Int, Int)) -> #(Float, Float) {
-  let assert Ok(slide) = cdp.box(page, ".ze-fit .zeno-slide")
+  let assert Ok(slide) = cdp.box(page, ".jse-fit .js-slide")
   let unit = slide.w /. 32.0
   #(
     slide.x +. { int.to_float(at.0) +. 0.5 } *. unit,
@@ -492,30 +491,32 @@ fn with_table(folder: String, notes: String, source: String) -> Nil {
 
 pub fn tables_have_a_look_in_any_theme_test() {
   let #(page, folder) = open("table-look", 4933)
-  let header = fn(property) { cdp.computed(page, ".ze-fit table th", property) }
+  let header = fn(property) {
+    cdp.computed(page, ".jse-fit table th", property)
+  }
   let assert Ok(_) =
     simplifile.write(
       filepath.join(folder, "theme.css"),
-      ".zeno-slide { color: #123; }\n",
+      ".js-slide { color: #123; }\n",
     )
   with_table(folder, "04", table_source)
-  assert eventually(fn() { cdp.count(page, ".ze-fit table td") == 4 })
+  assert eventually(fn() { cdp.count(page, ".jse-fit table td") == 4 })
   assert eventually(fn() { header("font-weight") == Ok("600") })
   assert eventually(fn() { header("border-bottom-style") == Ok("solid") })
   // No outer padding, and the column's alignment is on its cells.
-  assert cdp.computed(page, ".ze-fit table td", "padding-left") == Ok("0px")
-  assert cdp.computed(page, ".ze-fit table td[data-align]", "text-align")
+  assert cdp.computed(page, ".jse-fit table td", "padding-left") == Ok("0px")
+  assert cdp.computed(page, ".jse-fit table td[data-align]", "text-align")
     == Ok("end")
   // As wide as its content, not as the cell.
-  let assert Ok(table) = cdp.box(page, ".ze-fit table")
-  let assert Ok(body) = cdp.box(page, ".ze-fit .zeno-body")
+  let assert Ok(table) = cdp.box(page, ".jse-fit table")
+  let assert Ok(body) = cdp.box(page, ".jse-fit .js-body")
   assert table.w <. body.w /. 2.0
   assert !string.contains(status(page), "problems")
   // A theme that does say wins.
   let assert Ok(_) =
     simplifile.write(
       filepath.join(folder, "theme.css"),
-      ".zeno-cell th { font-weight: 300; }\n",
+      ".js-cell th { font-weight: 300; }\n",
     )
   assert eventually(fn() { header("font-weight") == Ok("300") })
 }
@@ -524,15 +525,15 @@ pub fn a_table_too_wide_for_its_box_is_flagged_test() {
   let #(page, folder) = open("table-wide", 4934)
   let wide = string.repeat("x", 200)
   with_table(folder, "04", "| " <> wide <> " |\n|---|\n| a |")
-  assert eventually(fn() { cdp.count(page, ".ze-fit table") == 1 })
+  assert eventually(fn() { cdp.count(page, ".jse-fit table") == 1 })
   assert eventually(fn() { string.contains(status(page), "1 cell overflows") })
-  assert eventually(fn() { cdp.count(page, ".ze-fit .ze-overflow") == 1 })
+  assert eventually(fn() { cdp.count(page, ".jse-fit .jse-overflow") == 1 })
 }
 
 pub fn a_broken_table_row_is_reported_test() {
   let #(page, folder) = open("table-shape", 4935)
   with_table(folder, "04", "| a | b |\n|---|---|\n| 1 |")
-  assert eventually(fn() { cdp.count(page, ".ze-fit table td") == 2 })
+  assert eventually(fn() { cdp.count(page, ".jse-fit table td") == 2 })
   assert eventually(fn() { string.contains(status(page), "problems") })
   assert string.contains(
     problem(page),
@@ -545,8 +546,8 @@ pub fn dragging_a_flowing_table_keeps_its_width_test() {
   with_table(folder, "0b", table_source)
   press(page, "}")
   press(page, "}")
-  assert eventually(fn() { cdp.count(page, ".ze-fit table") == 1 })
-  let assert Ok(before) = cdp.box(page, ".ze-fit table")
+  assert eventually(fn() { cdp.count(page, ".jse-fit table") == 1 })
+  let assert Ok(before) = cdp.box(page, ".jse-fit table")
   let start = #(before.x +. before.w /. 2.0, before.y +. before.h /. 2.0)
   let assert Ok(_) = cdp.mouse(page, cdp.Press, start.0, start.1)
   let end = #(start.0 +. 100.0, start.1 -. 60.0)
@@ -554,9 +555,9 @@ pub fn dragging_a_flowing_table_keeps_its_width_test() {
   let assert Ok(_) = cdp.mouse(page, cdp.Release, end.0, end.1)
   assert eventually(fn() { place(folder, "ff") != None })
   assert eventually(fn() {
-    cdp.count(page, ".ze-fit .zeno-cell[data-placed] table") == 1
+    cdp.count(page, ".jse-fit .js-cell[data-placed] table") == 1
   })
-  let assert Ok(after) = cdp.box(page, ".ze-fit table")
+  let assert Ok(after) = cdp.box(page, ".jse-fit table")
   assert after.w == before.w
 }
 
@@ -576,10 +577,10 @@ pub fn drawings_are_inline_and_styled_by_the_theme_test() {
     )
   with_table(folder, "04", "![paths](fan.svg)")
   assert eventually(fn() {
-    cdp.count(page, ".ze-fit .zeno-figure svg path") == 1
+    cdp.count(page, ".jse-fit .js-figure svg path") == 1
   })
   assert eventually(fn() {
-    cdp.computed(page, ".ze-fit .zeno-figure path", "stroke")
+    cdp.computed(page, ".jse-fit .js-figure path", "stroke")
     == Ok("rgb(1, 2, 3)")
   })
 }

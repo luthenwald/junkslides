@@ -3,13 +3,13 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import jot.{Text}
-import qcheck
-import zeno/dialect.{
+import junkslides/dialect.{
   AlignCenter, AlignDefault, AlignEnd, AlignStart, AttributesUsed,
   BulletSpelling, DivUsed, ExtraUsed, FootnoteUsed, MathUsed, OrdinalSpelling,
   RawBlockUsed, ReferenceDefinitionUsed, ReferenceLinkUsed, SpanUsed, TableShape,
   ThematicBreakUsed,
 }
+import qcheck
 
 pub fn allowed_test() {
   let allowed = [

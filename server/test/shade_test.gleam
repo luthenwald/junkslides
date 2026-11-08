@@ -1,9 +1,9 @@
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
-import zeno/protocol.{CodeBlock, Token}
-import zeno_server/highlighter
-import zeno_server/shade
+import junkslides/protocol.{CodeBlock, Token}
+import junkslides_server/highlighter
+import junkslides_server/shade
 
 const viz_keywords = [
   "case",

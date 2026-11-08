@@ -2,9 +2,9 @@ import gleam/dict
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
+import junkslides/protocol.{CodeBlock, Token}
+import junkslides/render
 import lustre/element
-import zeno/protocol.{CodeBlock, Token}
-import zeno/render
 
 fn render(source: String) -> String {
   render_with(source, dict.new())
@@ -20,13 +20,13 @@ pub fn lines_and_indentation_are_kept_test() {
   assert render(
       "# ( forward symbolic \n    execution for bounded GCL \n    verification )",
     )
-    == "<h1>( forward symbolic <br><span class=\"zeno-indent\">  </span>execution for bounded GCL <br><span class=\"zeno-indent\">  </span>verification )</h1>"
+    == "<h1>( forward symbolic <br><span class=\"js-indent\">  </span>execution for bounded GCL <br><span class=\"js-indent\">  </span>verification )</h1>"
   // A paragraph's lines, emphasis across a break, and a hard break.
   assert render("one _two\n  three_\\\nfour")
-    == "<p>one <em>two<br><span class=\"zeno-indent\">  </span>three</em><br>four</p>"
+    == "<p>one <em>two<br><span class=\"js-indent\">  </span>three</em><br>four</p>"
   // List items count from their text.
   assert render("- a\n    b\n- c")
-    == "<ul><li>a<br><span class=\"zeno-indent\">  </span>b</li><li>c</li></ul>"
+    == "<ul><li>a<br><span class=\"js-indent\">  </span>b</li><li>c</li></ul>"
   // Code keeps its own lines.
   assert render("```hs\nmain =\n  pure ()\n```")
     == "<pre><code data-language=\"hs\">main =\n  pure ()\n</code></pre>"
@@ -42,7 +42,7 @@ pub fn code_is_drawn_with_the_tokens_it_has_test() {
       ]),
     ])
   assert render_with(source, highlights)
-    == "<pre><code data-language=\"hs\"><span class=\"zeno-tok-punctuation zeno-tok-punctuation-bracket\">main</span>\n</code></pre>"
+    == "<pre><code data-language=\"hs\"><span class=\"js-tok-punctuation js-tok-punctuation-bracket\">main</span>\n</code></pre>"
   // Other text, or another language, is drawn plain.
   assert render_with("```hs\nother\n```", highlights)
     == "<pre><code data-language=\"hs\">other\n</code></pre>"
@@ -91,9 +91,9 @@ pub fn table_cells_go_through_the_url_check_test() {
 
 pub fn tables_stay_among_other_blocks_with_their_lines_test() {
   assert render("# ( one\n    two )\n\n| a |\n|---|\n\ntext\n  more")
-    == "<h1>( one<br><span class=\"zeno-indent\">  </span>two )</h1>"
+    == "<h1>( one<br><span class=\"js-indent\">  </span>two )</h1>"
     <> "<table><thead><tr><th scope=\"col\">a</th></tr></thead><tbody></tbody></table>"
-    <> "<p>text<br><span class=\"zeno-indent\">  </span>more</p>"
+    <> "<p>text<br><span class=\"js-indent\">  </span>more</p>"
 }
 
 pub fn marks_are_classes_test() {
@@ -106,10 +106,10 @@ pub fn marks_are_classes_test() {
 pub fn code_attributes_light_lines_and_mark_text_test() {
   // A lit line, and a mark whose delimiters are left out.
   assert render("{lit=2 now=\"⟦⟧\"}\n```\na\nb ⟦c⟧ d\ne\n```")
-    == "<pre><code>a\n<span class=\"zeno-lit\">b <span class=\"now\">c</span> d</span>\ne\n</code></pre>"
+    == "<pre><code>a\n<span class=\"js-lit\">b <span class=\"now\">c</span> d</span>\ne\n</code></pre>"
   // Ranges, and a mark that runs to the end of its line.
   assert render("{lit=\"1-2\" to=\"<>\"}\n```\nx <y\nz\n```")
-    == "<pre><code><span class=\"zeno-lit\">x <span class=\"to\">y</span></span>\n<span class=\"zeno-lit\">z</span>\n</code></pre>"
+    == "<pre><code><span class=\"js-lit\">x <span class=\"to\">y</span></span>\n<span class=\"js-lit\">z</span>\n</code></pre>"
 }
 
 pub fn marks_in_code_cut_tokens_test() {
@@ -124,7 +124,7 @@ pub fn marks_in_code_cut_tokens_test() {
       ]),
     ])
   assert render_with(source, highlights)
-    == "<pre><code data-language=\"hs\"><span class=\"zeno-tok-keyword\">ab</span><span class=\"now\"><span class=\"zeno-tok-keyword\">c</span>d</span>e\n</code></pre>"
+    == "<pre><code data-language=\"hs\"><span class=\"js-tok-keyword\">ab</span><span class=\"now\"><span class=\"js-tok-keyword\">c</span>d</span>e\n</code></pre>"
   // Tokens of another text are not used.
   assert render_with("{now=\"⟦⟧\"}\n```hs\nab⟦cd⟧x\n```", highlights)
     == "<pre><code data-language=\"hs\">ab<span class=\"now\">cd</span>x\n</code></pre>"
@@ -139,7 +139,7 @@ pub fn drawings_are_inline_when_alone_test() {
     |> string.concat
   }
   assert draw("![paths](assets/fan.svg)")
-    == "<div aria-label=\"paths\" class=\"zeno-figure\" data-figure=\"drawing\" role=\"img\"><svg class=\"fan\"></svg></div>"
+    == "<div aria-label=\"paths\" class=\"js-figure\" data-figure=\"drawing\" role=\"img\"><svg class=\"fan\"></svg></div>"
   // Among text, or without its text from the server, it is a picture.
   assert draw("a ![p](assets/fan.svg)")
     == "<p>a <img alt=\"p\" src=\"assets/fan.svg\"></p>"
@@ -154,13 +154,13 @@ pub fn pages_are_embedded_in_a_sandbox_test() {
     |> string.concat
   }
   assert draw("![the search](assets/search.html)", render.bare(""))
-    == "<div class=\"zeno-figure\" data-figure=\"page\"><iframe sandbox=\"allow-scripts\" src=\"assets/search.html\" title=\"the search\"></iframe></div>"
+    == "<div class=\"js-figure\" data-figure=\"page\"><iframe sandbox=\"allow-scripts\" src=\"assets/search.html\" title=\"the search\"></iframe></div>"
   // A copy that is only measured keeps the box without the page.
   assert draw(
       "![the search](assets/search.html)",
       render.Context(..render.bare(""), frames: False),
     )
-    == "<div class=\"zeno-figure\" data-figure=\"page\"></div>"
+    == "<div class=\"js-figure\" data-figure=\"page\"></div>"
   // Among text it stays an image, and a script URL is never a frame.
   assert draw("see ![s](s.html)", render.bare(""))
     == "<p>see <img alt=\"s\" src=\"s.html\"></p>"

@@ -2,10 +2,10 @@ import gleam/dict
 import gleam/list
 import gleam/option
 import gleam/string
+import junkslides/render
+import junkslides/render/chart
 import lustre/element
 import simplifile
-import zeno/render
-import zeno/render/chart
 
 const fixtures = "test/fixtures/charts/"
 
@@ -81,20 +81,20 @@ pub fn charts_are_drawn_from_their_spec_test() {
     render(source, [#("data/micro-loops.json", fixture("micro-loops.json"))])
   assert string.starts_with(
     html,
-    "<div aria-label=\"Time per program\" class=\"zeno-figure\" data-figure=\"chart\" role=\"img\"",
+    "<div aria-label=\"Time per program\" class=\"js-figure\" data-figure=\"chart\" role=\"img\"",
   )
-  assert string.contains(html, "<div class=\"zeno-chart\" data-kind=\"lines\">")
+  assert string.contains(html, "<div class=\"js-chart\" data-kind=\"lines\">")
   assert string.contains(html, "<svg")
   assert string.contains(html, "viewBox=\"0 0 ")
   // Without a grid there is no switch, and one row of panels.
-  assert !string.contains(html, "zeno-chart-switch")
-  assert count(html, "class=\"zeno-chart-row\"") == 1
+  assert !string.contains(html, "js-chart-switch")
+  assert count(html, "class=\"js-chart-row\"") == 1
   // The spec is not there yet: a quiet stand-in, not an image.
   let waiting = render(source, [])
-  assert string.contains(waiting, "zeno-chart-missing")
+  assert string.contains(waiting, "js-chart-missing")
   assert !string.contains(waiting, "<img")
   let broken = render(source, [#("data/micro-loops.json", "{")])
-  assert string.contains(broken, "zeno-chart-missing")
+  assert string.contains(broken, "js-chart-missing")
 }
 
 pub fn the_switch_names_its_group_per_copy_test() {
@@ -105,11 +105,8 @@ pub fn the_switch_names_its_group_per_copy_test() {
   let html = render(source, figures)
   assert count(html, "type=\"radio\"") == 3
   assert count(html, "checked") == 1
-  assert count(html, "class=\"zeno-chart-row\"") == 3
-  assert string.contains(
-    html,
-    "name=\"zeno-chart-s-data/heuristics-stats.json\"",
-  )
+  assert count(html, "class=\"js-chart-row\"") == 3
+  assert string.contains(html, "name=\"js-chart-s-data/heuristics-stats.json\"")
   // The probes' copy has a group of its own, so checking a button in one
   // does not uncheck it in the other.
   let probe =
@@ -121,7 +118,7 @@ pub fn the_switch_names_its_group_per_copy_test() {
     |> string.concat
   assert string.contains(
     probe,
-    "name=\"zeno-chart-p-data/heuristics-stats.json\"",
+    "name=\"js-chart-p-data/heuristics-stats.json\"",
   )
 }
 

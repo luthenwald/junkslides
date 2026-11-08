@@ -7,15 +7,15 @@ import gleam/http/request
 import gleam/list
 import gleam/result
 import gleam/string
+import junkslides/deck.{type Cell, type Deck}
+import junkslides/id.{type CellTag, type Id}
+import junkslides/layout.{type Layout}
+import junkslides/protocol.{type ClientMsg, type ServerMsg}
+import junkslides_server/state
+import junkslides_server/theme
+import junkslides_server/web
 import simplifile
 import stratus
-import zeno/deck.{type Cell, type Deck}
-import zeno/id.{type CellTag, type Id}
-import zeno/layout.{type Layout}
-import zeno/protocol.{type ClientMsg, type ServerMsg}
-import zeno_server/state
-import zeno_server/theme
-import zeno_server/web
 
 pub type Harness {
   Harness(
@@ -33,13 +33,16 @@ pub fn folder(name: String) -> String {
   let folder = filepath.join(cwd, "build/scenarios/" <> name)
   let _ = simplifile.delete(folder)
   let assert Ok(Nil) = simplifile.create_directory_all(folder)
-  list.each(["deck.md", "layout.json", "theme.css", "zeno.toml"], fn(name) {
-    let assert Ok(Nil) =
-      simplifile.copy_file(
-        filepath.join(example, name),
-        filepath.join(folder, name),
-      )
-  })
+  list.each(
+    ["deck.md", "layout.json", "theme.css", "junkslides.toml"],
+    fn(name) {
+      let assert Ok(Nil) =
+        simplifile.copy_file(
+          filepath.join(example, name),
+          filepath.join(folder, name),
+        )
+    },
+  )
   let assert Ok(Nil) =
     simplifile.copy_directory(
       filepath.join(example, "fonts"),
@@ -66,7 +69,7 @@ pub fn serve_with(
       view_file: folder <> ".view.json",
       poll:,
       debounce:,
-      tree_sitter: "zeno-no-such-command",
+      tree_sitter: "js-no-such-command",
     ),
     port,
   )
@@ -106,7 +109,7 @@ pub fn start(name: String, port: Int) -> Harness {
 pub fn connect(folder: String, port: Int) -> Harness {
   let inbox = process.new_subject()
   let assert Ok(req) =
-    request.to("http://127.0.0.1:" <> string.inspect(port) <> "/.zeno/ws")
+    request.to("http://127.0.0.1:" <> string.inspect(port) <> "/.js/ws")
   let assert Ok(client) =
     stratus.new(request: req, state: Nil)
     |> stratus.on_message(fn(state, message, conn) {

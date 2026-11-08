@@ -1,7 +1,7 @@
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
-import zeno_server/settings.{Font}
+import junkslides_server/settings.{Font}
 
 const full =
   "
@@ -70,11 +70,11 @@ pub fn an_empty_file_sets_nothing_test() {
 
 pub fn unknown_and_misspelt_keys_are_refused_test() {
   assert refused("[fonts.text]\nfamily = \"x\"\n")
-    == "zeno.toml: fonts is not a setting."
+    == "junkslides.toml: fonts is not a setting."
   assert refused("[font.text]\nfamly = \"x\"\n")
-    == "zeno.toml: font.text.famly is not a setting."
+    == "junkslides.toml: font.text.famly is not a setting."
   assert refused("[palette]\nlink = \"red\"\n")
-    == "zeno.toml: palette.link is not a setting."
+    == "junkslides.toml: palette.link is not a setting."
 }
 
 pub fn wrong_values_name_their_key_test() {
@@ -161,22 +161,22 @@ pub fn css_has_faces_properties_and_rules_test() {
   )
   assert string.contains(
     css,
-    "--zeno-font-text: \"et-book\", \"Palatino Linotype\", Georgia, serif;",
+    "--js-font-text: \"et-book\", \"Palatino Linotype\", Georgia, serif;",
   )
-  assert string.contains(css, "--zeno-font-code: \"Menlo\";")
-  assert string.contains(css, "--zeno-size: 32px;")
-  assert string.contains(css, "--zeno-line-height: 1.4;")
-  assert string.contains(css, "--zeno-code-scale: 0.875;")
-  assert string.contains(css, "--zeno-accent: black;")
-  assert string.contains(css, "background: var(--zeno-background);")
+  assert string.contains(css, "--js-font-code: \"Menlo\";")
+  assert string.contains(css, "--js-size: 32px;")
+  assert string.contains(css, "--js-line-height: 1.4;")
+  assert string.contains(css, "--js-code-scale: 0.875;")
+  assert string.contains(css, "--js-accent: black;")
+  assert string.contains(css, "background: var(--js-background);")
   assert string.contains(css, "grid-area: 3 / 4 / 17 / 30;")
   assert string.contains(css, "gap: 24px;")
-  assert string.contains(css, ":where(.zeno-page-total) {\n  display: none;")
+  assert string.contains(css, ":where(.js-page-total) {\n  display: none;")
   // Spaced numbers put a space each side of the slash.
   let assert Ok(spaced) = settings.parse("[slide]\nnumbers = \"01 / 12\"\n")
   assert string.contains(
     settings.to_css(spaced, ""),
-    ":where(.zeno-page-slash)::before, :where(.zeno-page-slash)::after {\n  content: \" \";\n  white-space: pre;",
+    ":where(.js-page-slash)::before, :where(.js-page-slash)::after {\n  content: \" \";\n  white-space: pre;",
   )
   // Every rule has zero specificity, so the theme wins.
   assert string.split(css, "\n")
@@ -190,17 +190,17 @@ pub fn css_has_faces_properties_and_rules_test() {
 
 pub fn css_has_only_what_is_set_test() {
   let css = settings.to_css(parsed("[palette]\nquiet = \"#888\"\n"), "/")
-  assert string.contains(css, "--zeno-quiet: #888;")
-  assert string.contains(css, "color: var(--zeno-quiet);")
+  assert string.contains(css, "--js-quiet: #888;")
+  assert string.contains(css, "color: var(--js-quiet);")
   assert !string.contains(css, "@font-face")
-  assert !string.contains(css, "zeno-background")
+  assert !string.contains(css, "js-background")
   assert !string.contains(css, "grid-area")
   assert !string.contains(css, "display")
 }
 
 pub fn numbers_can_be_hidden_test() {
   let css = settings.to_css(parsed("[slide]\nnumbers = \"none\"\n"), "/")
-  assert string.contains(css, ":where(.zeno-page) {\n  display: none;")
+  assert string.contains(css, ":where(.js-page) {\n  display: none;")
   assert !string.contains(
     settings.to_css(parsed("[slide]\nnumbers = \"01/12\"\n"), "/"),
     "display",

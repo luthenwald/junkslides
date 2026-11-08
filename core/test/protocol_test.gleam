@@ -1,16 +1,16 @@
 import gleam/option.{None, Some}
-import simplifile
-import support/fixture.{cell, slide}
-import zeno/deck.{Notes, Position}
-import zeno/dialect
-import zeno/file
-import zeno/id
-import zeno/layout.{Area, Center}
-import zeno/op
-import zeno/protocol.{
+import junkslides/deck.{Notes, Position}
+import junkslides/dialect
+import junkslides/file
+import junkslides/id
+import junkslides/layout.{Area, Center}
+import junkslides/op
+import junkslides/protocol.{
   Apply, ApplyLayout, Diagnostic, Export, ExportPdf, Hello, Notice, Redo,
   Rejected, ReloadTheme, SaveView, State, Undo, View,
 }
+import simplifile
+import support/fixture.{cell, slide}
 
 pub fn client_messages_round_trip_test() {
   let #(deck, _) = fixture.deck()

@@ -544,7 +544,8 @@ pub const base_css =
 
 /// An exported page without any script (04-layout.md, Export): every slide fills
 /// a frame the height of the window, scaled to fit and clipped at its edges.
-/// Frames snap, so keys that scroll step from slide to slide. Printed, each
+/// Frames snap, so keys that scroll step from slide to slide, and the frame
+/// snapped to marks its slide with `--js-here: 1`. Printed, each
 /// slide is a page of its own at its full size.
 pub const page_css =
   "html, body {
@@ -562,9 +563,16 @@ html {
   position: relative;
   height: 100vh;
   overflow: hidden;
-  container-type: size;
+  container-type: size scroll-state;
   scroll-snap-align: start;
   scroll-snap-stop: always;
+}
+
+/* The slide in view, for the theme's `@container style(--js-here: 1)`. */
+@container scroll-state(snapped: block) {
+  .js-slide {
+    --js-here: 1;
+  }
 }
 
 .js-frame > .js-slide {

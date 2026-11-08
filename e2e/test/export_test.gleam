@@ -345,3 +345,34 @@ pub fn an_embedded_page_runs_its_script_test() {
   assert cdp.attribute(page, "iframe", "sandbox") == Ok("allow-scripts")
   assert eventually(fn() { frame_text(page) == Ok("ran") })
 }
+
+/// Every slide of the page knows its place in the talk, and the slide in view
+/// is marked for the theme, also after a key steps to the next one.
+pub fn the_slide_in_view_is_marked_for_the_theme_test() {
+  let folder = harness.prepare("export-here")
+  let assert Ok(Nil) =
+    simplifile.append(
+      filepath.join(folder, "theme.css"),
+      "@container style(--js-here: 1) { .js-page { color: rgb(1, 2, 3); } }\n",
+    )
+  let #(page, _, _, _) = harness.open_folder(folder, 4958)
+  press(page, "E")
+  assert eventually(fn() { string.contains(status(page), "Exported to ") })
+  let assert Ok(_) =
+    cdp.open(
+      page,
+      "file://" <> filepath.join(folder, "export/index.html"),
+      ".js-frame",
+    )
+  assert cdp.computed(page, "[id='3'] .js-slide", "--js-index") == Ok("3")
+  assert cdp.computed(page, "[id='3'] .js-slide", "--js-total") == Ok("7")
+  let marked = fn(number) {
+    cdp.computed(page, "[id='" <> number <> "'] .js-page", "color")
+    == Ok("rgb(1, 2, 3)")
+  }
+  assert eventually(fn() { marked("1") })
+  assert !marked("2")
+  press(page, "ArrowDown")
+  assert eventually(fn() { marked("2") })
+  assert !marked("1")
+}

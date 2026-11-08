@@ -1,5 +1,7 @@
 ## Unreleased
 
+- New: your theme can see where a slide sits in the talk, as `--js-index` and `--js-total`, and which slide is on screen, as `--js-here`, in the editor and in the exported page. An animation written for the slide on screen starts again each time you come to it.
+
 ## First release
 
 0.1.0 · 2026-11-08 · `szonvzox::yssuzuly`

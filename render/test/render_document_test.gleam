@@ -4,6 +4,7 @@ import junkslides/deck.{Cell, Content, Deck, Notes, Slide}
 import junkslides/id
 import junkslides/layout
 import junkslides/render
+import junkslides/render/styles
 
 const slide_a = "019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e01"
 
@@ -61,6 +62,22 @@ pub fn every_slide_has_a_numbered_frame_test() {
   assert string.contains(
     html,
     ">02</span><span class=\"js-page-total\"><span class=\"js-page-slash\">/</span>02</span>",
+  )
+}
+
+/// Every slide knows its place in the talk, and the frame in view marks its
+/// slide for the theme.
+pub fn slides_carry_their_place_test() {
+  let html = page(True)
+  assert string.contains(
+    html,
+    "<div class=\"js-slide\" style=\"--js-index:1;--js-total:2;\">",
+  )
+  assert string.contains(html, "--js-index:2;--js-total:2;")
+  assert string.contains(styles.page_css, "container-type: size scroll-state;")
+  assert string.contains(
+    styles.page_css,
+    "@container scroll-state(snapped: block) {\n  .js-slide {\n    --js-here: 1;",
   )
 }
 

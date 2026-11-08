@@ -584,3 +584,24 @@ pub fn drawings_are_inline_and_styled_by_the_theme_test() {
     == Ok("rgb(1, 2, 3)")
   })
 }
+
+/// The slide the pane shows knows its place in the talk and is the one in
+/// view, so a theme's rules for the slide on screen apply in the editor.
+pub fn the_slide_knows_its_place_and_is_in_view_test() {
+  let #(page, folder) = open("place", 4957)
+  let assert Ok(_) =
+    simplifile.write(
+      filepath.join(folder, "theme.css"),
+      "@container style(--js-here: 1) { .js-page { color: rgb(1, 2, 3); } }\n",
+    )
+  let slide = ".jse-fit .js-slide"
+  assert cdp.computed(page, slide, "--js-index") == Ok("1")
+  assert cdp.computed(page, slide, "--js-total") == Ok("7")
+  assert cdp.computed(page, slide, "--js-here") == Ok("1")
+  assert eventually(fn() {
+    cdp.computed(page, ".jse-fit .js-page", "color") == Ok("rgb(1, 2, 3)")
+  })
+  press(page, "}")
+  press(page, "}")
+  assert eventually(fn() { cdp.computed(page, slide, "--js-index") == Ok("3") })
+}

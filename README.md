@@ -265,6 +265,21 @@ markers carry the shade, shape and dash the spec gives them as classes.
 Your settings are custom properties on `:root` that the theme can use, such
 as `var(--js-accent)`, `var(--js-quiet)` and `var(--js-font-code)`.
 
+Each slide knows its place in the talk: `--js-index` is its number and
+`--js-total` the number of slides, so a mark can stand as far along a rule
+as the slide is into the talk. The slide on screen also has `--js-here: 1`,
+in the editor and in the exported page, and rules for it go in a container
+query. An animation there starts again each time you come to its slide,
+and a PDF shows the slide at rest:
+
+```css
+.js-slide { --at: calc((var(--js-index) - 1) / (var(--js-total) - 1)); }
+.js-slide .progress { left: calc(var(--at) * 100%); }
+@container style(--js-here: 1) {
+  .js-figure .fan path { animation: grow 10s infinite; }
+}
+```
+
 A theme can also load fonts itself, from anywhere in the deck's folder, with a
 relative path that does not start with `/`. Exports and PDFs include them:
 

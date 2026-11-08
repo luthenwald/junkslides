@@ -89,7 +89,7 @@ fn frame(
     list.partition(drawn, fn(pair) { option.is_some({ pair.1 }.place) })
   html.section([class("js-frame"), attribute.id(int.to_string(index + 1))], [
     html.div(
-      [class("js-slide")],
+      [class("js-slide"), slide_style(index, total, [])],
       list.flatten([
         [html.div([class("js-body")], list.map(unplaced, box(_, None)))],
         list.map(placed, fn(pair) { box(pair, { pair.1 }.place) }),
@@ -115,6 +115,22 @@ pub fn number(index: Int, total: Int) -> String {
     string.repeat("0", width - string.byte_size(digits)) <> digits
   }
   pad(index + 1) <> "/" <> pad(total)
+}
+
+/// The slide's place in the talk for the theme (04-layout.md, Theme
+/// contract): `--js-index`, counted from 1, and `--js-total`, as unitless
+/// numbers a stylesheet can compute with, followed by the caller's own
+/// properties.
+pub fn slide_style(
+  index: Int,
+  total: Int,
+  more: List(#(String, String)),
+) -> Attribute(msg) {
+  attribute.styles([
+    #("--js-index", int.to_string(index + 1)),
+    #("--js-total", int.to_string(total)),
+    ..more
+  ])
 }
 
 /// The slide's number for the theme to place or hide (04-layout.md, Theme

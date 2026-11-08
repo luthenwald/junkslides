@@ -82,7 +82,7 @@ pub fn view(
   }
   html.div([class("jse-fit")], [
     keyed.div(
-      [class("js-slide")],
+      [class("js-slide"), place_in_talk(shared, slide)],
       list.flatten([
         [
           #(
@@ -103,10 +103,23 @@ pub fn view(
 
 /// The slide's number, `01/26`.
 fn page_number(shared: Shared, slide: Slide) -> Element(msg) {
-  let total = list.length(shared.deck.slides)
-  let index =
-    nav.slide_index(shared.deck, nav.OnSlide(slide.id)) |> result.unwrap(0)
+  let #(index, total) = position(shared, slide)
   render.page_number(index, total)
+}
+
+/// The slide's place in the talk for the theme; the slide the pane shows is
+/// always the one in view.
+fn place_in_talk(shared: Shared, slide: Slide) -> Attribute(msg) {
+  let #(index, total) = position(shared, slide)
+  render.slide_style(index, total, [#("--js-here", "1")])
+}
+
+/// The slide's index, from 0, and the number of slides.
+fn position(shared: Shared, slide: Slide) -> #(Int, Int) {
+  #(
+    nav.slide_index(shared.deck, nav.OnSlide(slide.id)) |> result.unwrap(0),
+    list.length(shared.deck.slides),
+  )
 }
 
 /// Where a cell is drawn: a drag in progress shows its preview.

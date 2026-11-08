@@ -1,5 +1,5 @@
 name = "junkslides_render"
-version = "1.0.0"
+version = "0.1.0"
 description = "Slides as Lustre elements, for the editor in the browser and for export on the server."
 
 [dependencies]

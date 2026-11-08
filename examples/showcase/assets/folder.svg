@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 540" class="folder">
+   <text class="root" x="0" y="34">talk/</text>
+   <path class="trunk" d="M 14 52 V 488"/>
+
+   <path class="branch now" d="M 14 108 H 46"/>
+   <text class="file now" x="62" y="117">deck.md</text>
+   <text class="what" x="330" y="117">slides and cells</text>
+
+   <path class="branch now" d="M 14 184 H 46"/>
+   <text class="file now" x="62" y="193">layout.json</text>
+   <text class="what" x="330" y="193">placement and style, by ID</text>
+
+   <path class="branch" d="M 14 260 H 46"/>
+   <text class="file" x="62" y="269">junkslides.toml</text>
+   <text class="what" x="330" y="269">fonts, colours, sizes</text>
+
+   <path class="branch" d="M 14 336 H 46"/>
+   <text class="file" x="62" y="345">theme.css</text>
+   <text class="what" x="330" y="345">the look, in CSS</text>
+
+   <path class="branch" d="M 14 412 H 46"/>
+   <text class="file" x="62" y="421">fonts/</text>
+   <text class="what" x="330" y="421">the files the settings name</text>
+
+   <path class="branch" d="M 14 488 H 46"/>
+   <text class="file" x="62" y="497">assets/</text>
+   <text class="what" x="330" y="497">images, drawings, charts</text>
+</svg>

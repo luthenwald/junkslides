@@ -1,0 +1,34 @@
+# Settings for the showcase. theme.css comes after them and sets the rest.
+
+[font.text]
+family = "et-book"
+fallback = 'Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif'
+regular = "fonts/et-book-roman.woff2"
+italic = "fonts/et-book-italic.woff2"
+bold = "fonts/et-book-bold.woff2"
+
+[font.code]
+family = "Victor Mono"
+fallback = "ui-monospace, Menlo, Consolas, monospace"
+regular = "fonts/victor-mono-regular.woff2"
+italic = "fonts/victor-mono-italic.woff2"
+bold = "fonts/victor-mono-bold.woff2"
+
+[palette]
+background = "#fcfcfa"
+text = "#1c1c1c"
+quiet = "#a6a6a6"
+accent = "#d4502c"
+
+[type]
+size = 30
+line-height = 1.4
+code-scale = 0.86
+
+[slide]
+numbers = "01 / 12"
+
+[code]
+keywords = ["pub", "fn", "type", "let", "case", "use", "import", "gleam", "run"]
+comments = ["//", "#"]
+simple = ["gleam", "sh", "json"]

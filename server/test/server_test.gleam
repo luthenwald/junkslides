@@ -568,6 +568,30 @@ fn exists(folder: String, relative: String) -> Bool {
   simplifile.is_file(filepath.join(folder, relative)) == Ok(True)
 }
 
+/// The showcase deck exports whole: every figure found and drawn, every font
+/// and file its theme and settings load, and nothing to warn about.
+pub fn the_showcase_exports_whole_test() {
+  let assert Ok(cwd) = simplifile.current_directory()
+  let folder = filepath.join(cwd, "build/scenarios/showcase")
+  let _ = simplifile.delete(folder)
+  let assert Ok(Nil) = simplifile.copy_directory("../examples/showcase", folder)
+  let assert Ok(report) =
+    junkslides_server.export_deck(folder, None, "no-such-command")
+  assert report.warnings == []
+  let out = filepath.join(folder, "export")
+  let page = harness.read(out, "index.html")
+  assert list.length(string.split(page, "class=\"js-frame\"")) == 13
+  assert string.contains(page, "class=\"folder\"")
+  assert string.contains(page, "class=\"rebase\"")
+  assert list.length(string.split(page, "class=\"js-chart\"")) == 3
+  assert !string.contains(page, "class=\"js-chart js-chart-missing\"")
+  assert string.contains(page, "src=\"assets/settle.html\"")
+  assert !string.contains(page, "Speaker notes like this one")
+  assert exists(out, "assets/settle.html")
+  assert exists(out, "fonts/et-book-roman.woff2")
+  assert exists(out, "fonts/victor-mono.LICENSE")
+}
+
 pub fn export_writes_a_folder_and_leaves_the_deck_alone_test() {
   let folder = export_deck("export-folder")
   let deck = harness.read(folder, "deck.md")

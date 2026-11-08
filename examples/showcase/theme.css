@@ -1,0 +1,180 @@
+/* The showcase: grays, and one accent for what matters now. The title of
+   every slide sits at its bottom left with a sentence at the right. Fonts,
+   colours and sizes come from junkslides.toml; the rest is here. */
+
+:root {
+   --ink: var(--js-text, #1c1c1c);
+   --dark: #3d3d3d;
+   --mid: #6f6f6f;
+   --soft: var(--js-quiet, #a6a6a6);
+   --faint: #cfcfcf;
+   --hair: #e7e7e5;
+   --wash: #f2f1ed;
+   --bg: var(--js-background, #fcfcfa);
+   --accent: var(--js-accent, #d4502c);
+   --serif: var(--js-font-text, Georgia, serif);
+   --mono: var(--js-font-code, ui-monospace, monospace);
+   --js-variants: "cover kicker title lede label aside statement laws keys commands";
+   --js-marks: "now quiet";
+}
+
+.js-slide { -webkit-font-smoothing: antialiased; }
+
+.js-page {
+   right: 56px;
+   bottom: 40px;
+   font: 18px var(--mono);
+   color: var(--soft);
+}
+
+.js-cell p { margin: 0; }
+
+.js-cell :is(h1, h2, h3) { font-weight: normal; margin: 0; }
+
+.js-cell .now { color: var(--accent); }
+.js-cell .quiet { color: var(--soft); }
+
+/* The cover and the title band: the title continues under its first word,
+   with the paren hanging in the margin. */
+
+.js-cell[data-variant="cover"] h1 {
+   --paren: 0.57em;
+   padding-left: var(--paren);
+   text-indent: calc(-1 * var(--paren));
+   font-size: 124px;
+   line-height: 1.06;
+   letter-spacing: -0.012em;
+}
+
+.js-cell[data-variant="kicker"] { font: italic 30px var(--serif); color: var(--soft); }
+
+.js-cell[data-variant="title"] p {
+   font: italic 24px var(--serif);
+   color: var(--soft);
+   margin: 0 0 6px 3px;
+}
+
+.js-cell[data-variant="title"] h2 {
+   --paren: 0.57em;
+   padding-left: var(--paren);
+   text-indent: calc(-1 * var(--paren));
+   font-size: 56px;
+   line-height: 1.1;
+}
+
+.js-cell[data-variant="lede"] {
+   font-size: 25px;
+   line-height: 1.38;
+   color: var(--mid);
+   text-align: right;
+}
+
+/* Text */
+
+.js-cell[data-variant="label"] { font: italic 24px var(--serif); color: var(--soft); }
+.js-cell[data-variant="aside"] { font: italic 30px/1.4 var(--serif); color: var(--dark); }
+.js-cell[data-variant="statement"] { font-size: 68px; line-height: 1.3; }
+
+/* Keys: a quiet heading over a list without bullets. */
+
+.js-cell[data-variant="keys"] h3 {
+   font: italic 26px var(--serif);
+   color: var(--soft);
+   margin-bottom: 18px;
+}
+
+.js-cell[data-variant="keys"] ul { list-style: none; margin: 0; padding: 0; }
+.js-cell[data-variant="keys"] li { font-size: 28px; line-height: 1.3; margin-bottom: 14px; }
+.js-cell[data-variant="keys"] code { color: var(--dark); font-size: 0.86em; font-weight: 600; }
+
+/* Code */
+
+.js-cell pre {
+   margin: 0;
+   font: 25px/1.5 var(--mono);
+   color: var(--ink);
+   tab-size: 3;
+}
+
+.js-cell pre code { font: inherit; }
+.js-cell pre [class*="js-tok-"] { font-weight: normal; font-style: normal; color: inherit; }
+.js-cell pre .js-tok-keyword { color: var(--dark); font-weight: 600; }
+.js-cell pre :is(.js-tok-type, .js-tok-constructor, .js-tok-module) { color: #5a5a5a; }
+.js-cell pre :is(.js-tok-operator, .js-tok-punctuation) { color: var(--mid); }
+.js-cell pre .js-tok-comment { color: var(--soft); }
+.js-cell pre .js-tok-string { color: var(--dark); }
+
+.js-cell pre .js-lit {
+   display: inline-block;
+   min-width: 100%;
+   background: var(--wash);
+   /* Shadows draw the band and its rule left of the text without making
+      the code wider than its box. */
+   box-shadow: -15px 0 0 var(--wash), -18px 0 0 var(--accent);
+}
+
+.js-cell[data-variant="commands"] pre { font-size: 34px; }
+
+/* The laws: numbers in the accent's shade of quiet, a hairline per row. */
+
+.js-cell[data-variant="laws"] table { width: 100%; font-size: 26px; }
+.js-cell[data-variant="laws"] th { font-weight: normal; font-style: italic; color: var(--soft); }
+.js-cell[data-variant="laws"] td:first-child { font: 20px var(--mono); color: var(--soft); padding-right: 28px; }
+.js-cell[data-variant="laws"] td:nth-child(2) { white-space: nowrap; padding-right: 40px; }
+.js-cell[data-variant="laws"] td:nth-child(3) { color: var(--mid); }
+
+/* Drawings */
+
+.js-figure > svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.js-figure .folder .root { font: 30px var(--mono); fill: var(--ink); }
+.js-figure .folder .trunk, .js-figure .folder .branch { fill: none; stroke: var(--faint); stroke-width: 2; }
+.js-figure .folder .branch.now { stroke: var(--accent); }
+.js-figure .folder .file { font: 28px var(--mono); fill: var(--dark); }
+.js-figure .folder .file.now { fill: var(--accent); }
+.js-figure .folder .what { font: italic 28px var(--serif); fill: var(--mid); }
+
+.js-figure .rebase .side { font: italic 28px var(--serif); fill: var(--soft); }
+.js-figure .rebase .id { font: 22px var(--mono); fill: var(--soft); }
+.js-figure .rebase .cell { font: 26px var(--mono); fill: var(--dark); }
+.js-figure .rebase .now { fill: var(--accent); }
+.js-figure .rebase .note { font: italic 26px var(--serif); fill: var(--mid); }
+.js-figure .rebase .edge { fill: none; stroke: var(--faint); stroke-width: 2; }
+.js-figure .rebase .edge.now { stroke: var(--accent); stroke-width: 3; }
+.js-figure .rebase .edge.gone { stroke-dasharray: 5 6; }
+.js-figure .rebase .end { fill: var(--faint); }
+.js-figure .rebase .end.now { fill: var(--accent); }
+.js-figure .rebase .ring { fill: var(--bg); stroke: var(--mid); stroke-width: 2; }
+.js-figure .rebase .fresh { fill: var(--ink); }
+
+/* Charts, sized to be read from the back of the room. */
+
+.js-chart { color: var(--ink); }
+.js-chart-legend { font: 24px var(--mono); color: var(--mid); gap: 40px; }
+.js-chart-switch-label { font: 20px var(--mono); color: var(--soft); margin-right: 14px; }
+.js-chart-switch label { font: 20px var(--mono); padding: 6px 18px; color: var(--mid); }
+.js-chart-switch label:has(input:checked) { color: var(--bg); background: var(--ink); }
+.js-chart-ylabel, .js-chart-xlabel { font: italic 24px/28px var(--serif); color: var(--soft); }
+.js-chart svg text { font-family: var(--mono); font-size: 11px; fill: var(--mid); }
+.js-chart .grid { stroke: var(--hair); }
+.js-chart .gray { --js-shade: var(--soft); }
+.js-chart .mid { --js-shade: var(--mid); }
+.js-chart .dark { --js-shade: var(--dark); }
+.js-chart .black { --js-shade: var(--ink); }
+.js-chart .line { stroke-width: 1.6; }
+
+.js-chart[data-kind="bars"] { font-size: 40px; row-gap: 22px; }
+.js-chart[data-kind="bars"] .group { font: 34px var(--mono); }
+.js-chart[data-kind="bars"] .which { font-size: 38px; color: var(--mid); }
+.js-chart[data-kind="bars"] .bar i { height: 40px; background: var(--faint); }
+/* Every bar at 85 % of its share, so the longest one leaves room for its value. */
+.js-chart[data-kind="bars"] .bar { grid-template-columns: calc(var(--w) * 0.85) auto; }
+.js-chart[data-kind="bars"] .bar.now i { background: var(--accent); }
+.js-chart[data-kind="bars"] .bar b { font: 36px var(--mono); }
+
+/* Victor Mono draws <!-- and -> as arrows; a deck about its own file format
+   wants the characters as typed. Last, since a font shorthand resets it. */
+.js-slide :is(pre, code, pre *, .js-figure text, .js-chart, .js-chart *, .js-page) {
+   font-variant-ligatures: none;
+   font-feature-settings: "calt" 0, "liga" 0;
+}

@@ -185,6 +185,29 @@ pub fn layout_example_round_trips_test() {
   assert file.print_layout(layout) == text
 }
 
+/// The showcase deck is canonical and uses only the dialect, with the marks
+/// its theme lists.
+pub fn showcase_round_trips_and_has_no_problems_test() {
+  let assert Ok(text) = simplifile.read("../examples/showcase/deck.md")
+  let deck = parse(text)
+  assert file.print(deck) == text
+  assert deck.violations(deck) == []
+  assert list.length(deck.slides) == 12
+  let problems =
+    list.flat_map(deck.slides, fn(slide) {
+      list.flat_map(slide.cells, fn(cell) {
+        list.append(
+          dialect.problems(cell.source),
+          dialect.unknown_marks(cell.source, ["now", "quiet"]),
+        )
+      })
+    })
+  assert problems == []
+  let assert Ok(text) = simplifile.read("../examples/showcase/layout.json")
+  let assert Ok(layout) = file.parse_layout(text)
+  assert file.print_layout(layout) == text
+}
+
 pub fn layout_rejects_bad_files_test() {
   let assert Error(_) = file.parse_layout("{\"version\": 3, \"cells\": {}}")
   let assert Error(_) =

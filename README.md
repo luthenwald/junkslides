@@ -48,6 +48,22 @@ build straight away.
 
 The editor targets Chromium-based browsers for now.
 
+## An example
+
+`examples/showcase` is a short talk about junkslides, made with it. Each
+slide uses something the editor can do: placed cells with their own
+variants, code with lit lines and marks, a table, drawings, two charts, an
+animation in a frame, and speaker notes that say what to look at. Open a
+copy, so that your edits leave the example as it is:
+
+```sh
+cp -r examples/showcase ~/talks/showcase
+gleam run serve ~/talks/showcase
+```
+
+Or export it straight away with
+`gleam run export examples/showcase --out ~/showcase`.
+
 ## The editor
 
 The cells pane on the left holds the source of every cell; the slide pane on

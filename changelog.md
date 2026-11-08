@@ -1,5 +1,6 @@
 ## Unreleased
 
+- New: an example deck in `examples/showcase`, a short talk about junkslides with a theme of its own that uses every feature.
 - Improved: Zeno is now called junkslides. The command, the settings file and the names your theme uses changed with it: rename `zeno.toml` to `junkslides.toml`, and in `theme.css` write `js-` where it said `zeno-`, such as `.js-cell` and `var(--js-accent)`.
 
 ## Marks, charts and embedded figures

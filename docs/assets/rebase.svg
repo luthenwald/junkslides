@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 560" class="rebase">
+   <text class="side" x="0" y="44">deck.md, before</text>
+   <text class="side" x="930" y="44">after an outside edit</text>
+
+   <text class="id" x="0" y="137">…0d</text>
+   <text class="cell" x="80" y="137">### In Gleam</text>
+   <text class="id" x="0" y="227">…0e</text>
+   <text class="cell" x="80" y="227">```gleam</text>
+   <text class="id now" x="0" y="317">…0f</text>
+   <text class="cell now" x="80" y="317">&gt; A lens focuses on …</text>
+   <text class="id" x="0" y="407">…10</text>
+   <text class="cell" x="80" y="407">![diagram](lens.svg)</text>
+
+   <path class="edge" d="M 500 130 C 700 130, 700 130, 900 130"/>
+   <path class="edge" d="M 500 220 C 700 220, 700 310, 900 310"/>
+   <path class="edge now" d="M 500 310 C 700 310, 700 220, 900 220"/>
+   <path class="edge gone" d="M 500 400 C 620 400, 660 470, 700 470"/>
+   <circle class="ring" cx="708" cy="470" r="8"/>
+   <text class="note" x="708" y="520" text-anchor="middle">its layout kept as an orphan</text>
+   <path class="edge" d="M 860 400 H 900"/>
+   <circle class="fresh" cx="852" cy="400" r="8"/>
+   <text class="note" x="830" y="407" text-anchor="end">a fresh ID</text>
+
+   <circle class="end" cx="500" cy="130" r="5"/>
+   <circle class="end" cx="500" cy="220" r="5"/>
+   <circle class="end now" cx="500" cy="310" r="5"/>
+   <circle class="end" cx="500" cy="400" r="5"/>
+   <circle class="end" cx="900" cy="130" r="5"/>
+   <circle class="end now" cx="900" cy="220" r="5"/>
+   <circle class="end" cx="900" cy="310" r="5"/>
+   <circle class="end" cx="900" cy="400" r="5"/>
+
+   <text class="id" x="930" y="137">…0d</text>
+   <text class="cell" x="1010" y="137">### In Gleam</text>
+   <text class="id now" x="930" y="227">…0f</text>
+   <text class="cell now" x="1010" y="227">&gt; A lens focuses on …</text>
+   <text class="id" x="930" y="317">…0e</text>
+   <text class="cell" x="1010" y="317">```gleam</text>
+   <text class="id" x="930" y="407">…44</text>
+   <text class="cell" x="1010" y="407">Lenses compose.</text>
+</svg>

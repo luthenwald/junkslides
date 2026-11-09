@@ -51,6 +51,12 @@ run *args:
    [ -x "$entry" ] || { echo "No build yet. Run just junkslides once first." >&2; exit 1; }
    exec "$entry" run {{args}}
 
+# The showcase as a static page in docs/, for GitHub Pages (made afresh each time)
+site:
+   rm -rf docs
+   gleam run export examples/showcase --out docs
+   touch docs/.nojekyll
+
 # S5: jot coverage and the block splitter, on both targets
 s5:
    cd spikes/s5_jot && gleam test --target erlang && gleam test --target javascript

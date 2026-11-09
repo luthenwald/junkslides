@@ -53,7 +53,9 @@ The editor targets Chromium-based browsers for now.
 `examples/showcase` is a short talk about junkslides, made with it. Each
 slide uses something the editor can do: placed cells with their own
 variants, code with lit lines and marks, a table, drawings, two charts, an
-animation in a frame, and speaker notes that say what to look at. Open a
+animation in a frame, and speaker notes that say what to look at. A rule
+over each title has a dot that marks how far into the talk you are, and the
+drawing of the deck's folder grows each time you come to its slide. Open a
 copy, so that your edits leave the example as it is:
 
 ```sh

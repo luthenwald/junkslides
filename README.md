@@ -66,6 +66,10 @@ gleam run serve ~/talks/showcase
 Or export it straight away with
 `gleam run export examples/showcase --out ~/showcase`.
 
+The exported showcase is also kept in `docs/`, ready to be served as it is,
+for example by GitHub Pages from the `docs` folder of the main branch.
+`just site` makes it again from the example.
+
 ## The editor
 
 The cells pane on the left holds the source of every cell; the slide pane on

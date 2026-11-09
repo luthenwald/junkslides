@@ -1,6 +1,7 @@
 ## Unreleased
 
 - New: your theme can see where a slide sits in the talk, as `--js-index` and `--js-total`, and which slide is on screen, as `--js-here`, in the editor and in the exported page. An animation written for the slide on screen starts again each time you come to it.
+- New: the example deck comes exported in `docs/`, a static page you can open or publish as it is, for example with GitHub Pages.
 - Improved: the example deck in `examples/showcase` shows where each slide is in the talk, and grows a drawing each time you come to its slide.
 
 ## First release

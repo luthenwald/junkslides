@@ -18,6 +18,8 @@ This deck is the example that comes with junkslides. Every slide uses something 
 
 Here: three cells, each placed by hand. The kicker, the title and the sentence at the right have their own variants in theme.css.
 
+From the next slide on, a rule runs over every title, with a dot at the slide's place in the talk.
+
 ---
 <!-- slide 019a7000-0000-7000-8000-000000000006 -->
 
@@ -47,7 +49,7 @@ on disk
 The first slide of this deck as it is written in deck.md. Every slide and cell carries an ID, which junkslides writes for you.
 
 <!-- notes 019a7000-0000-7000-8000-00000000000b -->
-The drawing on the left is an inline SVG. Its lines and labels take their colours and fonts from theme.css.
+The drawing on the left is an inline SVG. Its lines and labels take their colours and fonts from theme.css, and it grows branch by branch each time you come to this slide.
 
 The code block lights the slide marker and marks its ID with a pair of brackets that are left out when it is drawn. The other markers are set quiet the same way.
 
@@ -218,6 +220,39 @@ A span with a class says what a word is. The theme lists the classes it knows an
 
 <!-- notes 019a7000-0000-7000-8000-000000000031 -->
 The three lines are one paragraph written over three lines, and the slide keeps them so, with the indent of the third.
+
+---
+<!-- slide 019a7000-0000-7000-8000-000000000043 -->
+
+<!-- cell 019a7000-0000-7000-8000-000000000044 -->
+{lit="2 5" now="⟦⟧"}
+```css
+.js-slide {
+   --at: calc((var(⟦--js-index⟧) - 1) / (var(⟦--js-total⟧) - 1));
+}
+.js-cell[data-variant="title"]::after {
+   left: calc(var(--at) * 1680px);
+}
+@container style(⟦--js-here⟧: 1) {
+   .folder .branch { animation: grow 10s infinite; }
+}
+```
+
+<!-- cell 019a7000-0000-7000-8000-000000000045 -->
+Watch the dot over this title: it moves one step on every slide. On the slide with the folder, the tree grows each time you come to it, and stands still in the PDF.
+
+<!-- cell 019a7000-0000-7000-8000-000000000046 -->
+theme variables
+
+## ( the theme knows where it is )
+
+<!-- cell 019a7000-0000-7000-8000-000000000047 -->
+Every slide carries its number and the count, and the slide on screen says so. The rule and the growing tree are CSS alone.
+
+<!-- notes 019a7000-0000-7000-8000-000000000048 -->
+Three custom properties that junkslides sets on every slide: its number, the number of slides, and whether it is the one on screen. The code is an excerpt of this deck's theme.css.
+
+In the exported page there is no script: the slide the page has snapped to is the one on screen. In the editor it is the slide in the pane.
 
 ---
 <!-- slide 019a7000-0000-7000-8000-000000000032 -->

@@ -192,7 +192,7 @@ pub fn showcase_round_trips_and_has_no_problems_test() {
   let deck = parse(text)
   assert file.print(deck) == text
   assert deck.violations(deck) == []
-  assert list.length(deck.slides) == 12
+  assert list.length(deck.slides) == 13
   let problems =
     list.flat_map(deck.slides, fn(slide) {
       list.flat_map(slide.cells, fn(cell) {

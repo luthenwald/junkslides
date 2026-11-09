@@ -18,7 +18,11 @@
    --js-marks: "now quiet";
 }
 
-.js-slide { -webkit-font-smoothing: antialiased; }
+.js-slide {
+   -webkit-font-smoothing: antialiased;
+   /* How far into the talk this slide is, from 0 to 1. */
+   --at: calc((var(--js-index) - 1) / max(1, var(--js-total) - 1));
+}
 
 .js-page {
    right: 56px;
@@ -62,6 +66,41 @@
    line-height: 1.1;
 }
 
+/* A rule over the title band, with a dot at the slide's place in the talk.
+   The rule runs over the sentence at the right too, so it is wider than
+   the title's box; the dot pulses while the slide is on screen. */
+
+.js-cell[data-variant="title"] { position: relative; }
+
+.js-cell[data-variant="title"]::before {
+   content: "";
+   position: absolute;
+   left: 0;
+   top: -24px;
+   width: 1680px;
+   border-top: 1px solid var(--faint);
+}
+
+.js-cell[data-variant="title"]::after {
+   content: "";
+   position: absolute;
+   top: -29px;
+   left: calc(var(--at) * 1680px - 5px);
+   width: 10px;
+   height: 10px;
+   border-radius: 50%;
+   background: var(--accent);
+}
+
+@container style(--js-here: 1) {
+   .js-cell[data-variant="title"]::after { animation: pulse 5s ease-out 0.6s infinite; }
+}
+
+@keyframes pulse {
+   0% { box-shadow: 0 0 0 0 rgb(212 80 44 / 50%); }
+   60%, 100% { box-shadow: 0 0 0 16px rgb(212 80 44 / 0%); }
+}
+
 .js-cell[data-variant="lede"] {
    font-size: 25px;
    line-height: 1.38;
@@ -103,6 +142,8 @@
 .js-cell pre :is(.js-tok-operator, .js-tok-punctuation) { color: var(--mid); }
 .js-cell pre .js-tok-comment { color: var(--soft); }
 .js-cell pre .js-tok-string { color: var(--dark); }
+/* A mark keeps its colour over the shading inside it. */
+.js-cell pre .now [class*="js-tok-"] { color: inherit; }
 
 .js-cell pre .js-lit {
    display: inline-block;
@@ -133,6 +174,38 @@
 .js-figure .folder .file { font: 28px var(--mono); fill: var(--dark); }
 .js-figure .folder .file.now { fill: var(--accent); }
 .js-figure .folder .what { font: italic 28px var(--serif); fill: var(--mid); }
+
+/* The tree grows while its slide is on screen: the trunk, then each branch
+   with its file and what it holds (--i in the drawing), holds, fades and
+   grows again. In print and with reduced motion it stands whole. */
+
+@container style(--js-here: 1) {
+   .js-figure .folder :is(.trunk, .branch) {
+      stroke-dasharray: 1;
+      animation: grow 10s ease-out calc(var(--i) * 0.35s) infinite backwards;
+   }
+   .js-figure .folder :is(.file, .what) {
+      animation: bloom 10s ease-out calc(var(--i) * 0.35s + 0.25s) infinite backwards;
+   }
+}
+
+@keyframes grow {
+   0% { stroke-dashoffset: 1; stroke-opacity: 1; }
+   6% { stroke-dashoffset: 0; }
+   70% { stroke-opacity: 1; }
+   80%, 100% { stroke-dashoffset: 0; stroke-opacity: 0; }
+}
+
+@keyframes bloom {
+   0% { fill-opacity: 0; }
+   5% { fill-opacity: 1; }
+   70% { fill-opacity: 1; }
+   80%, 100% { fill-opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+   .js-slide *, .js-cell::after { animation: none !important; }
+}
 
 .js-figure .rebase .side { font: italic 28px var(--serif); fill: var(--soft); }
 .js-figure .rebase .id { font: 22px var(--mono); fill: var(--soft); }

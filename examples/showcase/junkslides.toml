@@ -31,4 +31,4 @@ numbers = "01 / 12"
 [code]
 keywords = ["pub", "fn", "type", "let", "case", "use", "import", "gleam", "run"]
 comments = ["//", "#"]
-simple = ["gleam", "sh", "json"]
+simple = ["gleam", "sh", "json", "css"]

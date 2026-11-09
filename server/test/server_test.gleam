@@ -580,7 +580,8 @@ pub fn the_showcase_exports_whole_test() {
   assert report.warnings == []
   let out = filepath.join(folder, "export")
   let page = harness.read(out, "index.html")
-  assert list.length(string.split(page, "class=\"js-frame\"")) == 13
+  assert list.length(string.split(page, "class=\"js-frame\"")) == 14
+  assert string.contains(page, "--js-index:13;--js-total:13;")
   assert string.contains(page, "class=\"folder\"")
   assert string.contains(page, "class=\"rebase\"")
   assert list.length(string.split(page, "class=\"js-chart\"")) == 3

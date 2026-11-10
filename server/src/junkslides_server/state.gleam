@@ -467,7 +467,10 @@ fn changed(state: State) -> State {
 fn poll_figures(state: State) -> State {
   let files =
     protocol.figures(state.deck)
-    |> list.map(fn(url) { #(url, figures.read(state.config.folder, url)) })
+    |> list.map(fn(url) {
+      let last = list.key_find(state.figures, url)
+      #(url, figures.read_again(state.config.folder, url, last))
+    })
   case files == state.figures {
     True -> state
     False -> {

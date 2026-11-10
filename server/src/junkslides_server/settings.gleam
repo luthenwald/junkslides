@@ -259,9 +259,7 @@ fn strings(
 
 /// A list of words, each of letters, digits, `_` and `'`.
 fn read_keywords(value: Toml, path: String) -> Result(List(String), String) {
-  let message =
-    "junkslides.toml: " <> path <> " should be a list of words in quotes."
-  let word = fn(text) {
+  strings(value, path, "words", fn(text) {
     text != ""
     && list.all(string.to_graphemes(text), fn(g) {
       string.contains(
@@ -269,21 +267,7 @@ fn read_keywords(value: Toml, path: String) -> Result(List(String), String) {
         g,
       )
     })
-  }
-  case value {
-    tom.Array(items) ->
-      list.try_map(items, fn(item) {
-        case item {
-          tom.String(text) ->
-            case word(text) {
-              True -> Ok(text)
-              False -> Error(message)
-            }
-          _ -> Error(message)
-        }
-      })
-    _ -> Error(message)
-  }
+  })
 }
 
 fn syntax_message(error: tom.ParseError) -> String {

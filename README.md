@@ -77,15 +77,15 @@ junkslides serve ~/talks/showcase
 Or export it straight away with
 `junkslides export examples/showcase --out ~/showcase`.
 
-The exported showcase is also kept in `docs/`, ready to be served as it is,
-for example by GitHub Pages from the `docs` folder of the main branch.
-To make it again from the example:
-
-```sh
-rm -rf docs
-junkslides export examples/showcase --out docs
-touch docs/.nojekyll
-```
+You can also try the editor without installing anything. `docs/` holds a
+copy of it that runs on the showcase with no server behind it, ready to be
+served as it is, for example by GitHub Pages from the `docs` folder of the
+main branch. There the deck lives in the page: your edits stay until you
+reload, nothing is saved for you, and `E` gives you `deck.md` and
+`layout.json` as they are at that moment, to save and open with junkslides
+on your own computer. Code typed there is shaded by the simple rules, and a
+PDF needs the real thing. The same talk as exported slides, with no script,
+is in `docs/slides/`.
 
 ## The editor
 

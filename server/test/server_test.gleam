@@ -393,8 +393,6 @@ fn scratch(name: String) -> String {
   folder
 }
 
-/// The server's own write is not read back as an outside edit: an undo that
-/// follows a write, before any poll, survives the next flush.
 /// A write that fails is said once, and the file is listed as not saved,
 /// to late clients too, until a write of it works.
 pub fn a_failed_write_is_said_until_one_works_test() {
@@ -425,6 +423,28 @@ pub fn a_failed_write_is_said_until_one_works_test() {
   assert string.contains(harness.read(h.folder, "deck.md"), "## Written")
 }
 
+/// A deck.md that is a link to a file kept elsewhere stays a link, and the
+/// file behind it is the one replaced, with the permissions it had.
+pub fn atomic_write_goes_through_a_link_and_keeps_permissions_test() {
+  let folder = scratch("store-link")
+  let elsewhere = scratch("store-link-elsewhere")
+  let real = filepath.join(elsewhere, "real.md")
+  let link = filepath.join(folder, "deck.md")
+  let assert Ok(Nil) = simplifile.write(real, "one")
+  let assert Ok(Nil) = simplifile.set_permissions_octal(real, 0o600)
+  let assert Ok(Nil) =
+    simplifile.create_symlink("../store-link-elsewhere/real.md", link)
+  let assert Ok(_) = store.write_atomic(link, <<"two":utf8>>)
+  assert simplifile.is_symlink(link) == Ok(True)
+  assert simplifile.read(real) == Ok("two")
+  let assert Ok(info) = simplifile.file_info(real)
+  assert simplifile.file_info_permissions_octal(info) == 0o600
+  assert simplifile.read_directory(folder) == Ok(["deck.md"])
+  assert simplifile.read_directory(elsewhere) == Ok(["real.md"])
+}
+
+/// The server's own write is not read back as an outside edit: an undo that
+/// follows a write, before any poll, survives the next flush.
 pub fn own_write_is_not_an_outside_edit_test() {
   let h = harness.serve_with(harness.folder("own-write"), 4898, 60_000, 50)
   let #(before, _) = harness.next_state(h)

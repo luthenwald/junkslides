@@ -157,18 +157,31 @@ pub fn write_pdf(
 }
 
 /// The deck folder would get an `index.html` among its own files, and a folder
-/// in `assets/` would be copied into itself.
+/// in `assets/` would be copied into itself. The folders are compared as the
+/// file system knows them, since a path can name the deck in other letters (a
+/// volume that ignores case) or through a link, and a file copied onto itself
+/// is emptied.
 fn check_out(folder: String, out: String) -> Result(Nil, String) {
   let assets = filepath.join(folder, "assets")
   use <- bool.guard(
-    out == folder,
+    out == folder || same_file(out, folder),
     Error("Export to a folder of its own, not to the deck's folder."),
   )
   use <- bool.guard(
-    out == assets || string.starts_with(out, assets <> "/"),
+    out == assets
+      || string.starts_with(out, assets <> "/")
+      || same_file(out, assets),
     Error("Export to a folder outside the deck's assets."),
   )
   Ok(Nil)
+}
+
+/// Whether two paths name one file or folder on disk.
+fn same_file(a: String, b: String) -> Bool {
+  case simplifile.file_info(a), simplifile.file_info(b) {
+    Ok(a), Ok(b) -> a.inode == b.inode && a.dev == b.dev
+    _, _ -> False
+  }
 }
 
 /// Every file in `assets/`, apart from hidden ones.
@@ -345,7 +358,11 @@ fn copy(folder: String, out: String, relative: String) -> Result(Nil, String) {
     simplifile.create_directory_all(filepath.directory_name(target))
     |> result.map_error(describe(target, _)),
   )
-  simplifile.copy_file(filepath.join(folder, relative), target)
+  let source = filepath.join(folder, relative)
+  // Copying a file onto itself would empty it; `check_out` keeps the export
+  // out of the deck, and this holds whatever path led here.
+  use <- bool.guard(same_file(source, target), Ok(Nil))
+  simplifile.copy_file(source, target)
   |> result.map_error(describe(target, _))
 }
 

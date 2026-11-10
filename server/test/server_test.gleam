@@ -835,6 +835,28 @@ pub fn export_refuses_the_deck_folder_and_its_assets_test() {
   assert !exists(folder, "assets/out/index.html")
 }
 
+/// A path that names the deck's folder in another way, here through a link,
+/// is the deck's folder: nothing is written, and no file is copied onto
+/// itself, which would empty it.
+pub fn export_refuses_the_deck_folder_by_another_name_test() {
+  let folder = export_deck("export-alias")
+  let alias = folder <> "-alias"
+  let _ = simplifile.delete(alias)
+  let assert Ok(Nil) = simplifile.create_symlink(folder, alias)
+  assert junkslides_server.export_deck(folder, Some(alias), "no-such-command")
+    == Error("Export to a folder of its own, not to the deck's folder.")
+  let assert Error(_) =
+    junkslides_server.export_deck(
+      folder,
+      Some(filepath.join(alias, "assets")),
+      "no-such-command",
+    )
+  assert !exists(folder, "index.html")
+  assert simplifile.read(filepath.join(folder, "assets/lens.png")) == Ok("lens")
+  assert simplifile.read(filepath.join(folder, "side.png")) == Ok("side")
+  let assert Ok(Nil) = simplifile.delete(alias)
+}
+
 pub fn export_writes_nothing_when_a_file_does_not_read_test() {
   let folder = export_deck("export-broken-deck")
   let assert Ok(Nil) =

@@ -355,32 +355,56 @@ fn diagnostic_decoder() -> Decoder(Diagnostic) {
   decode.success(Diagnostic(cell, problems))
 }
 
-const problems = [
-  #("thematic_break", dialect.ThematicBreakUsed),
-  #("raw_block", dialect.RawBlockUsed),
-  #("div", dialect.DivUsed),
-  #("span", dialect.SpanUsed),
-  #("attributes", dialect.AttributesUsed),
-  #("reference_link", dialect.ReferenceLinkUsed),
-  #("reference_definition", dialect.ReferenceDefinitionUsed),
-  #("footnote", dialect.FootnoteUsed),
-  #("math", dialect.MathUsed),
-  #("extra", dialect.ExtraUsed),
-  #("bullet_spelling", dialect.BulletSpelling),
-  #("ordinal_spelling", dialect.OrdinalSpelling),
-  #("table_shape", dialect.TableShape),
-  #("unknown_mark", dialect.UnknownMark),
-  #("code_attribute", dialect.CodeAttribute),
+/// A problem's name on the wire. The compiler asks for a name when a
+/// problem is added to the dialect, so the server can always say it.
+fn problem_name(problem: Problem) -> String {
+  case problem {
+    dialect.ThematicBreakUsed -> "thematic_break"
+    dialect.RawBlockUsed -> "raw_block"
+    dialect.DivUsed -> "div"
+    dialect.SpanUsed -> "span"
+    dialect.AttributesUsed -> "attributes"
+    dialect.ReferenceLinkUsed -> "reference_link"
+    dialect.ReferenceDefinitionUsed -> "reference_definition"
+    dialect.FootnoteUsed -> "footnote"
+    dialect.MathUsed -> "math"
+    dialect.ExtraUsed -> "extra"
+    dialect.BulletSpelling -> "bullet_spelling"
+    dialect.OrdinalSpelling -> "ordinal_spelling"
+    dialect.TableShape -> "table_shape"
+    dialect.UnknownMark -> "unknown_mark"
+    dialect.CodeAttribute -> "code_attribute"
+  }
+}
+
+/// Every problem, for reading a name back. One missing here is not read by
+/// the editor, which says so; `server_messages_round_trip_test` sends them
+/// all.
+pub const problems = [
+  dialect.ThematicBreakUsed,
+  dialect.RawBlockUsed,
+  dialect.DivUsed,
+  dialect.SpanUsed,
+  dialect.AttributesUsed,
+  dialect.ReferenceLinkUsed,
+  dialect.ReferenceDefinitionUsed,
+  dialect.FootnoteUsed,
+  dialect.MathUsed,
+  dialect.ExtraUsed,
+  dialect.BulletSpelling,
+  dialect.OrdinalSpelling,
+  dialect.TableShape,
+  dialect.UnknownMark,
+  dialect.CodeAttribute,
 ]
 
 fn problem_value(problem: Problem) -> Value {
-  let assert Ok(#(name, _)) = list.find(problems, fn(p) { p.1 == problem })
-  Str(name)
+  Str(problem_name(problem))
 }
 
 fn problem_decoder() -> Decoder(Problem) {
   use name <- decode.then(decode.string)
-  case list.key_find(problems, name) {
+  case list.find(problems, fn(problem) { problem_name(problem) == name }) {
     Ok(problem) -> decode.success(problem)
     Error(Nil) -> decode.failure(dialect.ThematicBreakUsed, "Problem")
   }

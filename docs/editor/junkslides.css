@@ -377,6 +377,18 @@ body {
   text-overflow: ellipsis;
 }
 
+/* What a deck in the page can become; a button that reads as a link. */
+.jse-choice {
+  font: inherit;
+  color: var(--jse-ink);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* A file offered for saving where there is no server to write it. */
 .jse-download {
   color: var(--jse-ink);

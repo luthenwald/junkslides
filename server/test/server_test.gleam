@@ -260,6 +260,48 @@ pub fn static_files_stay_inside_the_deck_folder_test() {
   assert get("/a%2f..%2f..%2fstatic%2ftheme.css").0 == 404
 }
 
+/// The editor's page runs only its own script, a deck's pages and drawings
+/// are served apart from the editor's origin, and every file keeps the type
+/// it is sent as.
+pub fn pages_say_what_may_run_test() {
+  let h = harness.start("policies", 4974)
+  let _ = harness.next_state(h)
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(h.folder, "viz.html"), "<p>mine</p>")
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(h.folder, "fan.svg"), "<svg/>")
+  let get = fn(path) {
+    let assert Ok(req) = request.to("http://127.0.0.1:4974" <> path)
+    let assert Ok(response) = httpc.send(req)
+    response
+  }
+  let policy = response.get_header(_, "content-security-policy")
+  let nonce_of = fn(page: response.Response(String)) {
+    let assert Ok("script-src 'nonce-" <> rest) = policy(page)
+    let assert Ok(#(nonce, "; object-src 'none'; base-uri 'none'")) =
+      string.split_once(rest, "'")
+    assert string.contains(
+      page.body,
+      "<script type=module nonce=" <> nonce <> " src=",
+    )
+    nonce
+  }
+  let first = nonce_of(get("/"))
+  assert string.length(first) >= 22
+  assert nonce_of(get("/")) != first
+  assert policy(get("/viz.html")) == Ok("sandbox allow-scripts")
+  assert policy(get("/fan.svg")) == Ok("sandbox allow-scripts")
+  assert policy(get("/theme.css")) == Error(Nil)
+  assert policy(get("/.js/base.css")) == Error(Nil)
+  list.each(
+    ["/", "/viz.html", "/theme.css", "/.js/base.css", "/nothing"],
+    fn(path) {
+      assert response.get_header(get(path), "x-content-type-options")
+        == Ok("nosniff")
+    },
+  )
+}
+
 pub fn serve_says_when_the_port_is_taken_test() {
   let h = harness.start("port-taken", 4899)
   let _ = harness.next_state(h)

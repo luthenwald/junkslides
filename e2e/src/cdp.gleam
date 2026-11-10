@@ -221,6 +221,20 @@ pub fn html(page: Page, selector: String) -> Result(String, String) {
   )
 }
 
+/// The value of a JavaScript expression in the page, which must be a string.
+pub fn evaluate(page: Page, expression: String) -> Result(String, String) {
+  get(
+    page,
+    "Runtime.evaluate",
+    [
+      #("expression", json.string(expression)),
+      #("returnByValue", json.bool(True)),
+    ],
+    ["result", "value"],
+    decode.string,
+  )
+}
+
 /// The font families the page has loaded, as `family style`, comma separated.
 pub fn loaded_fonts(page: Page) -> Result(String, String) {
   get(

@@ -108,6 +108,22 @@ pub fn no_script_at_all_test() {
   assert !string.contains(string.lowercase(page(True)), "<script")
 }
 
+/// The page tells the browser to run nothing, before anything else in it.
+/// Lustre writes the quotes of an attribute's value as entities.
+pub fn the_page_forbids_script_test() {
+  let assert Ok(#(before, _)) =
+    string.split_once(page(True), " http-equiv=\"Content-Security-Policy\">")
+  assert string.ends_with(
+    before,
+    "<meta content=\""
+      <> string.replace(render.page_policy, "'", "&#39;")
+      <> "\"",
+  )
+  assert string.contains(render.page_policy, "script-src 'none'")
+  assert !string.contains(before, "<style")
+  assert !string.contains(before, "<link")
+}
+
 pub fn the_theme_comes_after_the_page_styles_test() {
   let html = page(True)
   let assert [_, after_styles] = string.split(html, "</style><link")

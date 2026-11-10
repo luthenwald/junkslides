@@ -5,6 +5,7 @@ import cdp.{type Page}
 import filepath
 import gleam/bit_array
 import gleam/dynamic/decode
+import gleam/erlang/process
 import gleam/float
 import gleam/json
 import gleam/list
@@ -42,6 +43,19 @@ pub fn the_page_holds_every_slide_and_no_script_test() {
   assert cdp.count(page, ".js-cell[data-placed]") > 0
   assert cdp.computed(page, ".js-slide", "background-color")
     == Ok("rgb(250, 250, 250)")
+}
+
+/// The exported page tells the browser to run nothing, so a handler that
+/// came in with a drawing's markup stays inert.
+pub fn the_page_runs_no_script_test() {
+  let #(page, _) = exported("export-policy", 4977)
+  assert cdp.evaluate(page, "document.title") == Ok("export-policy")
+  assert cdp.evaluate(page, harness.inline_handler) == Ok("added")
+  assert eventually(fn() {
+    cdp.evaluate(page, harness.handler_image_done) == Ok("true")
+  })
+  process.sleep(100)
+  assert cdp.evaluate(page, "document.title") == Ok("export-policy")
 }
 
 pub fn the_page_loads_the_default_fonts_from_its_own_folder_test() {

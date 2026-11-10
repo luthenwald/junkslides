@@ -324,3 +324,15 @@ pub fn offline_edit_waits_for_the_connection_test() {
   assert string.contains(status(page), "command")
   assert eventually(fn() { string.contains(deck(folder), "# Why lenses Kept.") })
 }
+
+/// The editor's page runs its own script and no other: a handler that
+/// reaches the page with a deck's content stays inert.
+pub fn the_page_runs_no_script_but_its_own_test() {
+  let #(page, _) = open("policy", 4976)
+  assert cdp.evaluate(page, harness.inline_handler) == Ok("added")
+  assert eventually(fn() {
+    cdp.evaluate(page, harness.handler_image_done) == Ok("true")
+  })
+  process.sleep(100)
+  assert cdp.evaluate(page, "document.title") == Ok("junkslides")
+}

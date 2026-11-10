@@ -150,3 +150,12 @@ pub fn record(folder: String, suffix: String) -> layout.CellRecord {
   let assert Ok(cell) = id.parse(cell(suffix))
   layout.record(saved, cell)
 }
+
+/// Adds an image that cannot load, with an inline handler that would rename
+/// the page. Where the page's policy holds, the name stays.
+pub const inline_handler =
+  "document.body.insertAdjacentHTML('beforeend', '<img id=\"handler\" src=\"missing.png\" onerror=\"document.title = `ran`\">'); 'added'"
+
+/// Whether that image has finished failing, as `true` or `false`.
+pub const handler_image_done =
+  "String(document.getElementById('handler').complete)"

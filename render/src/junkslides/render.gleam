@@ -52,6 +52,10 @@ pub fn document(
         [
           html.meta([attribute("charset", "utf-8")]),
           html.meta([
+            attribute("http-equiv", "Content-Security-Policy"),
+            attribute("content", page_policy),
+          ]),
+          html.meta([
             attribute.name("viewport"),
             attribute("content", "width=device-width, initial-scale=1"),
           ]),
@@ -71,6 +75,12 @@ pub fn document(
   ])
   |> element.to_document_string
 }
+
+/// The exported page runs no script (04-layout.md, Export), and says so to
+/// the browser: an inline handler or a script that came in with a drawing's
+/// markup stays inert. A framed page has a policy of its own, so an embedded
+/// page still runs its script.
+pub const page_policy = "script-src 'none'; object-src 'none'; base-uri 'none'"
 
 fn frame(
   slide: Slide,

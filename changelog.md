@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Improved: the readme no longer asks for `just`, which you never needed to run junkslides, and it has a section on removing junkslides with every file and folder it may leave behind.
+
 ## First release
 
 0.1.0 · 2026-11-10 · `szonvzox::pwxvqpss`

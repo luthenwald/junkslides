@@ -309,6 +309,31 @@ is used.
 
 junkslides reloads the theme when the file changes.
 
+## Uninstalling
+
+junkslides installs nothing outside its own folder. To remove it completely:
+
+1. Delete `~/.config/junkslides/`. It holds one file, `view.json`, with the
+   pane sizes and snap step the editor remembers for each deck.
+2. Delete this project folder. Building leaves `build/` here and in `core`,
+   `render`, `server`, `client` and `e2e`, the editor's bundle in
+   `server/priv/static/`, and a downloaded bundler in `client/.lustre/`, all
+   of which go with the folder.
+
+Your decks are yours and stay where you made them. If a deck should go as
+well, delete its folder: `deck.md`, `layout.json`, `junkslides.toml`,
+`theme.css`, `fonts/`, `assets/`, and `export/` if you exported there. An
+export made with `--out` is in the folder you named.
+
+Two kinds of leftovers are possible if junkslides was stopped in the middle
+of its work. A file named like `.deck.md.1a2b3c4d.js-tmp` in a deck's folder
+is a write that did not finish, and folders or files named `js-pdf-*` and
+`js-highlight-*` in the system's temporary folder (`$TMPDIR`, or `/tmp`)
+belong to a PDF or highlighting run. All of them can be deleted.
+
+junkslides keeps no caches or logs. Gleam, Erlang, tree-sitter and your
+browser were installed by you and are left alone.
+
 ## License
 
 MIT, see [license](license). The fonts that come with junkslides have their own

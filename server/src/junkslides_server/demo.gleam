@@ -9,14 +9,14 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
+import junkslides/contract
 import junkslides/deck.{type Deck}
 import junkslides/layout.{type Layout}
 import junkslides/protocol
+import junkslides/settings
 import junkslides_server/export
 import junkslides_server/figures
 import junkslides_server/highlighter
-import junkslides_server/settings
-import junkslides_server/theme
 
 /// The source of `junkslides_demo/deck`: the greeting as protocol JSON, the
 /// theme's mark classes for the diagnostics, and the simple shading's rules
@@ -34,7 +34,7 @@ pub fn module(
     |> option.map(bit_array.to_string)
     |> option.map(result.unwrap(_, ""))
     |> option.unwrap("")
-  let marks = theme.marks(css)
+  let marks = contract.marks(css)
   let rules = settings.shading(settings)
   let figure_files =
     protocol.figures(deck)
@@ -45,7 +45,7 @@ pub fn module(
       deck:,
       layout:,
       diagnostics: protocol.diagnostics(deck, marks),
-      variants: theme.variants(css),
+      variants: contract.variants(css),
       view: protocol.default_view,
     ),
     protocol.Highlights(highlighter.highlight(

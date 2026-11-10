@@ -14,6 +14,7 @@ import gleam/otp/actor
 import gleam/result
 import gleam/string
 import gleam/time/timestamp.{type Timestamp}
+import junkslides/contract
 import junkslides/deck.{type Deck}
 import junkslides/file
 import junkslides/history.{type History}
@@ -24,14 +25,13 @@ import junkslides/protocol.{
   type ClientMsg, type Highlight, type ServerMsg, type View,
 }
 import junkslides/session.{type Session, Session}
+import junkslides/settings
 import junkslides/shade
 import junkslides_server/export
 import junkslides_server/figures
 import junkslides_server/highlighter
 import junkslides_server/pdf
-import junkslides_server/settings
 import junkslides_server/store
-import junkslides_server/theme
 import junkslides_server/view
 import simplifile
 
@@ -232,26 +232,9 @@ pub fn parse_deck(bytes: BitArray) -> Result(Deck, String) {
     bit_array.to_string(bytes)
     |> result.replace_error("deck.md is not valid UTF-8."),
   )
-  case file.parse(text, new_supply()) {
-    Ok(#(deck, _)) -> Ok(deck)
-    Error(file.ParseError(line:, problem:)) ->
-      Error(
-        "deck.md line "
-        <> int.to_string(line)
-        <> ": "
-        <> describe_problem(problem)
-        <> ".",
-      )
-  }
-}
-
-fn describe_problem(problem: file.Problem) -> String {
-  case problem {
-    file.UnknownVersion(version) ->
-      "unknown format version " <> int.to_string(version)
-    file.MisplacedHeader -> "the header must be the first line"
-    file.SlideMarkerWithoutBreak -> "a slide marker must follow a break"
-  }
+  file.parse(text, new_supply())
+  |> result.map(fn(parsed) { parsed.0 })
+  |> result.map_error(file.describe)
 }
 
 pub fn parse_layout(bytes: BitArray) -> Result(Layout, String) {
@@ -271,7 +254,7 @@ fn read_theme(config: Config) -> #(List(String), List(String), String) {
     Error(Nil) -> #([], [], store.missing)
     Ok(#(bytes, hash)) -> {
       let css = bit_array.to_string(bytes) |> result.unwrap("")
-      #(theme.variants(css), theme.marks(css), hash)
+      #(contract.variants(css), contract.marks(css), hash)
     }
   }
 }

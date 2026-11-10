@@ -1,6 +1,7 @@
 //// deck.md: the reader with its reading rules and the canonical printer;
 //// layout.json: printing and parsing (02-file-format.md).
 
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -46,6 +47,17 @@ type RawCell {
 /// Lines are collected in reverse and put in order at the end.
 type Reader {
   Reader(slides: List(RawSlide), current: RawSlide, previous: line.Line)
+}
+
+/// A parse error as a sentence for the user.
+pub fn describe(error: ParseError) -> String {
+  let problem = case error.problem {
+    UnknownVersion(version) ->
+      "unknown format version " <> int.to_string(version)
+    MisplacedHeader -> "the header must be the first line"
+    SlideMarkerWithoutBreak -> "a slide marker must follow a break"
+  }
+  "deck.md line " <> int.to_string(error.line) <> ": " <> problem <> "."
 }
 
 pub fn parse(

@@ -11,16 +11,17 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
+import junkslides/contract
 import junkslides/dialect
 import junkslides/file
 import junkslides/op
 import junkslides/protocol.{Token, View}
 import junkslides/render/styles
+import junkslides/settings
 import junkslides/shade
 import junkslides_server
 import junkslides_server/highlighter
 import junkslides_server/pdf
-import junkslides_server/settings
 import junkslides_server/state
 import junkslides_server/store
 import junkslides_server/theme
@@ -177,17 +178,19 @@ fn next_figures(h: harness.Harness) -> List(#(String, String)) {
 }
 
 pub fn variants_are_read_from_the_theme_test() {
-  assert theme.marks(
+  assert contract.marks(
       ":root { --js-marks: \"now quiet\"; --js-variants: \"a\" }",
     )
     == ["now", "quiet"]
-  assert theme.marks(theme.default_css) == []
-  assert theme.variants(theme.default_css)
+  assert contract.marks(theme.default_css) == []
+  assert contract.variants(theme.default_css)
     == ["large", "small", "quiet", "emphasis"]
-  assert theme.variants(":root {\n  --js-variants:\n    'a  b'\n    \"c\" ;\n}")
+  assert contract.variants(
+      ":root {\n  --js-variants:\n    'a  b'\n    \"c\" ;\n}",
+    )
     == ["a", "b", "c"]
-  assert theme.variants(".x { color: red; }") == []
-  assert theme.variants(":root { --js-variants: \"a a\" }") == ["a"]
+  assert contract.variants(".x { color: red; }") == []
+  assert contract.variants(":root { --js-variants: \"a a\" }") == ["a"]
 }
 
 pub fn files_the_theme_loads_are_read_test() {

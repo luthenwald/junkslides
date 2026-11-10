@@ -18,10 +18,10 @@ import junkslides/dialect
 import junkslides/layout.{type Layout}
 import junkslides/protocol
 import junkslides/render
+import junkslides/settings.{type Settings}
 import junkslides_server/figures
 import junkslides_server/highlighter
 import junkslides_server/pdf
-import junkslides_server/settings.{type Settings}
 import junkslides_server/store
 import junkslides_server/theme
 import simplifile

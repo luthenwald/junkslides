@@ -1,9 +1,9 @@
 import gleam/list
-import junkslides_server/figures
+import junkslides/drawing
 import simplifile
 
 pub fn drawings_start_at_their_svg_test() {
-  assert figures.drawing(
+  assert drawing.safe(
       "<?xml version=\"1.0\"?>\n<!-- made by hand -->\n<svg viewBox=\"0 0 10 10\"><path class=\"edge\" d=\"M0,0 H10\"/><use href=\"#a\"/></svg>\n",
     )
     == Ok(
@@ -11,9 +11,9 @@ pub fn drawings_start_at_their_svg_test() {
     )
   // Text that only mentions such words is fine.
   let assert Ok(_) =
-    figures.drawing("<svg><text>the condition on x, once = 1</text></svg>")
+    drawing.safe("<svg><text>the condition on x, once = 1</text></svg>")
   let assert Ok(_) =
-    figures.drawing(
+    drawing.safe(
       "<svg><style>.a { fill: url(#g) }</style><rect style=\"fill: url('#g')\"/></svg>",
     )
 }
@@ -35,7 +35,7 @@ pub fn drawings_that_could_run_or_load_are_refused_test() {
       "<p>not a drawing</p>",
     ],
     fn(svg) {
-      let assert Error(_) = figures.drawing(svg)
+      let assert Error(_) = drawing.safe(svg)
     },
   )
 }
@@ -57,7 +57,7 @@ pub fn a_handler_is_found_whatever_separates_it_test() {
       "<svg></g onclick=x()></svg>",
     ],
     fn(svg) {
-      assert figures.drawing(svg) == Error("it has event handler attributes")
+      assert drawing.safe(svg) == Error("it has event handler attributes")
     },
   )
 }
@@ -94,7 +94,7 @@ pub fn markup_that_is_not_a_drawings_is_refused_test() {
       "<svg><text>a\u{0}b</text></svg>",
     ],
     fn(svg) {
-      let assert Error(_) = figures.drawing(svg)
+      let assert Error(_) = drawing.safe(svg)
     },
   )
 }
@@ -116,12 +116,12 @@ pub fn ordinary_drawings_pass_test() {
       "<svg><path style=\"--i: 2; stroke-dasharray: 1\" pathLength=\"1\" data-once=\"x\"/></svg>",
     ],
     fn(svg) {
-      assert figures.drawing(svg) == Ok(svg)
+      assert drawing.safe(svg) == Ok(svg)
     },
   )
   // The showcase's own drawings.
   list.each(["folder.svg", "rebase.svg"], fn(name) {
     let assert Ok(svg) = simplifile.read("../examples/showcase/assets/" <> name)
-    let assert Ok(_) = figures.drawing(svg)
+    let assert Ok(_) = drawing.safe(svg)
   })
 }

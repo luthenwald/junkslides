@@ -22,11 +22,11 @@ import junkslides/deck.{Cell, Content, Deck, Slide}
 import junkslides/file
 import junkslides/id
 import junkslides/layout
+import junkslides/settings
 import junkslides_server/demo
 import junkslides_server/export
 import junkslides_server/highlighter
 import junkslides_server/pdf
-import junkslides_server/settings
 import junkslides_server/state
 import junkslides_server/store
 import junkslides_server/theme

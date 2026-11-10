@@ -1,7 +1,7 @@
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
-import junkslides_server/settings.{Font}
+import junkslides/settings.{Font}
 
 const full =
   "

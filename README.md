@@ -31,7 +31,7 @@ the file reads again.
 
 ## Running it
 
-junkslides is written in Gleam. With Gleam, Erlang and `just` installed, and
+junkslides is written in Gleam. With Gleam and Erlang installed, and
 optionally the `tree-sitter` command for highlighting, from this folder:
 
 ```sh
@@ -44,10 +44,6 @@ gleam run export ~/talks/lenses   # a static page, see Exporting
 from where you run it, which can be any folder of this project except the
 packages inside it (`core`, `server`, `client` and the others), where it runs
 that package instead.
-
-`just junkslides serve ~/talks/lenses` does the same from any folder of the
-project, and `just run serve ~/talks/lenses` starts the last `just junkslides`
-build straight away.
 
 The editor targets Chromium-based browsers for now.
 
@@ -71,7 +67,13 @@ Or export it straight away with
 
 The exported showcase is also kept in `docs/`, ready to be served as it is,
 for example by GitHub Pages from the `docs` folder of the main branch.
-`just site` makes it again from the example.
+To make it again from the example:
+
+```sh
+rm -rf docs
+gleam run export examples/showcase --out docs
+touch docs/.nojekyll
+```
 
 ## The editor
 

@@ -33,9 +33,9 @@ packages = [
   { name = "splitter", version = "1.3.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "splitter", source = "hex", outer_checksum = "8F1485306E0D59168A39E12ED8844F9F616EC59C3C63AFCFDAE04DBD68690CBC" },
   { name = "stratus", version = "3.0.0", build_tools = ["gleam"], requirements = ["exception", "gleam_crypto", "gleam_erlang", "gleam_http", "gleam_otp", "gleam_stdlib", "gramps", "logging"], otp_app = "stratus", source = "hex", outer_checksum = "21C93D657E4E7964E36EACDE83609459F259289DF403B5FEBD3C60612594BE24" },
   { name = "tom", version = "2.1.0", build_tools = ["gleam"], requirements = ["gleam_stdlib", "gleam_time"], otp_app = "tom", source = "hex", outer_checksum = "DCF04CB7AB35D58CFC598C66EA2E1816D160759802C89B2BA6238780D59BC256" },
-  { name = "junkslides_core", version = "0.1.0", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib", "gleam_time", "jot"], source = "local", path = "../core" },
-  { name = "junkslides_render", version = "0.1.0", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib", "jot", "junkslides_core", "lustre", "tom"], source = "local", path = "../render" },
-  { name = "junkslides_server", version = "0.1.0", build_tools = ["gleam"], requirements = ["argv", "envoy", "filepath", "gleam_crypto", "gleam_erlang", "gleam_http", "gleam_json", "gleam_otp", "gleam_stdlib", "gleam_time", "logging", "mist", "shellout", "simplifile", "tom", "junkslides_core", "junkslides_render"], source = "local", path = "../server" },
+  { name = "junkslides_core", version = "0.2.0", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib", "gleam_time", "jot"], source = "local", path = "../core" },
+  { name = "junkslides_render", version = "0.2.0", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib", "jot", "junkslides_core", "lustre", "tom"], source = "local", path = "../render" },
+  { name = "junkslides_server", version = "0.2.0", build_tools = ["gleam"], requirements = ["argv", "envoy", "filepath", "gleam_crypto", "gleam_erlang", "gleam_http", "gleam_json", "gleam_otp", "gleam_stdlib", "gleam_time", "logging", "mist", "shellout", "simplifile", "tom", "junkslides_core", "junkslides_render"], source = "local", path = "../server" },
 ]
 
 [requirements]

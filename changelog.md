@@ -1,5 +1,9 @@
 ## Unreleased
 
+## An installed command and an editor to try online
+
+0.2.0 · 2026-11-10 · `oplnwwpp::umlmtuvk`
+
 - New: the editor can be tried in a browser with nothing installed. `docs/` holds a copy that runs on the showcase deck from plain files, as GitHub Pages serves them: edit, place and undo as usual, and press `E` to save `deck.md` and `layout.json`. Your browser keeps your edits there across reloads until you choose "start over". The exported slides moved to `docs/slides/`.
 - New: on that site, "open a folder" works on a copy of a deck from your computer, with its settings, theme, drawings and charts. Nothing is written to the folder or sent anywhere, and the copy stays in your browser until you close it. It needs a browser built on Chromium, and pictures and font files are not copied.
 - New: a slide can go without its number or without the marks your theme draws on every slide, such as a progress dot. Press `n` or `.` on the slide in the editor, and again to bring them back. Themes see `data-marks="off"` on such a slide.

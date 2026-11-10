@@ -1,5 +1,5 @@
 name = "junkslides_demo"
-version = "0.1.0"
+version = "0.2.0"
 target = "javascript"
 description = "The junkslides editor on a deck kept in the page, for a static site."
 

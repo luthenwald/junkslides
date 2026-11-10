@@ -1,5 +1,5 @@
 name = "junkslides_e2e"
-version = "0.1.0"
+version = "0.2.0"
 target = "erlang"
 description = "The editor in headless Chrome against a real server, driven over the DevTools protocol."
 

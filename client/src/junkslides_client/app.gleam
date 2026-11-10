@@ -19,6 +19,7 @@ import junkslides/op.{type EditProblem, type Op}
 import junkslides/protocol.{
   type CodeBlock, type Diagnostic, type Token, type View, View,
 }
+import junkslides_client/browser
 import junkslides_client/canvas.{type Box}
 import junkslides_client/edit
 import junkslides_client/keymap.{
@@ -81,14 +82,25 @@ pub type Connection {
   Open(socket: ws.WebSocket)
   Closed
   /// No server: the deck lives in this page (`junkslides_client/local`).
-  InPage(local: Local)
+  /// `home` is the deck the page was made with, to go back to.
+  InPage(local: Local, home: Local)
 }
 
 /// How the editor starts: against the server that serves it, or on a deck
-/// kept in the page, with the messages that greet it.
+/// kept in the page, which is `home`, the deck the page was made with,
+/// unless the browser kept another.
 pub type Start {
   Served
-  Standalone(local: Local, greeting: List(protocol.ServerMsg))
+  Standalone(local: Local, home: Local)
+}
+
+/// The start on a deck in the page: `home`, or what the browser kept of an
+/// earlier visit.
+pub fn standalone(home: Local) -> Start {
+  let kept =
+    browser.load()
+    |> result.try(local.resume(home, _, new_supply(), timestamp.system_time()))
+  Standalone(local: result.unwrap(kept, home), home:)
 }
 
 /// What the server sent last, apart from the view.
@@ -170,6 +182,13 @@ pub type Msg {
   SnapChosen(Int)
   /// The time a released drag waits for its state is up.
   DragSettled(seq: Int)
+  /// Asks for a folder to open a copy of, with a deck in the page.
+  OpenFolder
+  /// The folder's name and the text of its files by path, or the
+  /// browser's reason for none.
+  FolderRead(Result(#(String, List(#(String, String))), String))
+  /// Back to the deck the page was made with, as it came.
+  StartOver
 }
 
 const typing_pause = 200
@@ -183,7 +202,10 @@ const reconnect_after = 1000
 pub fn init(start: Start) -> #(Model, Effect(Msg)) {
   let #(connection, begin) = case start {
     Served -> #(Connecting, ws.init("/.js/ws", Socket))
-    Standalone(local: page, greeting:) -> #(InPage(page), answer(greeting))
+    Standalone(local: page, home:) -> #(
+      InPage(page, home),
+      answer(local.greeting(page)),
+    )
   }
   let model =
     Model(
@@ -231,6 +253,29 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
       Model(..model, connection: Connecting),
       ws.init("/.js/ws", Socket),
     )
+    OpenFolder -> #(model, pick_folder())
+    FolderRead(Error(reason)) ->
+      case browser.cancelled(reason) {
+        True -> #(model, effect.none())
+        False -> #(
+          Model(..model, notice: Some("No folder was opened: " <> reason)),
+          effect.none(),
+        )
+      }
+    FolderRead(Ok(#(name, files))) ->
+      case
+        local.open(name, files, new_supply(), timestamp.system_time()),
+        model.connection
+      {
+        Ok(page), InPage(home:, ..) -> change_deck(model, page, home)
+        Error(why), _ -> #(Model(..model, notice: Some(why)), effect.none())
+        _, _ -> #(model, effect.none())
+      }
+    StartOver ->
+      case model.connection {
+        InPage(home:, ..) -> change_deck(model, home, home)
+        _ -> #(model, effect.none())
+      }
     CommandKey(command) ->
       case model.deck, model.mode {
         Some(shared), Command ->
@@ -323,7 +368,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
             Model(..model, drag: Some(Drag(..drag, released: Some(seq))))
           let #(model, effects) = apply_layout(model, layout.Place(cell, area))
           case model.connection {
-            Open(_) | InPage(_) -> #(
+            Open(_) | InPage(..) -> #(
               model,
               effect.batch([effects, after(drag_settle, DragSettled(seq))]),
             )
@@ -904,7 +949,7 @@ fn commit(model: Model, by_escape: Bool) -> #(Model, Effect(Msg)) {
       effect.none(),
     )
     Editing(cell:, text:, drop:, ..), Some(shared), Open(_)
-    | Editing(cell:, text:, drop:, ..), Some(shared), InPage(_)
+    | Editing(cell:, text:, drop:, ..), Some(shared), InPage(..)
     -> {
       let leave =
         Model(
@@ -1122,7 +1167,7 @@ fn send(model: Model, message: protocol.ClientMsg) -> #(Model, Effect(Msg)) {
   case model.connection {
     Open(socket) -> #(model, ws.send(socket, protocol.encode_client(message)))
     // There is nowhere to export to, so the files are offered as links.
-    InPage(page) if message == protocol.Export -> #(
+    InPage(local: page, ..) if message == protocol.Export -> #(
       Model(
         ..model,
         downloads: [
@@ -1133,10 +1178,18 @@ fn send(model: Model, message: protocol.ClientMsg) -> #(Model, Effect(Msg)) {
       ),
       effect.none(),
     )
-    InPage(page) -> {
-      let #(page, answers) =
+    InPage(local: page, home:) -> {
+      let #(next, answers) =
         local.handle(page, message, new_supply(), timestamp.system_time())
-      #(Model(..model, connection: InPage(page)), answer(answers))
+      // Only a changed deck is kept again.
+      let keeping = case next.session == page.session {
+        True -> effect.none()
+        False -> keep(next)
+      }
+      #(
+        Model(..model, connection: InPage(next, home)),
+        effect.batch([answer(answers), keeping]),
+      )
     }
     Connecting | Closed -> #(
       Model(
@@ -1153,6 +1206,61 @@ fn send(model: Model, message: protocol.ClientMsg) -> #(Model, Effect(Msg)) {
 fn answer(messages: List(protocol.ServerMsg)) -> Effect(Msg) {
   use dispatch <- effect.from
   dispatch(Answered(messages))
+}
+
+/// Another deck takes the page's place: a folder's copy, or the page's own
+/// deck again. The editor starts on it as it does on the first one.
+fn change_deck(
+  model: Model,
+  page: Local,
+  home: Local,
+) -> #(Model, Effect(Msg)) {
+  #(
+    Model(
+      ..model,
+      connection: InPage(page, home),
+      deck: None,
+      downloads: [],
+      selection: OnCell(placeholder_id()),
+      mode: Command,
+      follow: Stay,
+      notice: None,
+      drag: None,
+      overflow: dict.new(),
+      focus: model.focus + 1,
+    ),
+    effect.batch([answer(local.greeting(page)), keep(page)]),
+  )
+}
+
+/// Keeps the deck in the browser's storage, so that a reload brings it
+/// back, and says so when the browser will not.
+fn keep(page: Local) -> Effect(Msg) {
+  use dispatch <- effect.from
+  case browser.save(local.kept(page)) {
+    Ok(Nil) -> Nil
+    Error(reason) ->
+      dispatch(
+        Answered([
+          protocol.Notice(
+            "This browser is not keeping the deck, so a reload loses it: "
+            <> reason,
+          ),
+        ]),
+      )
+  }
+}
+
+/// Lets the user pick a folder and reads a deck's files from it.
+fn pick_folder() -> Effect(Msg) {
+  use dispatch <- effect.from
+  browser.pick(local.first_files, fn(files) {
+    list.key_find(files, "deck.md")
+    |> result.map(local.figure_files)
+    |> result.unwrap([])
+  })
+  |> promise.map(fn(read) { dispatch(FolderRead(read)) })
+  Nil
 }
 
 /// IDs for a deck in the page, from the clock and random bits, as the

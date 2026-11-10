@@ -28,6 +28,7 @@ import junkslides_client/app.{
 import junkslides_client/canvas
 import junkslides_client/edit
 import junkslides_client/keymap
+import junkslides_client/local
 import junkslides_client/nav.{OnCell, OnSlide}
 import junkslides_client/slide
 import lustre/attribute.{type Attribute, attribute, class}
@@ -87,10 +88,18 @@ fn theme(model: Model) -> Element(app.Msg) {
   // published; a served one has them at the server's root.
   let pair = fn(n) {
     case model.connection {
-      InPage(_) -> [
-        link(n, "settings.css", "settings"),
-        link(n, "theme.css", "theme"),
-      ]
+      InPage(local: page, ..) ->
+        case local.sheets(page) {
+          None -> [
+            link(n, "settings.css", "settings"),
+            link(n, "theme.css", "theme"),
+          ]
+          // An opened folder's sheets are text, in the same order.
+          Some(#(settings, theme)) -> [
+            #("own-settings", html.style([], settings)),
+            #("own-theme", html.style([], theme)),
+          ]
+        }
       _ -> [
         link(n, "/.js/settings.css", "settings"),
         link(n, "/theme.css", "theme"),
@@ -100,7 +109,7 @@ fn theme(model: Model) -> Element(app.Msg) {
   // The server's page links the base styles; a page without a server has
   // them from here, before the deck's sheets, so those still win.
   let base = case model.connection {
-    InPage(_) -> [#("base", html.style([], styles.base_css))]
+    InPage(..) -> [#("base", html.style([], styles.base_css))]
     _ -> []
   }
   keyed.fragment(
@@ -499,7 +508,13 @@ fn status(model: Model, parts: List(String)) -> Element(app.Msg) {
   }
   let connection = case model.connection {
     Open(_) -> []
-    InPage(_) -> ["edits stay in this page"]
+    InPage(local: page, ..) ->
+      case page.origin {
+        local.Site(_) -> ["edits are kept in this browser"]
+        local.Folder(name:, ..) -> [
+          "a copy of " <> name <> ", kept in this browser",
+        ]
+      }
     Connecting -> ["connecting"]
     Closed -> ["offline, reconnecting"]
   }
@@ -524,13 +539,8 @@ fn status(model: Model, parts: List(String)) -> Element(app.Msg) {
         html.span([], [text(part)])
       }),
       [snap_choice(model.view.snap)],
-      // Beside a deck in the page sits its export, the same talk as slides.
       case model.connection {
-        InPage(_) -> [
-          html.a([class("jse-download"), attribute.href("slides/")], [
-            text("the slides"),
-          ]),
-        ]
+        InPage(local: page, ..) -> in_page_choices(page)
         _ -> []
       },
       notice,
@@ -549,6 +559,59 @@ fn status(model: Model, parts: List(String)) -> Element(app.Msg) {
       }),
     ]),
   )
+}
+
+/// What a deck in the page can become: another folder's copy, or the
+/// page's own deck as it came. Beside the page's own deck sits its export,
+/// the same talk as slides.
+fn in_page_choices(page: local.Local) -> List(Element(app.Msg)) {
+  let choice = fn(label, title, msg) {
+    html.button(
+      [
+        class("jse-choice"),
+        attribute.type_("button"),
+        attribute.title(title),
+        event.on_click(msg),
+      ],
+      [text(label)],
+    )
+  }
+  let open =
+    choice(
+      "open a folder",
+      "Works on a copy of a deck's folder from your computer. Nothing is written there or sent anywhere.",
+      app.OpenFolder,
+    )
+  case page.origin, page.version > 1 {
+    local.Folder(..), _ -> [
+      open,
+      choice(
+        "close it",
+        "Forgets this copy and shows the example deck again.",
+        app.StartOver,
+      ),
+    ]
+    local.Site(_), edited -> [
+      open,
+      ..list.append(
+        case edited {
+          True -> [
+            choice(
+              "start over",
+              "Forgets your edits and shows the example deck as it came.",
+              app.StartOver,
+            ),
+          ]
+          False -> []
+        },
+        [
+          html.a([class("jse-download"), attribute.href("slides/")], [
+            text("the slides"),
+          ]),
+        ],
+      )
+    ]
+  }
 }
 
 /// The canvas's snap step, a native select so that no script is needed.

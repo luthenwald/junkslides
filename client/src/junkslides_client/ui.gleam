@@ -17,6 +17,7 @@ import gleam/string
 import junkslides/deck.{type Cell, type Slide}
 import junkslides/dialect
 import junkslides/id.{type CellTag, type Id}
+import junkslides/layout
 import junkslides/protocol.{type Diagnostic}
 import junkslides_client/app.{
   type Model, type Shared, Canvas, Closed, Command, Connecting, Drag, Editing,
@@ -428,6 +429,23 @@ fn status_parts(model: Model, shared: Shared) -> List(String) {
     Ok(index) -> [nav.number(index, total)]
     Error(Nil) -> []
   }
+  // What the selected slide has switched off (D33).
+  let switches = case nav.slide_of(shared.deck, model.selection) {
+    Error(Nil) -> []
+    Ok(slide) -> {
+      let record = layout.slide_record(shared.layout, slide)
+      let off = fn(shown, name) {
+        case shown {
+          True -> []
+          False -> [name]
+        }
+      }
+      list.append(
+        off(record.number, "no number"),
+        off(record.marks, "no marks"),
+      )
+    }
+  }
   let count = fn(n, one, many) {
     case n {
       0 -> []
@@ -437,6 +455,7 @@ fn status_parts(model: Model, shared: Shared) -> List(String) {
   }
   list.flatten([
     slide,
+    switches,
     count(
       list.length(shared.diagnostics),
       "cell with problems",

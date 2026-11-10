@@ -41,6 +41,8 @@ pub type Command {
   Undo
   Redo
   PurgeOrphans
+  ToggleNumber
+  ToggleMarks
   Export
   ExportPdf
   ToggleCells
@@ -59,6 +61,8 @@ pub type CanvasCommand {
   CycleAlign
   SnapFiner
   SnapCoarser
+  CanvasToggleNumber
+  CanvasToggleMarks
   CanvasUndo
   CanvasRedo
   ToCells
@@ -100,6 +104,8 @@ pub fn command(key: Key) -> Result(Command, Nil) {
         "u" -> Ok(Undo)
         "U" -> Ok(Redo)
         "X" -> Ok(PurgeOrphans)
+        "n" -> Ok(ToggleNumber)
+        "." -> Ok(ToggleMarks)
         "E" -> Ok(Export)
         "F" -> Ok(ExportPdf)
         "Tab" -> Ok(ToCanvas)
@@ -138,6 +144,8 @@ pub fn canvas(key: Key) -> Result(CanvasCommand, Nil) {
         "a", _ -> Ok(CycleAlign)
         "g", _ -> Ok(SnapFiner)
         "G", _ -> Ok(SnapCoarser)
+        "n", _ -> Ok(CanvasToggleNumber)
+        ".", _ -> Ok(CanvasToggleMarks)
         "u", _ -> Ok(CanvasUndo)
         "U", _ -> Ok(CanvasRedo)
         "Tab", _ | "Escape", _ -> Ok(ToCells)

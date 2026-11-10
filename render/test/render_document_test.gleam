@@ -144,3 +144,25 @@ pub fn numbers_are_padded_test() {
   assert render.number(0, 12) == "01/12"
   assert render.number(6, 120) == "007/120"
 }
+
+/// A slide with a switch off says so on `.js-slide` (D33); the others carry
+/// nothing, and the base styles hide the number of the first kind.
+pub fn slides_carry_their_switches_test() {
+  let deck = Deck([Slide(id_of(slide_a), []), Slide(id_of(slide_b), [])])
+  let assert Ok(laid) =
+    layout.apply(
+      layout.empty(),
+      deck,
+      layout.SetSlide(id_of(slide_a), layout.SlideRecord(False, False)),
+    )
+  let html =
+    render.document(deck, laid, dict.new(), dict.new(), "t", False, False)
+  let assert [_, first, second] = string.split(html, "class=\"js-slide\"")
+  assert string.contains(first, "data-marks=\"off\"")
+  assert string.contains(first, "data-number=\"off\"")
+  assert !string.contains(second, "=\"off\"")
+  assert string.contains(
+    html,
+    ":where(.js-slide[data-number=\"off\"]) > :where(.js-page)",
+  )
+}

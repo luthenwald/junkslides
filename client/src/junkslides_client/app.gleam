@@ -623,6 +623,8 @@ fn command_key(
     keymap.Redo -> send(model, protocol.Redo)
     keymap.Export -> send(model, protocol.Export)
     keymap.ExportPdf -> send(model, protocol.ExportPdf)
+    keymap.ToggleNumber -> toggle_slide(model, shared, Number)
+    keymap.ToggleMarks -> toggle_slide(model, shared, Marks)
     keymap.PurgeOrphans ->
       case list.length(shared.layout.orphans) {
         0 -> #(
@@ -989,6 +991,8 @@ fn canvas_key(
       })
     keymap.SnapFiner -> snap_to(model, canvas.finer(model.view.snap))
     keymap.SnapCoarser -> snap_to(model, canvas.coarser(model.view.snap))
+    keymap.CanvasToggleNumber -> toggle_slide(model, shared, Number)
+    keymap.CanvasToggleMarks -> toggle_slide(model, shared, Marks)
     keymap.CanvasUndo -> send(model, protocol.Undo)
     keymap.CanvasRedo -> send(model, protocol.Redo)
     keymap.ToCells -> #(Model(..model, mode: Command), effect.none())
@@ -1030,6 +1034,46 @@ fn grab(
 }
 
 // Sending ------------------------------------------------------------------
+
+type Switch {
+  Number
+  Marks
+}
+
+/// Turns one of the selected slide's switches (D33) the other way and says
+/// what it is now, since a theme may draw nothing for it.
+fn toggle_slide(
+  model: Model,
+  shared: Shared,
+  switch: Switch,
+) -> #(Model, Effect(Msg)) {
+  case nav.slide_of(shared.deck, model.selection) {
+    Error(Nil) -> #(model, effect.none())
+    Ok(slide) -> {
+      let record = layout.slide_record(shared.layout, slide)
+      let #(record, name, shown) = case switch {
+        Number -> #(
+          layout.SlideRecord(..record, number: !record.number),
+          "The slide number",
+          !record.number,
+        )
+        Marks -> #(
+          layout.SlideRecord(..record, marks: !record.marks),
+          "The theme's marks",
+          !record.marks,
+        )
+      }
+      let state = case shown, switch {
+        True, Number -> " is shown on this slide."
+        False, Number -> " is hidden on this slide."
+        True, Marks -> " are shown on this slide."
+        False, Marks -> " are hidden on this slide."
+      }
+      Model(..model, notice: Some(name <> state))
+      |> apply_layout(layout.SetSlide(slide, record))
+    }
+  }
+}
 
 fn apply_layout(model: Model, op: layout.LayoutOp) -> #(Model, Effect(Msg)) {
   send(Model(..model, seq: model.seq + 1), protocol.ApplyLayout(model.seq, op))

@@ -463,6 +463,10 @@ pub const base_css =
   font-variant-numeric: tabular-nums;
 }
 
+:where(.js-slide[data-number=\"off\"]) > :where(.js-page) {
+  display: none;
+}
+
 :where(.js-cell) > :first-child {
   margin-top: 0;
 }

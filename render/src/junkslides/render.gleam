@@ -12,7 +12,9 @@ import jot
 import junkslides/deck.{type Cell, type Deck, type Slide}
 import junkslides/dialect
 import junkslides/id
-import junkslides/layout.{type Area, type CellRecord, type Layout}
+import junkslides/layout.{
+  type Area, type CellRecord, type Layout, type SlideRecord,
+}
 import junkslides/protocol.{type CodeBlock, type Token, CodeBlock}
 import junkslides/render/chart
 import junkslides/render/styles
@@ -99,7 +101,11 @@ fn frame(
     list.partition(drawn, fn(pair) { option.is_some({ pair.1 }.place) })
   html.section([class("js-frame"), attribute.id(int.to_string(index + 1))], [
     html.div(
-      [class("js-slide"), slide_style(index, total, [])],
+      [
+        class("js-slide"),
+        slide_style(index, total, []),
+        ..slide_switches(layout.slide_record(layout, slide.id))
+      ],
       list.flatten([
         [html.div([class("js-body")], list.map(unplaced, box(_, None)))],
         list.map(placed, fn(pair) { box(pair, { pair.1 }.place) }),
@@ -141,6 +147,20 @@ pub fn slide_style(
     #("--js-total", int.to_string(total)),
     ..more
   ])
+}
+
+/// What a slide has switched off (D33), for the base styles and the theme:
+/// `data-number="off"` hides the slide number, and a theme leaves out its
+/// own furniture under `data-marks="off"`. A slide with everything on
+/// carries neither.
+pub fn slide_switches(record: SlideRecord) -> List(Attribute(msg)) {
+  let off = fn(name, shown) {
+    case shown {
+      True -> []
+      False -> [attribute.data(name, "off")]
+    }
+  }
+  list.append(off("number", record.number), off("marks", record.marks))
 }
 
 /// The slide's number for the theme to place or hide (04-layout.md, Theme

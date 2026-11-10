@@ -605,3 +605,34 @@ pub fn the_slide_knows_its_place_and_is_in_view_test() {
   press(page, "}")
   assert eventually(fn() { cdp.computed(page, slide, "--js-index") == Ok("3") })
 }
+
+/// `n` and `.` switch the slide's number and the theme's marks off and on
+/// (D33): the number goes from the drawn slide, the theme can tell from
+/// `data-marks`, layout.json keeps both, and undo brings them back.
+pub fn a_slide_switches_its_number_and_marks_test() {
+  let #(page, folder) = open("switches", 4979)
+  let look = fn(selector, property) { cdp.computed(page, selector, property) }
+  let saved = fn() {
+    let assert Ok(text) = simplifile.read(filepath.join(folder, "layout.json"))
+    text
+  }
+  assert look(".jse-fit .js-page", "display") == Ok("block")
+  press(page, "n")
+  assert eventually(fn() { look(".jse-fit .js-page", "display") == Ok("none") })
+  assert eventually(fn() { string.contains(saved(), "\"number\": false") })
+  assert string.contains(status(page), "no number")
+  press(page, ".")
+  assert eventually(fn() {
+    cdp.count(page, ".jse-fit .js-slide[data-marks=\"off\"]") == 1
+  })
+  assert eventually(fn() { string.contains(saved(), "\"marks\": false") })
+  // Another slide is untouched.
+  press(page, "}")
+  assert eventually(fn() { look(".jse-fit .js-page", "display") == Ok("block") })
+  assert cdp.count(page, ".jse-fit .js-slide[data-marks=\"off\"]") == 0
+  press(page, "{")
+  press(page, "u")
+  press(page, "n")
+  assert eventually(fn() { saved() |> string.contains("\"slides\": {}") })
+  assert look(".jse-fit .js-page", "display") == Ok("block")
+}

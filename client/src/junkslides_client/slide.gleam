@@ -82,7 +82,11 @@ pub fn view(
   }
   html.div([class("jse-fit")], [
     keyed.div(
-      [class("js-slide"), place_in_talk(shared, slide)],
+      [
+        class("js-slide"),
+        place_in_talk(shared, slide),
+        ..render.slide_switches(layout.slide_record(shared.layout, slide.id))
+      ],
       list.flatten([
         [
           #(

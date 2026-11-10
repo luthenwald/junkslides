@@ -1,5 +1,6 @@
 ## Unreleased
 
+- New: `./install.sh` installs junkslides as a command of its own, under `~/.local` or a `--prefix` you give, so you can run `junkslides serve` from any folder without building each time. `./install.sh --uninstall` removes it again.
 - Improved: the readme no longer asks for `just`, which you never needed to run junkslides, and it has a section on removing junkslides with every file and folder it may leave behind.
 
 ## First release

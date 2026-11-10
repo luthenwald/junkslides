@@ -32,18 +32,29 @@ the file reads again.
 ## Running it
 
 junkslides is written in Gleam. With Gleam and Erlang installed, and
-optionally the `tree-sitter` command for highlighting, from this folder:
+optionally the `tree-sitter` command for highlighting, install it from this
+folder:
 
 ```sh
-gleam run init ~/talks/lenses     # a new deck with default settings and theme
-gleam run serve ~/talks/lenses    # then open http://127.0.0.1:4870/
-gleam run export ~/talks/lenses   # a static page, see Exporting
+./install.sh                      # into ~/.local
+./install.sh --prefix /opt/local  # or under a folder you choose
 ```
 
-`gleam run` builds junkslides and the editor first. Relative folders are read
-from where you run it, which can be any folder of this project except the
-packages inside it (`core`, `server`, `client` and the others), where it runs
-that package instead.
+This builds junkslides once, copies the build to `<prefix>/lib/junkslides`
+and writes the command `<prefix>/bin/junkslides`. Put `<prefix>/bin` on your
+`PATH` if it is not there yet. Run the script again after you update the
+project. Then, from any folder:
+
+```sh
+junkslides init ~/talks/lenses     # a new deck with default settings and theme
+junkslides serve ~/talks/lenses    # then open http://127.0.0.1:4870/
+junkslides export ~/talks/lenses   # a static page, see Exporting
+```
+
+Without installing, `gleam run init`, `gleam run serve` and `gleam run export`
+do the same from this folder, building first each time. Run them from the
+project's top folder or from `examples/`, since inside a package (`core`,
+`server`, `client` and the others) `gleam run` runs that package instead.
 
 The editor targets Chromium-based browsers for now.
 
@@ -59,11 +70,11 @@ copy, so that your edits leave the example as it is:
 
 ```sh
 cp -r examples/showcase ~/talks/showcase
-gleam run serve ~/talks/showcase
+junkslides serve ~/talks/showcase
 ```
 
 Or export it straight away with
-`gleam run export examples/showcase --out ~/showcase`.
+`junkslides export examples/showcase --out ~/showcase`.
 
 The exported showcase is also kept in `docs/`, ready to be served as it is,
 for example by GitHub Pages from the `docs` folder of the main branch.
@@ -71,7 +82,7 @@ To make it again from the example:
 
 ```sh
 rm -rf docs
-gleam run export examples/showcase --out docs
+junkslides export examples/showcase --out docs
 touch docs/.nojekyll
 ```
 
@@ -173,9 +184,9 @@ edge of its cell, and it scales with the cell's variant.
 Press `E` in command mode, or run:
 
 ```sh
-gleam run export ~/talks/lenses                     # into ~/talks/lenses/export
-gleam run export ~/talks/lenses --out ~/site/lenses
-gleam run export ~/talks/lenses --pdf               # and ~/talks/lenses/export/lenses.pdf
+junkslides export ~/talks/lenses                     # into ~/talks/lenses/export
+junkslides export ~/talks/lenses --out ~/site/lenses
+junkslides export ~/talks/lenses --pdf               # and ~/talks/lenses/export/lenses.pdf
 ```
 
 You get a folder with `index.html`, your settings as `settings.css` with the fonts they name, your `theme.css` with the fonts and other files it loads, and a copy of `assets/`, ready to open, host or zip. Licence files next to a font go with it. The page has no scripts of its own; an embedded `.html` figure runs its script inside its frame. Arrow keys, space and Page Down step between slides, and `#3` at the end of the address opens the third. Speaker notes stay out.
@@ -311,11 +322,15 @@ junkslides reloads the theme when the file changes.
 
 ## Uninstalling
 
-junkslides installs nothing outside its own folder. To remove it completely:
+To remove junkslides completely:
 
-1. Delete `~/.config/junkslides/`. It holds one file, `view.json`, with the
+1. Run `./install.sh --uninstall`, with the same `--prefix` if you gave one.
+   It deletes the folder `<prefix>/lib/junkslides` and the command
+   `<prefix>/bin/junkslides`, which is all the install script made. The
+   default prefix is `~/.local`.
+2. Delete `~/.config/junkslides/`. It holds one file, `view.json`, with the
    pane sizes and snap step the editor remembers for each deck.
-2. Delete this project folder. Building leaves `build/` here and in `core`,
+3. Delete this project folder. Building leaves `build/` here and in `core`,
    `render`, `server`, `client` and `e2e`, the editor's bundle in
    `server/priv/static/`, and a downloaded bundler in `client/.lustre/`, all
    of which go with the folder.

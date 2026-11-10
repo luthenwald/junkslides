@@ -16,11 +16,11 @@ import junkslides/file
 import junkslides/op
 import junkslides/protocol.{Token, View}
 import junkslides/render/styles
+import junkslides/shade
 import junkslides_server
 import junkslides_server/highlighter
 import junkslides_server/pdf
 import junkslides_server/settings
-import junkslides_server/shade
 import junkslides_server/state
 import junkslides_server/store
 import junkslides_server/theme

@@ -23,12 +23,13 @@ import junkslides/op.{type Op}
 import junkslides/protocol.{
   type ClientMsg, type Highlight, type ServerMsg, type View,
 }
+import junkslides/session.{type Session, Session}
+import junkslides/shade
 import junkslides_server/export
 import junkslides_server/figures
 import junkslides_server/highlighter
 import junkslides_server/pdf
 import junkslides_server/settings
-import junkslides_server/shade
 import junkslides_server/store
 import junkslides_server/theme
 import junkslides_server/view
@@ -357,17 +358,12 @@ fn from_client(
     }
     protocol.Apply(seq:, ops:) -> {
       let supply = new_supply()
-      case op.apply_all(state.deck, ops, supply) {
+      case
+        session.apply(session_of(state), ops, supply, timestamp.system_time())
+      {
         Error(error) ->
           reject(state, client, seq, protocol.describe_error(error))
-        Ok(#(deck, effects, _)) -> {
-          let now = timestamp.system_time()
-          let layout = layout.fold_effects(state.layout, effects, now)
-          let history = case ops {
-            [op.EditText(cell:, ..)] ->
-              history.record_edit(state.history, deck, layout, cell, now)
-            _ -> history.record(state.history, deck, layout)
-          }
+        Ok(Session(deck:, layout:, history:)) -> {
           let pending = case state.pending {
             Groups(groups) -> Groups(list.append(groups, [Group(ops, supply)]))
             Replaced -> Replaced
@@ -377,19 +373,14 @@ fn from_client(
       }
     }
     protocol.ApplyLayout(seq:, op:) ->
-      case layout.apply(state.layout, state.deck, op) {
+      case session.apply_layout(session_of(state), op) {
         Error(error) ->
           reject(state, client, seq, protocol.describe_error(error))
-        Ok(layout) ->
-          State(
-            ..state,
-            layout:,
-            history: history.record(state.history, state.deck, layout),
-          )
-          |> changed
+        Ok(Session(layout:, history:, ..)) ->
+          State(..state, layout:, history:) |> changed
       }
-    protocol.Undo -> step(state, client, history.undo(state.history))
-    protocol.Redo -> step(state, client, history.redo(state.history))
+    protocol.Undo -> step(state, client, session.undo(session_of(state)))
+    protocol.Redo -> step(state, client, session.redo(session_of(state)))
     protocol.SaveView(view:) -> {
       case view.save(state.config.view_file, state.config.folder, view) {
         Ok(Nil) -> Nil
@@ -438,6 +429,11 @@ fn from_client(
   }
 }
 
+/// The part of the state the pure session works on (`junkslides/session`).
+fn session_of(state: State) -> Session {
+  Session(state.deck, state.layout, state.history)
+}
+
 fn exported_notice(outcome: Result(export.Report, String)) -> String {
   case outcome {
     Error(problem) -> problem
@@ -460,14 +456,14 @@ fn reject(
 fn step(
   state: State,
   client: Subject(ServerMsg),
-  stepped: Option(#(Deck, Layout, History)),
+  stepped: Option(Session),
 ) -> State {
   case stepped {
     None -> {
       send(client, state_msg(state))
       state
     }
-    Some(#(deck, layout, history)) -> {
+    Some(Session(deck:, layout:, history:)) -> {
       let pending = case deck == state.deck {
         True -> state.pending
         False -> Replaced

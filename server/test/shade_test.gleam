@@ -2,8 +2,8 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import junkslides/protocol.{CodeBlock, Token}
+import junkslides/shade
 import junkslides_server/highlighter
-import junkslides_server/shade
 
 const viz_keywords = [
   "case",

@@ -18,7 +18,7 @@ import gleam/string
 import junkslides/protocol.{
   type CodeBlock, type Highlight, type Token, Highlight, Token,
 }
-import junkslides_server/shade
+import junkslides/shade
 import shellout
 import simplifile
 

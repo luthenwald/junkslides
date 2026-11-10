@@ -12,7 +12,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
-import junkslides_server/shade
+import junkslides/shade
 import tom.{type Toml}
 
 pub type Settings {

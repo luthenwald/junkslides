@@ -16,7 +16,7 @@ talk/
   layout.json      placement and style per cell
   junkslides.toml  settings: fonts, colours, sizes, slide numbers
   theme.css        the look, in CSS, for anything the settings don't cover
-  fonts/           the fonts junkslides.toml names
+  fonts/           font files of your own, if junkslides.toml or the theme names any
   assets/          images, referenced by paths relative to the deck
 ```
 
@@ -202,18 +202,12 @@ new deck gets this one, and every line in it is optional:
 
 ```toml
 [font.text]
-family = "et-book"
-fallback = 'Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif'
-regular = "fonts/et-book-roman.woff2"
-italic = "fonts/et-book-italic.woff2"
-bold = "fonts/et-book-bold.woff2"
+family = "Charter"
+fallback = 'Palatino, "Palatino Linotype", Georgia, serif'
 
 [font.code]
-family = "Victor Mono"
-fallback = "ui-monospace, Menlo, Consolas, monospace"
-regular = "fonts/victor-mono-regular.woff2"
-italic = "fonts/victor-mono-italic.woff2"
-bold = "fonts/victor-mono-bold.woff2"
+family = "Menlo"
+fallback = "ui-monospace, Consolas, monospace"
 
 [palette]
 background = "#fafafa"
@@ -237,11 +231,16 @@ comments = ["--", "//"]                  # where a comment starts there
 simple = []                              # languages always shaded that way
 ```
 
-To use another font, put its files anywhere in the deck's folder and name them
-with paths relative to the deck. Give at least `family`; the faces you leave
-out are made up by the browser. A family with no files is one installed on
-your computer, which works only there. Exports and PDFs include the files,
-with licence files next to them.
+A new deck names fonts most systems have, with fallbacks for the others, so
+it needs no font files. A family with no files is one installed on the
+computer, so an exported page shows whichever font of the list its reader
+has. A PDF always carries the fonts it was made with.
+
+To use a font of your own, put its files anywhere in the deck's folder and
+name them with paths relative to the deck. Give at least `family`; the faces
+you leave out are made up by the browser. Exports and PDFs include the files,
+with licence files next to them. The showcase does this with et-book and
+Victor Mono in its `fonts/` folder.
 
 ```toml
 [font.text]
@@ -351,5 +350,5 @@ browser were installed by you and are left alone.
 
 ## License
 
-MIT, see [license](license). The fonts that come with junkslides have their own
-licences, which sit beside them.
+MIT, see [license](license). The fonts that come with junkslides and its
+examples have their own licences, which sit beside them.

@@ -97,9 +97,9 @@ fn names_a_file(value: String) -> Bool {
   !string.starts_with(value, "#") && !string.contains(head, ":")
 }
 
-/// The default fonts and their licences, which ship with junkslides in `priv/fonts`.
-/// `junkslides init` copies them into a new deck's `fonts/`, where the default
-/// junkslides.toml names them; the editor serves them under `/.js/fonts` for its own text.
+/// The editor's own font and its licence, which ship with junkslides in
+/// `priv/fonts` and are served under `/.js/fonts` for the source text. Decks
+/// bring their own fonts or name ones the system has (D25).
 pub fn fonts_folder() -> Result(String, String) {
   application.priv_directory("junkslides_server")
   |> result.map(filepath.join(_, "fonts"))

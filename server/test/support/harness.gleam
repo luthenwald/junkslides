@@ -43,12 +43,39 @@ pub fn folder(name: String) -> String {
         )
     },
   )
+  with_font_files(folder)
+  folder
+}
+
+/// The example's settings name fonts the system has. The checks want font
+/// files in the deck, so the copy gets the showcase's `fonts/` and tables
+/// that name them.
+fn with_font_files(folder: String) -> Nil {
   let assert Ok(Nil) =
     simplifile.copy_directory(
-      filepath.join(example, "fonts"),
+      "../examples/showcase/fonts",
       filepath.join(folder, "fonts"),
     )
-  folder
+  let path = filepath.join(folder, "junkslides.toml")
+  let assert Ok(toml) = simplifile.read(path)
+  let assert Ok(#(before, rest)) = string.split_once(toml, "\n[font.text]")
+  let assert Ok(#(_, after)) = string.split_once(rest, "[palette]")
+  let assert Ok(Nil) = simplifile.write(path, before <> "\n[font.text]
+family = \"et-book\"
+fallback = 'Palatino, \"Palatino Linotype\", \"Book Antiqua\", Georgia, serif'
+regular = \"fonts/et-book-roman.woff2\"
+italic = \"fonts/et-book-italic.woff2\"
+bold = \"fonts/et-book-bold.woff2\"
+
+[font.code]
+family = \"Victor Mono\"
+fallback = \"ui-monospace, Menlo, Consolas, monospace\"
+regular = \"fonts/victor-mono-regular.woff2\"
+italic = \"fonts/victor-mono-italic.woff2\"
+bold = \"fonts/victor-mono-bold.woff2\"
+
+[palette]" <> after)
+  Nil
 }
 
 /// Serves a folder and connects; the first message, the state, is left in

@@ -113,16 +113,10 @@ pub fn init(folder: String) -> Result(Nil, String) {
     filepath.join(folder, "layout.json"),
     file.print_layout(layout.empty()),
   ))
-  // The default settings name the default fonts in the deck, so they come
-  // with them. Settings that are already there keep their own fonts.
-  let settings_path = filepath.join(folder, "junkslides.toml")
-  use Nil <- result.try(case simplifile.is_file(settings_path) {
-    Ok(True) -> Ok(Nil)
-    _ -> {
-      use Nil <- result.try(copy_default_fonts(folder))
-      write_new(settings_path, settings.default_toml)
-    }
-  })
+  use Nil <- result.try(write_new(
+    filepath.join(folder, "junkslides.toml"),
+    settings.default_toml,
+  ))
   use Nil <- result.try(write_new(
     filepath.join(folder, "theme.css"),
     theme.default_css,
@@ -130,29 +124,6 @@ pub fn init(folder: String) -> Result(Nil, String) {
   io.println("Created a deck in " <> folder <> ".")
   io.println("Run: junkslides serve " <> folder)
   Ok(Nil)
-}
-
-/// Copies the fonts that come with junkslides into `fonts/`, apart from files of the same name already there.
-fn copy_default_fonts(folder: String) -> Result(Nil, String) {
-  let target = filepath.join(folder, "fonts")
-  use fonts <- result.try(theme.fonts_folder())
-  use files <- result.try(
-    simplifile.read_directory(fonts)
-    |> result.map_error(simplifile.describe_error),
-  )
-  use Nil <- result.try(
-    simplifile.create_directory_all(target)
-    |> result.map_error(simplifile.describe_error),
-  )
-  list.try_each(files, fn(file) {
-    let path = filepath.join(target, file)
-    case simplifile.is_file(path) {
-      Ok(True) -> Ok(Nil)
-      _ ->
-        simplifile.copy_file(filepath.join(fonts, file), path)
-        |> result.map_error(simplifile.describe_error)
-    }
-  })
 }
 
 fn write_new(path: String, contents: String) -> Result(Nil, String) {

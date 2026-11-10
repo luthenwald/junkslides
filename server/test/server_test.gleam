@@ -209,16 +209,12 @@ pub fn default_theme_is_the_example_theme_test() {
   assert theme.default_css == css
   let assert Ok(toml) = simplifile.read("../examples/talk/junkslides.toml")
   assert settings.default_toml == toml
+  // The default settings name fonts of the system, so a new deck needs no
+  // font files.
   let assert Ok(defaults) = settings.parse(toml)
-  assert list.all(settings.files(defaults), fn(file) {
-    simplifile.is_file("../examples/talk/" <> file) == Ok(True)
-  })
-  let assert Ok(fonts) = theme.fonts_folder()
-  let assert Ok(names) = simplifile.read_directory(fonts)
-  list.each(names, fn(name) {
-    assert simplifile.read_bits("../examples/talk/fonts/" <> name)
-      == simplifile.read_bits(filepath.join(fonts, name))
-  })
+  assert settings.files(defaults) == []
+  assert option.is_some(defaults.text_font)
+  assert option.is_some(defaults.code_font)
 }
 
 pub fn static_files_stay_inside_the_deck_folder_test() {
@@ -234,9 +230,9 @@ pub fn static_files_stay_inside_the_deck_folder_test() {
   assert string.contains(body, "/.js/junkslides_client.js")
   assert string.contains(body, "/.js/base.css")
   assert get("/.js/base.css") == #(200, styles.base_css)
-  // The default fonts, as raw files, and nothing else from around them.
+  // The editor's own font, as a raw file, and nothing else from around it.
   let assert Ok(req) =
-    request.to("http://127.0.0.1:4895/.js/fonts/et-book-roman.woff2")
+    request.to("http://127.0.0.1:4895/.js/fonts/victor-mono-regular.woff2")
   let assert Ok(font) = httpc.send_bits(request.set_body(req, <<>>))
   assert font.status == 200
   assert response.get_header(font, "content-type") == Ok("font/woff2")
@@ -335,18 +331,8 @@ pub fn init_creates_a_deck_and_never_replaces_one_test() {
     == Ok(theme.default_css)
   assert simplifile.read(filepath.join(folder, "junkslides.toml"))
     == Ok(settings.default_toml)
-  // The fonts the default settings name, with their licences.
-  let assert Ok(fonts) = theme.fonts_folder()
-  let assert Ok(names) = simplifile.read_directory(fonts)
-  assert list.length(names) == 8
-  list.each(names, fn(name) {
-    assert simplifile.read_bits(filepath.join(folder, "fonts/" <> name))
-      == simplifile.read_bits(filepath.join(fonts, name))
-  })
-  let assert Ok(defaults) = settings.parse(settings.default_toml)
-  assert list.all(settings.files(defaults), fn(file) {
-    list.contains(names, string.drop_start(file, 6))
-  })
+  // The default settings name fonts of the system, so no files come along.
+  assert simplifile.is_directory(filepath.join(folder, "fonts")) == Ok(False)
   let assert Ok(layout) = simplifile.read(filepath.join(folder, "layout.json"))
   assert result.is_ok(file.parse_layout(layout))
   let assert Error(message) = junkslides_server.init(folder)
@@ -364,7 +350,6 @@ pub fn init_keeps_an_existing_theme_and_settings_test() {
   assert simplifile.read(filepath.join(folder, "theme.css")) == Ok("mine")
   assert simplifile.read(filepath.join(folder, "junkslides.toml"))
     == Ok("# mine")
-  // Settings of its own bring their own fonts.
   assert simplifile.is_directory(filepath.join(folder, "fonts")) == Ok(False)
 }
 

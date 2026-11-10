@@ -90,24 +90,27 @@ const faces = [
 ]
 
 /// The junkslides.toml `junkslides init` writes, kept equal to examples/talk/junkslides.toml
-/// (checked by a test): the look the default theme had before D27, with the
-/// default fonts from the deck's `fonts/`.
+/// (checked by a test). Its fonts are ones a system already has, so a new
+/// deck needs no font files (D25).
 pub const default_toml =
   "# Settings for this deck. theme.css comes after them and can change anything.
 
+# Fonts your system has. To use font files of your own, put them in the
+# deck's fonts/ folder and name them here:
+#
+#   [font.text]
+#   family = \"My Serif\"
+#   regular = \"fonts/my-serif-regular.woff2\"
+#   italic = \"fonts/my-serif-italic.woff2\"
+#   bold = \"fonts/my-serif-bold.woff2\"
+
 [font.text]
-family = \"et-book\"
-fallback = 'Palatino, \"Palatino Linotype\", \"Book Antiqua\", Georgia, serif'
-regular = \"fonts/et-book-roman.woff2\"
-italic = \"fonts/et-book-italic.woff2\"
-bold = \"fonts/et-book-bold.woff2\"
+family = \"Charter\"
+fallback = 'Palatino, \"Palatino Linotype\", Georgia, serif'
 
 [font.code]
-family = \"Victor Mono\"
-fallback = \"ui-monospace, Menlo, Consolas, monospace\"
-regular = \"fonts/victor-mono-regular.woff2\"
-italic = \"fonts/victor-mono-italic.woff2\"
-bold = \"fonts/victor-mono-bold.woff2\"
+family = \"Menlo\"
+fallback = \"ui-monospace, Consolas, monospace\"
 
 [palette]
 background = \"#fafafa\"

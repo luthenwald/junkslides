@@ -51,7 +51,7 @@ pub fn write(
   use Nil <- result.try(
     simplifile.create_directory_all(out) |> result.map_error(describe(out, _)),
   )
-  use Nil <- result.try(copy_assets(folder, out))
+  use asset_warnings <- result.try(copy_assets(folder, out))
   use theme_bytes <- result.try(read_theme(folder))
   let settings_css =
     settings
@@ -76,7 +76,13 @@ pub fn write(
     False -> []
   }
   let warnings =
-    list.flatten([image_warnings, settings_warnings, theme_warnings, clash])
+    list.flatten([
+      asset_warnings,
+      image_warnings,
+      settings_warnings,
+      theme_warnings,
+      clash,
+    ])
   let fonts_and_loaded = list.append(fonts, loaded)
   use Nil <- result.try(
     list.flatten([
@@ -184,24 +190,30 @@ fn same_file(a: String, b: String) -> Bool {
   }
 }
 
-/// Every file in `assets/`, apart from hidden ones.
-fn copy_assets(folder: String, out: String) -> Result(Nil, String) {
+/// Every file in `assets/`, apart from hidden ones and those behind a link
+/// that leads out of the deck, which are named in the warnings.
+fn copy_assets(folder: String, out: String) -> Result(List(String), String) {
   let assets = filepath.join(folder, "assets")
   case simplifile.is_directory(assets) {
     Ok(True) -> {
       use files <- result.try(
         simplifile.get_files(assets) |> result.map_error(describe(assets, _)),
       )
-      files
-      |> list.map(string.drop_start(_, string.length(folder) + 1))
-      |> list.filter(fn(relative) {
-        !list.any(string.split(relative, "/"), string.starts_with(_, "."))
-      })
-      |> list.try_each(copy(folder, out, _))
+      let #(own, linked) =
+        files
+        |> list.map(string.drop_start(_, string.length(folder) + 1))
+        |> list.filter(fn(relative) {
+          !list.any(string.split(relative, "/"), string.starts_with(_, "."))
+        })
+        |> list.partition(store.inside(folder, _))
+      use Nil <- result.try(list.try_each(own, copy(folder, out, _)))
+      Ok(list.map(linked, fn(relative) { linked_out <> relative }))
     }
-    _ -> Ok(Nil)
+    _ -> Ok([])
   }
 }
+
+const linked_out = "Left out a link that leads out of the deck: "
 
 /// The deck's theme.css, if it has one. It is copied as it is; a theme that is
 /// not UTF-8 is not read for paths.
@@ -313,6 +325,7 @@ fn licences_beside(folder: String, files: List(String)) -> List(String) {
     })
     |> list.filter(fn(relative) {
       simplifile.is_file(filepath.join(folder, relative)) == Ok(True)
+      && store.inside(folder, relative)
     })
   })
 }
@@ -338,9 +351,13 @@ fn locate(
   case store.resolve(string.split(path, "/")) {
     Error(Nil) -> Error(outside <> url)
     Ok(relative) ->
-      case simplifile.is_file(filepath.join(folder, relative)) {
-        Ok(True) -> Ok(relative)
-        _ -> Error(missing <> url)
+      case
+        simplifile.is_file(filepath.join(folder, relative)),
+        store.inside(folder, relative)
+      {
+        Ok(True), True -> Ok(relative)
+        Ok(True), False -> Error(linked_out <> url)
+        _, _ -> Error(missing <> url)
       }
   }
 }

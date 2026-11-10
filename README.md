@@ -180,7 +180,7 @@ You get a folder with `index.html`, your settings as `settings.css` with the fon
 
 For a PDF with one slide per page, add `--pdf` or press `F` in command mode. junkslides prints the exported page with Chrome, Chromium, Edge or Brave, whichever it finds first; set `JUNKSLIDES_CHROME` to choose a program. If printing fails, your last PDF stays as it was. A CSS `filter` in your theme makes that element an image in the PDF, so its text can't be searched or copied.
 
-Exporting again replaces those files and deletes nothing. If `junkslides.toml` has a mistake, nothing is exported until you fix it. junkslides tells you about images, fonts and theme files it could not find, and leaves out any outside the deck's folder. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
+Exporting again replaces those files and deletes nothing. If `junkslides.toml` has a mistake, nothing is exported until you fix it. junkslides tells you about images, fonts and theme files it could not find, and leaves out any outside the deck's folder, also those a symbolic link inside the deck leads to. The page is made for Chromium-based browsers, like the editor; elsewhere a slide may not scale to the window.
 
 ## Settings
 

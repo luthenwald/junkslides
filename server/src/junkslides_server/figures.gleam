@@ -36,9 +36,13 @@ pub fn read_again(
 ) -> File {
   case store.resolve(string.split(url, "/")) {
     Error(Nil) -> File(store.missing, Error("outside the deck"))
-    Ok(relative) ->
+    Ok(relative) -> {
+      let inside = store.inside(folder, relative)
       case store.read(filepath.join(folder, relative)), last {
         Error(Nil), _ -> File(store.missing, Error("missing"))
+        // A figure's text goes into the page, and so into an export.
+        Ok(#(_, hash)), _ if !inside ->
+          File(hash, Error("a link that leads out of the deck"))
         Ok(#(_, hash)), Ok(File(hash: seen, ..) as last) if hash == seen -> last
         Ok(#(bytes, hash)), _ ->
           File(
@@ -53,6 +57,7 @@ pub fn read_again(
               }),
           )
       }
+    }
   }
 }
 

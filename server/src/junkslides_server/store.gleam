@@ -83,6 +83,30 @@ pub fn write_atomic(path: String, bytes: BitArray) -> Result(String, String) {
   }
 }
 
+/// Whether the file at `relative` (from `resolve`) is the deck's own: no
+/// symbolic link on the way to it leads out of `folder`. A deck unpacked
+/// from someone's archive can hold a link to any file on the machine, which
+/// must not travel on into an export. Links that stay inside the deck are
+/// fine.
+pub fn inside(folder: String, relative: String) -> Bool {
+  let #(_, stays) =
+    string.split(relative, "/")
+    |> list.fold(#(folder, True), fn(acc, segment) {
+      let #(parent, stays) = acc
+      let path = filepath.join(parent, segment)
+      let here = case simplifile.is_symlink(path) {
+        Ok(True) -> {
+          let target =
+            behind_links(path, 8) |> filepath.expand |> result.unwrap("")
+          string.starts_with(target, folder <> "/")
+        }
+        _ -> True
+      }
+      #(path, stays && here)
+    })
+  stays
+}
+
 /// The file a path leads to through symbolic links, a few at most. A path
 /// that is no link is itself.
 fn behind_links(path: String, hops: Int) -> String {

@@ -878,6 +878,56 @@ pub fn export_refuses_the_deck_folder_by_another_name_test() {
   let assert Ok(Nil) = simplifile.delete(alias)
 }
 
+/// A link inside the deck that leads out of it is not followed into the
+/// export, as an asset, an image, a font or a drawing; one that stays inside
+/// the deck is.
+pub fn export_leaves_out_links_that_lead_out_of_the_deck_test() {
+  let name = "export-links"
+  let folder = export_deck(name)
+  let secret = "../../" <> name <> "-secret.png"
+  let link = fn(target, relative) {
+    let assert Ok(Nil) =
+      simplifile.create_symlink(target, filepath.join(folder, relative))
+  }
+  link(secret, "assets/taken.png")
+  let outside = folder <> "-outside"
+  let _ = simplifile.delete(outside)
+  let assert Ok(Nil) = simplifile.create_directory_all(outside)
+  let assert Ok(Nil) =
+    simplifile.write(filepath.join(outside, "private.txt"), "secret")
+  link("../../" <> name <> "-outside", "assets/up")
+  link("lens.png", "assets/again.png")
+  link("../" <> name <> "-secret.png", "pic.png")
+  let assert Ok(Nil) =
+    simplifile.write(
+      filepath.join(outside, "private.svg"),
+      "<svg><text>hidden words</text></svg>",
+    )
+  link("../" <> name <> "-outside/private.svg", "fan.svg")
+  let assert Ok(Nil) =
+    simplifile.append(
+      filepath.join(folder, "deck.md"),
+      "\n<!-- cell -->\n![p](pic.png)\n\n<!-- cell -->\n![f](fan.svg)\n",
+    )
+  let assert Ok(report) =
+    junkslides_server.export_deck(folder, None, "no-such-command")
+  let out = filepath.join(folder, "export")
+  assert !exists(out, "assets/taken.png")
+  assert !exists(out, "assets/up")
+  assert !exists(out, "pic.png")
+  assert !exists(out, "fan.svg")
+  assert simplifile.read(filepath.join(out, "assets/again.png")) == Ok("lens")
+  assert !string.contains(harness.read(out, "index.html"), "hidden words")
+  let left_out = "Left out a link that leads out of the deck: "
+  assert list.contains(report.warnings, left_out <> "assets/taken.png")
+  assert list.contains(report.warnings, left_out <> "pic.png")
+  assert list.contains(
+    report.warnings,
+    "The figure fan.svg cannot be drawn: a link that leads out of the deck.",
+  )
+  assert list.contains(report.warnings, left_out <> "assets/up/private.txt")
+}
+
 pub fn export_writes_nothing_when_a_file_does_not_read_test() {
   let folder = export_deck("export-broken-deck")
   let assert Ok(Nil) =

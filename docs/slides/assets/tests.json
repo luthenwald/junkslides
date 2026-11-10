@@ -1,0 +1,198 @@
+{
+   "kind": "lines",
+   "x": {
+      "label": "days from 27 October",
+      "log": false
+   },
+   "y": {
+      "label": "tests",
+      "log": false
+   },
+   "grid": {
+      "rows": [
+         "unit and property",
+         "in the browser"
+      ],
+      "cols": [
+         "all"
+      ]
+   },
+   "panels": [
+      {
+         "title": "",
+         "row": "unit and property",
+         "col": "all",
+         "series": [
+            {
+               "label": "core",
+               "look": {
+                  "shade": "black",
+                  "shape": "circle",
+                  "dash": "solid"
+               },
+               "points": [
+                  {
+                     "x": 0,
+                     "y": 47
+                  },
+                  {
+                     "x": 3,
+                     "y": 50
+                  },
+                  {
+                     "x": 5,
+                     "y": 58
+                  },
+                  {
+                     "x": 6,
+                     "y": 58
+                  },
+                  {
+                     "x": 7,
+                     "y": 62
+                  },
+                  {
+                     "x": 12,
+                     "y": 63
+                  }
+               ]
+            },
+            {
+               "label": "server",
+               "look": {
+                  "shade": "dark",
+                  "shape": "square",
+                  "dash": "solid"
+               },
+               "points": [
+                  {
+                     "x": 0,
+                     "y": 26
+                  },
+                  {
+                     "x": 3,
+                     "y": 31
+                  },
+                  {
+                     "x": 5,
+                     "y": 41
+                  },
+                  {
+                     "x": 6,
+                     "y": 57
+                  },
+                  {
+                     "x": 7,
+                     "y": 69
+                  },
+                  {
+                     "x": 12,
+                     "y": 70
+                  }
+               ]
+            },
+            {
+               "label": "client",
+               "look": {
+                  "shade": "mid",
+                  "shape": "diamond",
+                  "dash": "dashed"
+               },
+               "points": [
+                  {
+                     "x": 0,
+                     "y": 26
+                  },
+                  {
+                     "x": 3,
+                     "y": 30
+                  },
+                  {
+                     "x": 5,
+                     "y": 29
+                  },
+                  {
+                     "x": 6,
+                     "y": 33
+                  },
+                  {
+                     "x": 7,
+                     "y": 33
+                  },
+                  {
+                     "x": 12,
+                     "y": 33
+                  }
+               ]
+            },
+            {
+               "label": "render",
+               "look": {
+                  "shade": "gray",
+                  "shape": "triangle",
+                  "dash": "dotted"
+               },
+               "points": [
+                  {
+                     "x": 5,
+                     "y": 14
+                  },
+                  {
+                     "x": 6,
+                     "y": 15
+                  },
+                  {
+                     "x": 7,
+                     "y": 26
+                  },
+                  {
+                     "x": 12,
+                     "y": 26
+                  }
+               ]
+            }
+         ]
+      },
+      {
+         "title": "",
+         "row": "in the browser",
+         "col": "all",
+         "series": [
+            {
+               "label": "browser checks",
+               "look": {
+                  "shade": "black",
+                  "shape": "diamond",
+                  "dash": "solid"
+               },
+               "points": [
+                  {
+                     "x": 0,
+                     "y": 21
+                  },
+                  {
+                     "x": 3,
+                     "y": 26
+                  },
+                  {
+                     "x": 5,
+                     "y": 38
+                  },
+                  {
+                     "x": 6,
+                     "y": 44
+                  },
+                  {
+                     "x": 7,
+                     "y": 47
+                  },
+                  {
+                     "x": 12,
+                     "y": 47
+                  }
+               ]
+            }
+         ]
+      }
+   ]
+}

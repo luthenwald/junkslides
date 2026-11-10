@@ -1,0 +1,34 @@
+{
+   "kind": "bars",
+   "log": false,
+   "groups": [
+      {
+         "label": "60 slides",
+         "rows": [
+            {
+               "label": "before",
+               "value": 401
+            },
+            {
+               "label": "after",
+               "value": 113,
+               "now": true
+            }
+         ]
+      },
+      {
+         "label": "150 slides",
+         "rows": [
+            {
+               "label": "before",
+               "value": 622
+            },
+            {
+               "label": "after",
+               "value": 212,
+               "now": true
+            }
+         ]
+      }
+   ]
+}

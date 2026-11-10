@@ -1,0 +1,86 @@
+/* From junkslides.toml. theme.css comes after this and wins. */
+
+@font-face {
+  font-family: "et-book";
+  src: url("fonts/et-book-roman.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "et-book";
+  src: url("fonts/et-book-italic.woff2") format("woff2");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "et-book";
+  src: url("fonts/et-book-bold.woff2") format("woff2");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Victor Mono";
+  src: url("fonts/victor-mono-regular.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Victor Mono";
+  src: url("fonts/victor-mono-italic.woff2") format("woff2");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Victor Mono";
+  src: url("fonts/victor-mono-bold.woff2") format("woff2");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --js-font-text: "et-book", Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --js-font-code: "Victor Mono", ui-monospace, Menlo, Consolas, monospace;
+  --js-background: #fcfcfa;
+  --js-text: #1c1c1c;
+  --js-quiet: #a6a6a6;
+  --js-accent: #d4502c;
+  --js-size: 30px;
+  --js-line-height: 1.4;
+  --js-code-scale: 0.86;
+}
+
+:where(.js-slide) {
+  background: var(--js-background);
+  color: var(--js-text);
+  font-family: var(--js-font-text);
+  font-size: var(--js-size);
+  line-height: var(--js-line-height);
+}
+
+:where(.js-slide pre, .js-slide code) {
+  font-family: var(--js-font-code);
+}
+
+:where(.js-slide pre, .js-slide :not(pre) > code) {
+  font-size: calc(var(--js-code-scale) * 1em);
+}
+
+:where(.js-cell[data-variant="quiet"], .js-page) {
+  color: var(--js-quiet);
+}
+
+:where(.js-page-slash)::before, :where(.js-page-slash)::after {
+  content: " ";
+  white-space: pre;
+}

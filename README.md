@@ -306,3 +306,8 @@ Where neither your settings nor your theme name a font, the browser's default
 is used.
 
 junkslides reloads the theme when the file changes.
+
+## License
+
+MIT, see [license](license). The fonts that come with junkslides have their own
+licences, which sit beside them.

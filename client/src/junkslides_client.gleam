@@ -8,6 +8,6 @@ import lustre
 pub fn main() -> Nil {
   let assert Ok(_) =
     lustre.application(app.init, app.update, ui.view)
-    |> lustre.start("#app", Nil)
+    |> lustre.start("#app", app.Served)
   Nil
 }

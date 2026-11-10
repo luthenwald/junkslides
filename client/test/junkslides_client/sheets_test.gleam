@@ -1,7 +1,7 @@
 import junkslides_client/app
 
 fn model() -> app.Model {
-  let #(model, _) = app.init(Nil)
+  let #(model, _) = app.init(app.Served)
   app.Model(..model, theme: 2)
 }
 

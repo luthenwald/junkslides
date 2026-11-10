@@ -376,3 +376,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* A file offered for saving where there is no server to write it. */
+.jse-download {
+  color: var(--jse-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

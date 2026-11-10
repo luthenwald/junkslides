@@ -10,7 +10,9 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/set
+import gleam/time/timestamp
 import junkslides/deck.{type Cell, type Deck}
+import junkslides/file
 import junkslides/id.{type CellTag, type Id, type SlideTag}
 import junkslides/layout.{type Area, type Layout}
 import junkslides/op.{type EditProblem, type Op}
@@ -22,6 +24,7 @@ import junkslides_client/edit
 import junkslides_client/keymap.{
   type CanvasCommand, type Command, type EditCommand,
 }
+import junkslides_client/local.{type Local}
 import junkslides_client/nav.{type Selection, OnCell, OnSlide}
 import lustre/effect.{type Effect}
 import lustre_websocket as ws
@@ -29,6 +32,9 @@ import lustre_websocket as ws
 pub type Model {
   Model(
     connection: Connection,
+    /// Files offered for saving, by name, when there is no server to write
+    /// an export; gone with the next change.
+    downloads: List(#(String, String)),
     /// The last state from the server; `None` until the first one.
     deck: Option(Shared),
     view: View,
@@ -74,6 +80,15 @@ pub type Connection {
   Connecting
   Open(socket: ws.WebSocket)
   Closed
+  /// No server: the deck lives in this page (`junkslides_client/local`).
+  InPage(local: Local)
+}
+
+/// How the editor starts: against the server that serves it, or on a deck
+/// kept in the page, with the messages that greet it.
+pub type Start {
+  Served
+  Standalone(local: Local, greeting: List(protocol.ServerMsg))
 }
 
 /// What the server sent last, apart from the view.
@@ -129,6 +144,8 @@ pub type Follow {
 
 pub type Msg {
   Socket(ws.WebSocketEvent)
+  /// What the deck in the page answered.
+  Answered(List(protocol.ServerMsg))
   Reconnect
   CommandKey(Command)
   EditKey(EditCommand, cursor: Int)
@@ -163,10 +180,15 @@ const drag_settle = 1000
 
 const reconnect_after = 1000
 
-pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
+pub fn init(start: Start) -> #(Model, Effect(Msg)) {
+  let #(connection, begin) = case start {
+    Served -> #(Connecting, ws.init("/.js/ws", Socket))
+    Standalone(local: page, greeting:) -> #(InPage(page), answer(greeting))
+  }
   let model =
     Model(
-      connection: Connecting,
+      connection:,
+      downloads: [],
       deck: None,
       view: protocol.default_view,
       selection: OnCell(placeholder_id()),
@@ -188,7 +210,7 @@ pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
       theme_loaded: 0,
       sheets_arrived: dict.new(),
     )
-  #(model, ws.init("/.js/ws", Socket))
+  #(model, begin)
 }
 
 /// Stands in for the selection until the first state arrives.
@@ -200,6 +222,11 @@ fn placeholder_id() -> Id(CellTag) {
 pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
   case msg {
     Socket(event) -> socket(model, event)
+    Answered(messages) ->
+      list.fold(messages, #(model, effect.none()), fn(done, message) {
+        let #(model, effects) = server(done.0, message)
+        #(model, effect.batch([done.1, effects]))
+      })
     Reconnect -> #(
       Model(..model, connection: Connecting),
       ws.init("/.js/ws", Socket),
@@ -296,7 +323,7 @@ pub fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
             Model(..model, drag: Some(Drag(..drag, released: Some(seq))))
           let #(model, effects) = apply_layout(model, layout.Place(cell, area))
           case model.connection {
-            Open(_) -> #(
+            Open(_) | InPage(_) -> #(
               model,
               effect.batch([effects, after(drag_settle, DragSettled(seq))]),
             )
@@ -420,7 +447,7 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
       }
       #(
         arrive(
-          Model(..model, deck: Some(shared), view:, drag:, mode:),
+          Model(..model, deck: Some(shared), view:, drag:, mode:, downloads: []),
           old,
           new,
         ),
@@ -876,7 +903,9 @@ fn commit(model: Model, by_escape: Bool) -> #(Model, Effect(Msg)) {
       ),
       effect.none(),
     )
-    Editing(cell:, text:, drop:, ..), Some(shared), Open(_) -> {
+    Editing(cell:, text:, drop:, ..), Some(shared), Open(_)
+    | Editing(cell:, text:, drop:, ..), Some(shared), InPage(_)
+    -> {
       let leave =
         Model(
           ..model,
@@ -1092,6 +1121,23 @@ fn follow(model: Model, ops: List(Op), edit: Bool) -> #(Model, Effect(Msg)) {
 fn send(model: Model, message: protocol.ClientMsg) -> #(Model, Effect(Msg)) {
   case model.connection {
     Open(socket) -> #(model, ws.send(socket, protocol.encode_client(message)))
+    // There is nowhere to export to, so the files are offered as links.
+    InPage(page) if message == protocol.Export -> #(
+      Model(
+        ..model,
+        downloads: [
+          #("deck.md", file.print(page.session.deck)),
+          #("layout.json", file.print_layout(page.session.layout)),
+        ],
+        notice: Some("The deck as it is now, to save:"),
+      ),
+      effect.none(),
+    )
+    InPage(page) -> {
+      let #(page, answers) =
+        local.handle(page, message, new_supply(), timestamp.system_time())
+      #(Model(..model, connection: InPage(page)), answer(answers))
+    }
     Connecting | Closed -> #(
       Model(
         ..model,
@@ -1100,6 +1146,24 @@ fn send(model: Model, message: protocol.ClientMsg) -> #(Model, Effect(Msg)) {
       effect.none(),
     )
   }
+}
+
+/// Answers arrive as their own message, after this update, as they would
+/// from a socket.
+fn answer(messages: List(protocol.ServerMsg)) -> Effect(Msg) {
+  use dispatch <- effect.from
+  dispatch(Answered(messages))
+}
+
+/// IDs for a deck in the page, from the clock and random bits, as the
+/// server makes them.
+fn new_supply() -> id.IdSupply {
+  let #(seconds, nanoseconds) =
+    timestamp.system_time() |> timestamp.to_unix_seconds_and_nanoseconds
+  let entropy =
+    list.repeat(Nil, 8)
+    |> list.fold(<<>>, fn(bits, _) { <<bits:bits, int.random(256)>> })
+  id.supply(seconds * 1000 + nanoseconds / 1_000_000, entropy)
 }
 
 fn after(ms: Int, msg: Msg) -> Effect(Msg) {

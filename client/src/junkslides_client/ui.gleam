@@ -14,14 +14,16 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
+import gleam/uri
 import junkslides/deck.{type Cell, type Slide}
 import junkslides/dialect
 import junkslides/id.{type CellTag, type Id}
 import junkslides/layout
 import junkslides/protocol.{type Diagnostic}
+import junkslides/render/styles
 import junkslides_client/app.{
   type Model, type Shared, Canvas, Closed, Command, Connecting, Drag, Editing,
-  Open,
+  InPage, Open,
 }
 import junkslides_client/canvas
 import junkslides_client/edit
@@ -81,13 +83,32 @@ fn theme(model: Model) -> Element(app.Msg) {
       ]),
     )
   }
+  // A deck in the page has its sheets beside the page, wherever that is
+  // published; a served one has them at the server's root.
   let pair = fn(n) {
-    [link(n, "/.js/settings.css", "settings"), link(n, "/theme.css", "theme")]
+    case model.connection {
+      InPage(_) -> [
+        link(n, "settings.css", "settings"),
+        link(n, "theme.css", "theme"),
+      ]
+      _ -> [
+        link(n, "/.js/settings.css", "settings"),
+        link(n, "/theme.css", "theme"),
+      ]
+    }
   }
-  keyed.fragment(case model.theme_loaded == model.theme {
-    True -> pair(model.theme)
-    False -> list.append(pair(model.theme_loaded), pair(model.theme))
-  })
+  // The server's page links the base styles; a page without a server has
+  // them from here, before the deck's sheets, so those still win.
+  let base = case model.connection {
+    InPage(_) -> [#("base", html.style([], styles.base_css))]
+    _ -> []
+  }
+  keyed.fragment(
+    list.append(base, case model.theme_loaded == model.theme {
+      True -> pair(model.theme)
+      False -> list.append(pair(model.theme_loaded), pair(model.theme))
+    }),
+  )
 }
 
 fn focus(model: Model) -> Attribute(msg) {
@@ -478,6 +499,7 @@ fn status(model: Model, parts: List(String)) -> Element(app.Msg) {
   }
   let connection = case model.connection {
     Open(_) -> []
+    InPage(_) -> ["edits stay in this page"]
     Connecting -> ["connecting"]
     Closed -> ["offline, reconnecting"]
   }
@@ -502,7 +524,29 @@ fn status(model: Model, parts: List(String)) -> Element(app.Msg) {
         html.span([], [text(part)])
       }),
       [snap_choice(model.view.snap)],
+      // Beside a deck in the page sits its export, the same talk as slides.
+      case model.connection {
+        InPage(_) -> [
+          html.a([class("jse-download"), attribute.href("slides/")], [
+            text("the slides"),
+          ]),
+        ]
+        _ -> []
+      },
       notice,
+      // The file's text is the link itself, so saving it needs no script.
+      list.map(model.downloads, fn(file) {
+        html.a(
+          [
+            class("jse-download"),
+            attribute.download(file.0),
+            attribute.href(
+              "data:text/plain;charset=utf-8," <> uri.percent_encode(file.1),
+            ),
+          ],
+          [text(file.0)],
+        )
+      }),
     ]),
   )
 }

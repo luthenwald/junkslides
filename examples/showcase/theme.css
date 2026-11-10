@@ -68,11 +68,12 @@
 
 /* A rule over the title band, with a dot at the slide's place in the talk.
    The rule runs over the sentence at the right too, so it is wider than
-   the title's box; the dot pulses while the slide is on screen. */
+   the title's box; the dot pulses while the slide is on screen. A slide
+   whose marks are switched off in the editor (the . key) draws neither. */
 
 .js-cell[data-variant="title"] { position: relative; }
 
-.js-cell[data-variant="title"]::before {
+.js-slide:not([data-marks="off"]) .js-cell[data-variant="title"]::before {
    content: "";
    position: absolute;
    left: 0;
@@ -81,7 +82,7 @@
    border-top: 1px solid var(--faint);
 }
 
-.js-cell[data-variant="title"]::after {
+.js-slide:not([data-marks="off"]) .js-cell[data-variant="title"]::after {
    content: "";
    position: absolute;
    top: -29px;
@@ -93,7 +94,9 @@
 }
 
 @container style(--js-here: 1) {
-   .js-cell[data-variant="title"]::after { animation: pulse 5s ease-out 0.6s infinite; }
+   .js-slide:not([data-marks="off"]) .js-cell[data-variant="title"]::after {
+      animation: pulse 5s ease-out 0.6s infinite;
+   }
 }
 
 @keyframes pulse {

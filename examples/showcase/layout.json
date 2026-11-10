@@ -187,6 +187,11 @@
       "align": "end"
     }
   },
-  "slides": {},
+  "slides": {
+    "019a7000-0000-7000-8000-000000000001": {
+      "number": false,
+      "marks": false
+    }
+  },
   "orphans": []
 }

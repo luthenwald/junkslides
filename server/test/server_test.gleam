@@ -660,6 +660,10 @@ pub fn the_showcase_exports_whole_test() {
   let page = harness.read(out, "index.html")
   assert list.length(string.split(page, "class=\"js-frame\"")) == 14
   assert string.contains(page, "--js-index:13;--js-total:13;")
+  // Only the first slide has its number and marks switched off (D33).
+  assert list.length(string.split(page, "data-number=\"off\"]")) == 2
+  assert list.length(string.split(page, "data-marks=\"off\"")) == 2
+  assert list.length(string.split(page, " data-number=\"off\"")) == 2
   assert string.contains(page, "class=\"folder\"")
   assert string.contains(page, "class=\"rebase\"")
   assert list.length(string.split(page, "class=\"js-chart\"")) == 3

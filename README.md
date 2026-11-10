@@ -64,7 +64,8 @@ The editor targets Chromium-based browsers for now.
 slide uses something the editor can do: placed cells with their own
 variants, code with lit lines and marks, a table, drawings, two charts, an
 animation in a frame, and speaker notes that say what to look at. A rule
-over each title has a dot that marks how far into the talk you are, and the
+over each title has a dot that marks how far into the talk you are, drawn by
+the showcase's own theme and switched off on its first slide, and the
 drawing of the deck's folder grows each time you come to its slide. Open a
 copy, so that your edits leave the example as it is:
 
@@ -105,6 +106,10 @@ The keys are modal:
   corner to resize, arrows nudge, `Shift` with arrows resize, `f` returns it
   to the flow, `v` cycles the style variant, `a` the alignment, `g` and `G`
   make the snap step finer or coarser.
+- In command and canvas mode, `n` hides the slide number on the selected
+  slide and `.` hides the marks your theme draws on every slide, such as a
+  rule or a progress dot. Press again to show them. The status line says
+  what a slide has hidden.
 
 Cells that are not placed stack in the theme's body area. Placed cells can
 go anywhere, even partly off the slide. Drags and nudges snap to a step of
@@ -301,6 +306,19 @@ and a PDF shows the slide at rest:
   .js-figure .fan path { animation: grow 10s infinite; }
 }
 ```
+
+A slide can do without the furniture. When its number is switched off in
+the editor it has `data-number="off"`, and the number is hidden for you.
+When its marks are switched off it has `data-marks="off"`, which is for
+your theme to honour, since only the theme knows what its marks are:
+
+```css
+.js-slide:not([data-marks="off"]) .progress { display: block; }
+```
+
+To leave the number off every slide, set `numbers = "none"` in
+`junkslides.toml`. junkslides draws no progress mark of its own, so a deck
+has one only if its theme draws it, as the showcase's does.
 
 A theme can also load fonts itself, from anywhere in the deck's folder, with a
 relative path that does not start with `/`. Exports and PDFs include them:

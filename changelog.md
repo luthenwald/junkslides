@@ -1,5 +1,6 @@
 ## Unreleased
 
+- New: a slide can go without its number or without the marks your theme draws on every slide, such as a progress dot. Press `n` or `.` on the slide in the editor, and again to bring them back. Themes see `data-marks="off"` on such a slide.
 - Improved: a new deck is set in fonts your system already has, Charter for text and Menlo for code with common fallbacks, so `junkslides init` no longer copies font files into it. Decks you already have keep their fonts, and the showcase still shows how to load your own.
 - New: `./install.sh` installs junkslides as a command of its own, under `~/.local` or a `--prefix` you give, so you can run `junkslides serve` from any folder without building each time. `./install.sh --uninstall` removes it again.
 - Improved: the readme no longer asks for `just`, which you never needed to run junkslides, and it has a section on removing junkslides with every file and folder it may leave behind.

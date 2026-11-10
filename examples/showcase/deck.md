@@ -18,7 +18,7 @@ This deck is the example that comes with junkslides. Every slide uses something 
 
 Here: three cells, each placed by hand. The kicker, the title and the sentence at the right have their own variants in theme.css.
 
-From the next slide on, a rule runs over every title, with a dot at the slide's place in the talk.
+From the next slide on, a rule runs over every title, with a dot at the slide's place in the talk. This slide has its number and the theme's marks switched off, with `n` and `.` in the editor.
 
 ---
 <!-- slide 019a7000-0000-7000-8000-000000000006 -->

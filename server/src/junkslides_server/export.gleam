@@ -217,7 +217,7 @@ const linked_out = "Left out a link that leads out of the deck: "
 
 /// The deck's theme.css, if it has one. It is copied as it is; a theme that is
 /// not UTF-8 is not read for paths.
-fn read_theme(folder: String) -> Result(Option(BitArray), String) {
+pub fn read_theme(folder: String) -> Result(Option(BitArray), String) {
   let path = filepath.join(folder, "theme.css")
   case simplifile.is_file(path) {
     Ok(True) ->
@@ -230,7 +230,7 @@ fn read_theme(folder: String) -> Result(Option(BitArray), String) {
 
 /// The deck's junkslides.toml, if it has one. One that does not read stops the
 /// export, as a broken deck does, rather than giving pages in other fonts.
-fn read_settings(folder: String) -> Result(Option(Settings), String) {
+pub fn read_settings(folder: String) -> Result(Option(Settings), String) {
   let path = filepath.join(folder, "junkslides.toml")
   case simplifile.is_file(path) {
     Ok(True) -> {

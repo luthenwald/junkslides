@@ -22,6 +22,7 @@ import junkslides/deck.{Cell, Content, Deck, Slide}
 import junkslides/file
 import junkslides/id
 import junkslides/layout
+import junkslides_server/demo
 import junkslides_server/export
 import junkslides_server/highlighter
 import junkslides_server/pdf
@@ -64,6 +65,9 @@ pub fn main() -> Nil {
         }
       })
       |> result.map(print_report)
+    // For building the editor that runs without a server (07-stack.md,
+    // demo); not a command for users, so the usage text leaves it out.
+    ["demo-module", folder, path] -> demo_module(folder, path, "tree-sitter")
     _ -> Error(usage)
   }
   case result {
@@ -193,6 +197,19 @@ pub fn export_pdf(
   let out = export_folder(folder, out)
   use #(deck, layout) <- result.try(read_deck(folder))
   export.write_pdf(folder:, out:, deck:, layout:, tree_sitter:, browser:)
+}
+
+/// Writes the Gleam module the `demo` package starts from: the deck in
+/// `folder` as the messages a client is greeted with.
+pub fn demo_module(
+  folder: String,
+  path: String,
+  tree_sitter: String,
+) -> Result(Nil, String) {
+  let folder = absolute(folder)
+  use #(deck, layout) <- result.try(read_deck(folder))
+  use source <- result.try(demo.module(folder:, deck:, layout:, tree_sitter:))
+  store.write_atomic(absolute(path), text(source)) |> result.replace(Nil)
 }
 
 fn export_folder(folder: String, out: Option(String)) -> String {

@@ -8,3 +8,4 @@ dist/
 erl_crash.dump
 /.claude
 /talk/
+demo/src/junkslides_demo/deck.gleam

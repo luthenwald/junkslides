@@ -23,14 +23,17 @@ client-test:
 client:
    cd client && gleam run -m lustre/dev build --outdir=../server/priv/static --no-html --minify > /dev/null
 
-# The editor in headless Chrome for Testing against a real server
-e2e: client
+# The editor in headless Chrome for Testing against a real server, and the
+# site in docs/ over a plain file server at http://127.0.0.1:9336/docs/
+e2e: client site
    #!/usr/bin/env bash
    set -u
    profile=$(mktemp -d)
    "{{chrome}}" --remote-debugging-port=9334 --user-data-dir="$profile" --no-first-run about:blank >/dev/null 2>&1 &
    pid=$!
-   trap 'kill $pid; rm -rf "$profile"' EXIT
+   python3 -m http.server 9336 --bind 127.0.0.1 --directory "{{justfile_directory()}}" >/dev/null 2>&1 &
+   files=$!
+   trap 'kill $pid $files; rm -rf "$profile"' EXIT
    sleep 1
    cd e2e && gleam test
 
@@ -51,10 +54,23 @@ run *args:
    [ -x "$entry" ] || { echo "No build yet. Run just junkslides once first." >&2; exit 1; }
    exec "$entry" run {{args}}
 
-# The showcase as a static page in docs/, for GitHub Pages (made afresh each time)
+# The site in docs/, for GitHub Pages, made afresh each time: the editor on the
+# showcase deck, kept in the page (the demo package), and the exported slides
+# in docs/slides
 site:
+   #!/usr/bin/env bash
+   set -euo pipefail
+   cd "{{justfile_directory()}}"
    rm -rf docs
-   gleam run export examples/showcase --out docs
+   gleam run export examples/showcase --out docs/slides
+   # The deck's own files sit beside the editor's page, as they would beside a served one.
+   cp -R docs/slides/assets docs/slides/fonts docs/slides/settings.css docs/slides/theme.css docs/
+   gleam run demo-module examples/showcase demo/src/junkslides_demo/deck.gleam
+   (cd demo && gleam run -m lustre/dev build --outdir=../docs/editor --no-html --minify > /dev/null)
+   cp client/assets/junkslides.css docs/editor/
+   mkdir -p docs/editor/fonts
+   cp server/priv/fonts/* docs/editor/fonts/
+   cp demo/index.html docs/index.html
    touch docs/.nojekyll
 
 # S5: jot coverage and the block splitter, on both targets

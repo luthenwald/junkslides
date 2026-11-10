@@ -394,7 +394,8 @@ fn scratch(name: String) -> String {
 }
 
 /// A write that fails is said once, and the file is listed as not saved,
-/// to late clients too, until a write of it works.
+/// to late clients too, until a write of it works. It is tried again every
+/// second.
 pub fn a_failed_write_is_said_until_one_works_test() {
   let h = harness.start("unwritable", 4979)
   let _ = harness.next_state(h)
@@ -418,9 +419,9 @@ pub fn a_failed_write_is_said_until_one_works_test() {
   restore()
   assert unsaved == [#("deck.md", problem)]
   assert told == unsaved
-  harness.send(h, protocol.Apply(2, [op.EditText(laws, "## Written")]))
+  // The write is tried again by itself, without a further edit.
   assert harness.next_unsaved(h) == []
-  assert string.contains(harness.read(h.folder, "deck.md"), "## Written")
+  assert string.contains(harness.read(h.folder, "deck.md"), "## In memory")
 }
 
 /// A deck.md that is a link to a file kept elsewhere stays a link, and the

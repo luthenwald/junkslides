@@ -328,7 +328,7 @@ fn receive(state: State, message: Message) -> State {
       state |> poll_files |> poll_theme |> poll_settings |> poll_figures
     }
     Flush(generation) if generation == state.generation ->
-      state |> poll_files |> write_files
+      state |> poll_files |> write_files |> retry_failed
     Flush(_) -> state
     Highlighted(blocks) -> {
       broadcast(state, protocol.Highlights(blocks))
@@ -853,6 +853,23 @@ fn write_layout(state: State) -> State {
       }
     }
   }
+}
+
+/// How long after a failed write the next one is tried, in ms.
+const retry = 1000
+
+/// A write that failed is tried again by itself, so a disk that was full or
+/// a folder that was locked for a moment needs no further edit to be
+/// written. A change made meanwhile has its own flush and takes over.
+fn retry_failed(state: State) -> State {
+  case state.deck_write, state.layout_write {
+    None, None -> Nil
+    _, _ -> {
+      process.send_after(state.self, retry, Flush(state.generation))
+      Nil
+    }
+  }
+  state
 }
 
 /// A write that failed is said once as a notice, and stays in `unsaved`

@@ -183,6 +183,8 @@ pub fn s7_parse_error_keeps_state_and_does_not_write_test() {
   harness.write(h.folder, "deck.md", broken)
   let notice = harness.next_notice(h)
   assert string.contains(notice, "line 12")
+  // That deck.md is not being written is a state, told apart from notices.
+  assert harness.next_unsaved(h) == [#("deck.md", notice)]
   // Edits in junkslides go on, but deck.md is not written while it is broken.
   let laws = example_id("08")
   harness.send(h, protocol.Apply(1, [op.EditText(laws, "## The laws, kept")]))
@@ -193,9 +195,11 @@ pub fn s7_parse_error_keeps_state_and_does_not_write_test() {
   let late = harness.connect(h.folder, 4887)
   let _ = harness.next_state(late)
   assert string.contains(harness.next_notice(late), "line 12")
+  assert harness.next_unsaved(late) == [#("deck.md", notice)]
   // Fixing the file resumes, and the edit made meanwhile is kept.
   harness.write(h.folder, "deck.md", good)
   assert harness.next_notice(h) == "deck.md reads again."
+  assert harness.next_unsaved(h) == []
   assert on_disk(h, deck)
   assert string.contains(harness.read(h.folder, "deck.md"), "## The laws, kept")
 }

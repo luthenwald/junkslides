@@ -66,6 +66,12 @@ pub type ServerMsg {
   )
   Rejected(seq: Int, reason: String)
   Notice(text: String)
+  /// The files that are not being written now, each with the reason: a
+  /// deck.md or layout.json with an open problem, or a write that failed.
+  /// Sent whenever the list changes, the empty list too, and to a new
+  /// client when there are any. Unlike a notice it describes a state, which
+  /// the editor shows for as long as it lasts.
+  Unsaved(files: List(#(String, String)))
   ReloadTheme
   /// The tokens of the deck's code blocks, as far as the server has them.
   /// A block without an entry is drawn plain.
@@ -195,6 +201,17 @@ pub fn encode_server(msg: ServerMsg) -> String {
     Rejected(seq:, reason:) ->
       tagged("rejected", [#("seq", Num(seq)), #("reason", Str(reason))])
     Notice(text:) -> tagged("notice", [#("text", Str(text))])
+    Unsaved(files:) ->
+      tagged("unsaved", [
+        #(
+          "files",
+          Arr(
+            list.map(files, fn(file) {
+              Obj([#("name", Str(file.0)), #("reason", Str(file.1))])
+            }),
+          ),
+        ),
+      ])
     ReloadTheme -> tagged("reload_theme", [])
     Highlights(blocks:) ->
       tagged("highlights", [
@@ -242,6 +259,15 @@ fn server_decoder() -> Decoder(ServerMsg) {
     "notice" -> {
       use text <- decode.field("text", decode.string)
       decode.success(Notice(text))
+    }
+    "unsaved" -> {
+      let file = {
+        use name <- decode.field("name", decode.string)
+        use reason <- decode.field("reason", decode.string)
+        decode.success(#(name, reason))
+      }
+      use files <- decode.field("files", decode.list(file))
+      decode.success(Unsaved(files))
     }
     "reload_theme" -> decode.success(ReloadTheme)
     "highlights" -> {

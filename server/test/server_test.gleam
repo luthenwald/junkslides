@@ -395,6 +395,36 @@ fn scratch(name: String) -> String {
 
 /// The server's own write is not read back as an outside edit: an undo that
 /// follows a write, before any poll, survives the next flush.
+/// A write that fails is said once, and the file is listed as not saved,
+/// to late clients too, until a write of it works.
+pub fn a_failed_write_is_said_until_one_works_test() {
+  let h = harness.start("unwritable", 4979)
+  let _ = harness.next_state(h)
+  let laws = example_id("08")
+  let assert Ok(Nil) = simplifile.set_permissions_octal(h.folder, 0o555)
+  harness.send(h, protocol.Apply(1, [op.EditText(laws, "## In memory")]))
+  let problem = harness.next_notice(h)
+  let restore = fn() {
+    let assert Ok(Nil) = simplifile.set_permissions_octal(h.folder, 0o755)
+  }
+  case string.starts_with(problem, "Could not write deck.md: ") {
+    True -> Nil
+    False -> {
+      restore()
+      panic as problem
+    }
+  }
+  let unsaved = harness.next_unsaved(h)
+  let late = harness.connect(h.folder, 4979)
+  let told = harness.next_unsaved(late)
+  restore()
+  assert unsaved == [#("deck.md", problem)]
+  assert told == unsaved
+  harness.send(h, protocol.Apply(2, [op.EditText(laws, "## Written")]))
+  assert harness.next_unsaved(h) == []
+  assert string.contains(harness.read(h.folder, "deck.md"), "## Written")
+}
+
 pub fn own_write_is_not_an_outside_edit_test() {
   let h = harness.serve_with(harness.folder("own-write"), 4898, 60_000, 50)
   let #(before, _) = harness.next_state(h)

@@ -336,3 +336,27 @@ pub fn the_page_runs_no_script_but_its_own_test() {
   process.sleep(100)
   assert cdp.evaluate(page, "document.title") == Ok("junkslides")
 }
+
+/// A deck.md that does not read is not written, and the status line says so
+/// for as long as that lasts, whatever is pressed meanwhile.
+pub fn a_file_that_is_not_saved_is_said_until_it_is_test() {
+  let #(page, folder) = open("unsaved", 4978)
+  let path = filepath.join(folder, "deck.md")
+  let assert Ok(good) = simplifile.read(path)
+  let assert Ok(Nil) =
+    simplifile.write(
+      path,
+      good <> "\n<!-- slide 019a2c41-7f10-7b2e-9c4d-1a2b3c4d5e99 -->\n",
+    )
+  let said = fn() { cdp.count(page, ".jse-unsaved") == 1 }
+  assert eventually(said)
+  press(page, "j")
+  press(page, "k")
+  process.sleep(200)
+  assert said()
+  assert string.contains(status(page), "deck.md is not being saved")
+  let assert Ok(why) = cdp.attribute(page, ".jse-unsaved", "title")
+  assert string.contains(why, "a slide marker must follow a break")
+  let assert Ok(Nil) = simplifile.write(path, good)
+  assert eventually(fn() { cdp.count(page, ".jse-unsaved") == 0 })
+}

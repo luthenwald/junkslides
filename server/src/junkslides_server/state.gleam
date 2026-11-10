@@ -125,6 +125,9 @@ type State {
     pending: Pending,
     deck_file: Disk,
     layout_file: Disk,
+    /// Why the last write of deck.md or layout.json failed, until one works.
+    deck_write: Option(String),
+    layout_write: Option(String),
     theme_seen: String,
     settings_file: SettingsFile,
     /// Only the flush with the latest generation writes.
@@ -192,6 +195,8 @@ pub fn start(config: Config) -> Result(Subject(Message), String) {
         pending: Groups([]),
         deck_file: Disk(deck_hash, None),
         layout_file:,
+        deck_write: None,
+        layout_write: None,
         theme_seen:,
         settings_file:,
         generation: 0,
@@ -284,39 +289,58 @@ pub fn new_supply() -> IdSupply {
 // Messages ------------------------------------------------------------------
 
 fn handle(state: State, message: Message) -> actor.Next(State, Message) {
+  let next = receive(state, message)
+  // Whether the files are being written is a state the editor keeps on
+  // screen, so every change of it is told, the end of it too.
+  case unsaved(next) == unsaved(state) {
+    True -> Nil
+    False -> broadcast(next, protocol.Unsaved(unsaved(next)))
+  }
+  actor.continue(next)
+}
+
+/// The files that are not being written now, and why (06-runtime.md,
+/// Writing files).
+fn unsaved(state: State) -> List(#(String, String)) {
+  let named = fn(name, reasons: List(Option(String))) {
+    case option.values(reasons) {
+      [reason, ..] -> [#(name, reason)]
+      [] -> []
+    }
+  }
+  list.append(
+    named("deck.md", [state.deck_file.problem, state.deck_write]),
+    named("layout.json", [state.layout_file.problem, state.layout_write]),
+  )
+}
+
+fn receive(state: State, message: Message) -> State {
   case message {
     Join(client) -> {
       greet(state, client)
-      actor.continue(State(..state, clients: [client, ..state.clients]))
+      State(..state, clients: [client, ..state.clients])
     }
     Leave(client) ->
-      actor.continue(
-        State(
-          ..state,
-          clients: list.filter(state.clients, fn(c) { c != client }),
-        ),
-      )
-    FromClient(client, msg) -> actor.continue(from_client(state, client, msg))
+      State(..state, clients: list.filter(state.clients, fn(c) { c != client }))
+    FromClient(client, msg) -> from_client(state, client, msg)
     Poll -> {
       process.send_after(state.self, state.config.poll, Poll)
-      actor.continue(
-        state |> poll_files |> poll_theme |> poll_settings |> poll_figures,
-      )
+      state |> poll_files |> poll_theme |> poll_settings |> poll_figures
     }
     Flush(generation) if generation == state.generation ->
-      actor.continue(state |> poll_files |> write_files)
-    Flush(_) -> actor.continue(state)
+      state |> poll_files |> write_files
+    Flush(_) -> state
     Highlighted(blocks) -> {
       broadcast(state, protocol.Highlights(blocks))
-      actor.continue(State(..state, highlights: blocks))
+      State(..state, highlights: blocks)
     }
     Exported(client, outcome) -> {
       send(client, protocol.Notice(exported_notice(outcome)))
-      actor.continue(state)
+      state
     }
     SettingsCss(reply) -> {
       process.send(reply, state.settings_file.css)
-      actor.continue(state)
+      state
     }
   }
 }
@@ -790,22 +814,20 @@ fn write_files(state: State) -> State {
 
 fn write_deck(state: State) -> State {
   case state.deck_file.problem {
-    Some(_) -> state
+    Some(_) -> State(..state, deck_write: None)
     None -> {
       let bytes = bit_array.from_string(file.print(state.deck))
-      let saved = State(..state, base: state.deck, pending: Groups([]))
+      let saved =
+        State(..state, base: state.deck, pending: Groups([]), deck_write: None)
       case store.hash(bytes) == state.deck_file.seen {
         True -> saved
         False ->
           case store.write_atomic(path(state.config, "deck.md"), bytes) {
             Ok(hash) -> State(..saved, deck_file: Disk(hash, None))
-            Error(reason) -> {
-              broadcast(
-                state,
-                protocol.Notice("Could not write deck.md: " <> reason),
-              )
-              state
-            }
+            Error(reason) ->
+              write_failed(state, "deck.md", reason, fn(problem) {
+                State(..state, deck_write: Some(problem))
+              })
           }
       }
     }
@@ -814,25 +836,43 @@ fn write_deck(state: State) -> State {
 
 fn write_layout(state: State) -> State {
   case state.layout_file.problem {
-    Some(_) -> state
+    Some(_) -> State(..state, layout_write: None)
     None -> {
       let bytes = bit_array.from_string(file.print_layout(state.layout))
       case store.hash(bytes) == state.layout_file.seen {
-        True -> state
+        True -> State(..state, layout_write: None)
         False ->
           case store.write_atomic(path(state.config, "layout.json"), bytes) {
-            Ok(hash) -> State(..state, layout_file: Disk(hash, None))
-            Error(reason) -> {
-              broadcast(
-                state,
-                protocol.Notice("Could not write layout.json: " <> reason),
-              )
-              state
-            }
+            Ok(hash) ->
+              State(..state, layout_file: Disk(hash, None), layout_write: None)
+            Error(reason) ->
+              write_failed(state, "layout.json", reason, fn(problem) {
+                State(..state, layout_write: Some(problem))
+              })
           }
       }
     }
   }
+}
+
+/// A write that failed is said once as a notice, and stays in `unsaved`
+/// until a write of that file works.
+fn write_failed(
+  state: State,
+  name: String,
+  reason: String,
+  keep: fn(String) -> State,
+) -> State {
+  let problem = "Could not write " <> name <> ": " <> reason
+  let before = case name {
+    "deck.md" -> state.deck_write
+    _ -> state.layout_write
+  }
+  case before == Some(problem) {
+    True -> Nil
+    False -> broadcast(state, protocol.Notice(problem))
+  }
+  keep(problem)
 }
 
 // Sending -------------------------------------------------------------------
@@ -870,6 +910,10 @@ fn greet(state: State, client: Subject(ServerMsg)) -> Nil {
     list.filter_map(state.figures, fn(pair) { figures.problem(pair.0, pair.1) }),
   )
   |> list.each(fn(problem) { send(client, protocol.Notice(problem)) })
+  case unsaved(state) {
+    [] -> Nil
+    files -> send(client, protocol.Unsaved(files))
+  }
 }
 
 fn broadcast(state: State, msg: ServerMsg) -> Nil {

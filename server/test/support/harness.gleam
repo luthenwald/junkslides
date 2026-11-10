@@ -175,6 +175,14 @@ pub fn next_notice(harness: Harness) -> String {
   }
 }
 
+/// Skips messages up to the next list of files that are not being saved.
+pub fn next_unsaved(harness: Harness) -> List(#(String, String)) {
+  case next(harness) {
+    protocol.Unsaved(files) -> files
+    _ -> next_unsaved(harness)
+  }
+}
+
 /// No message within `ms`.
 pub fn quiet(harness: Harness, ms: Int) -> Bool {
   process.receive(harness.inbox, ms) == Error(Nil)

@@ -39,6 +39,9 @@ pub type Model {
     seq: Int,
     follow: Follow,
     notice: Option(String),
+    /// The files the server is not writing now, each with the reason. Unlike
+    /// a notice this stays on screen until the server says it is over.
+    unsaved: List(#(String, String)),
     /// Changed to move keyboard focus to the selection again; see `ui`.
     focus: Int,
     /// Counts typing, so that only the last pause sends.
@@ -172,6 +175,7 @@ pub fn init(_flags: Nil) -> #(Model, Effect(Msg)) {
       seq: 1,
       follow: Stay,
       notice: None,
+      unsaved: [],
       focus: 0,
       typing: 0,
       dragging_divider: False,
@@ -361,9 +365,10 @@ pub fn sheet_loaded(model: Model, n: Int) -> Model {
 
 fn socket(model: Model, event: ws.WebSocketEvent) -> #(Model, Effect(Msg)) {
   case event {
-    // The server greets every new client with its state.
+    // The server greets every new client with its state, and with the
+    // files it is not writing, if any.
     ws.OnOpen(socket) -> #(
-      Model(..model, connection: Open(socket)),
+      Model(..model, connection: Open(socket), unsaved: []),
       effect.none(),
     )
     ws.OnTextMessage(text) ->
@@ -445,7 +450,7 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
       Model(..model, notice: Some(text)),
       effect.none(),
     )
-    // A new URL makes the browser fetch the theme again.
+    protocol.Unsaved(files) -> #(Model(..model, unsaved: files), effect.none())
     protocol.Highlights(blocks) -> #(
       Model(
         ..model,
@@ -463,6 +468,7 @@ fn server(model: Model, message: protocol.ServerMsg) -> #(Model, Effect(Msg)) {
       ),
       effect.none(),
     )
+    // A new URL makes the browser fetch the theme again.
     protocol.ReloadTheme -> #(
       Model(..model, theme: model.theme + 1),
       effect.none(),

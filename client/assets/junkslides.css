@@ -366,6 +366,11 @@ body {
   padding: 0 4px;
 }
 
+.jse-unsaved {
+  color: var(--jse-ink);
+  font-weight: 600;
+}
+
 .jse-notice {
   color: var(--jse-ink);
   overflow: hidden;

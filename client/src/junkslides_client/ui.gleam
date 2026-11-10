@@ -466,10 +466,20 @@ fn status(model: Model, parts: List(String)) -> Element(app.Msg) {
     Some(notice) -> [html.span([class("jse-notice")], [text(notice)])]
     None -> []
   }
+  // Said for as long as it lasts: edits made meanwhile live in the server's
+  // memory only. The reason is the span's title.
+  let unsaved =
+    list.map(model.unsaved, fn(file) {
+      html.span([class("jse-unsaved"), attribute.title(file.1)], [
+        text(file.0 <> " is not being saved"),
+      ])
+    })
   html.footer(
     [class("jse-status")],
     list.flatten([
-      list.map([mode, ..list.append(parts, connection)], fn(part) {
+      [html.span([], [text(mode)])],
+      unsaved,
+      list.map(list.append(parts, connection), fn(part) {
         html.span([], [text(part)])
       }),
       [snap_choice(model.view.snap)],

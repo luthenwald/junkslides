@@ -87,6 +87,8 @@ pub fn server_messages_round_trip_test() {
     state,
     Rejected(4, "unknown cell"),
     Notice("line 3"),
+    protocol.Unsaved([]),
+    protocol.Unsaved([#("deck.md", "line 3: \"x\""), #("layout.json", "y")]),
     ReloadTheme,
     protocol.Highlights([
       protocol.Highlight(protocol.CodeBlock("hs", "main = \"<\"\n"), [

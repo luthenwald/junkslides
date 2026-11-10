@@ -202,8 +202,13 @@ fn action(model: Model, step: Step) -> Action {
       LayoutAction(layout.Place(cell_id, area))
     }
     16 ->
-      LayoutAction(case step.b % 3 {
+      LayoutAction(case step.b % 4 {
         0 -> layout.Unplace(cell_id)
+        3 ->
+          layout.SetSlide(
+            slide.id,
+            layout.SlideRecord(number: step.a % 2 == 0, marks: step.a % 3 == 0),
+          )
         1 -> layout.SetVariant(cell_id, nth(["large", "quiet"], step.b))
         _ -> layout.SetAlign(cell_id, nth([layout.Start, layout.End], step.b))
       })

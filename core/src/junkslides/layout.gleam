@@ -9,7 +9,7 @@ import junkslides/deck.{type Deck}
 import junkslides/id.{type CellTag, type Id, type SlideTag}
 import junkslides/op.{
   type Effect, type OpError, AreaOffSlide, Fresh, Retired, Revived, SlideFresh,
-  SlideRetired, UnknownCell,
+  SlideRetired, UnknownCell, UnknownSlide,
 }
 
 /// The slide's design space in pixels (04-layout.md, The slide).
@@ -37,10 +37,14 @@ pub type CellRecord {
   CellRecord(place: Option(Area), variant: Option(String), align: Option(Align))
 }
 
-/// Reserved for per-slide settings; empty in the prototype.
+/// What a slide shows of its furniture (D33). `number` is the slide number;
+/// `marks` is whatever the theme draws on every slide, such as a rule or a
+/// progress mark. Both are shown unless switched off.
 pub type SlideRecord {
-  SlideRecord
+  SlideRecord(number: Bool, marks: Bool)
 }
+
+pub const no_slide_record = SlideRecord(number: True, marks: True)
 
 pub type Orphan {
   CellOrphan(id: Id(CellTag), record: CellRecord, retired_at: Timestamp)
@@ -60,6 +64,7 @@ pub type LayoutOp {
   Unplace(cell: Id(CellTag))
   SetVariant(cell: Id(CellTag), variant: Option(String))
   SetAlign(cell: Id(CellTag), align: Option(Align))
+  SetSlide(slide: Id(SlideTag), record: SlideRecord)
   PurgeOrphans
 }
 
@@ -73,6 +78,13 @@ pub fn record(layout: Layout, cell: Id(CellTag)) -> CellRecord {
   case dict.get(layout.cells, cell) {
     Ok(record) -> record
     Error(Nil) -> no_record
+  }
+}
+
+pub fn slide_record(layout: Layout, slide: Id(SlideTag)) -> SlideRecord {
+  case dict.get(layout.slides, slide) {
+    Ok(record) -> record
+    Error(Nil) -> no_slide_record
   }
 }
 
@@ -304,6 +316,20 @@ pub fn apply(
       update(layout, deck, cell, fn(r) { CellRecord(..r, variant:) })
     SetAlign(cell:, align:) ->
       update(layout, deck, cell, fn(r) { CellRecord(..r, align:) })
+    // A record with every switch on is not stored.
+    SetSlide(slide:, record:) ->
+      case deck.find_slide(deck, slide) {
+        Error(Nil) -> Error(UnknownSlide(slide))
+        Ok(_) ->
+          Ok(case record == no_slide_record {
+            True -> Layout(..layout, slides: dict.delete(layout.slides, slide))
+            False ->
+              Layout(
+                ..layout,
+                slides: dict.insert(layout.slides, slide, record),
+              )
+          })
+      }
   }
 }
 

@@ -21,7 +21,8 @@ import junkslides/deck.{
 import junkslides/id.{type Id}
 import junkslides/layout.{
   type Align, type Area, type CellRecord, type Layout, type LayoutOp,
-  type Orphan, Area, CellOrphan, CellRecord, Layout, SlideOrphan, SlideRecord,
+  type Orphan, type SlideRecord, Area, CellOrphan, CellRecord, Layout,
+  SlideOrphan, SlideRecord,
 }
 import junkslides/op.{type Op}
 
@@ -309,11 +310,11 @@ fn orphan_value(orphan: Orphan) -> Value {
         #("record", record_value(record)),
         #("retired_at", timestamp_value(retired_at)),
       ])
-    SlideOrphan(id:, retired_at:, ..) ->
+    SlideOrphan(id:, record:, retired_at:) ->
       Obj([
         #("kind", Str("slide")),
         #("id", id_value(id)),
-        #("record", Obj([])),
+        #("record", slide_record_value(record)),
         #("retired_at", timestamp_value(retired_at)),
       ])
   }
@@ -324,9 +325,27 @@ pub fn layout_value(layout: Layout) -> Value {
   Obj([
     #("version", Num(2)),
     #("cells", sorted(layout.cells, record_value)),
-    #("slides", sorted(layout.slides, fn(_) { Obj([]) })),
+    #("slides", sorted(layout.slides, slide_record_value)),
     #("orphans", Arr(list.map(layout.orphans, orphan_value))),
   ])
+}
+
+/// Only the switches that are off are written, so an untouched slide's
+/// record stays `{}`.
+fn slide_record_value(record: SlideRecord) -> Value {
+  let off = fn(name, shown) {
+    case shown {
+      True -> []
+      False -> [#(name, Bool(False))]
+    }
+  }
+  Obj(list.append(off("number", record.number), off("marks", record.marks)))
+}
+
+fn slide_record_decoder() -> Decoder(SlideRecord) {
+  use number <- decode.optional_field("number", True, decode.bool)
+  use marks <- decode.optional_field("marks", True, decode.bool)
+  decode.success(SlideRecord(number:, marks:))
 }
 
 fn sorted(records: Dict(Id(tag), a), value: fn(a) -> Value) -> Value {
@@ -410,13 +429,18 @@ fn orphan_decoder(record_decoder: Decoder(CellRecord)) -> Decoder(Orphan) {
     }
     "slide" -> {
       use slide <- decode.field("id", id.decoder())
-      decode.success(SlideOrphan(slide, SlideRecord, retired_at))
+      use record <- decode.optional_field(
+        "record",
+        layout.no_slide_record,
+        slide_record_decoder(),
+      )
+      decode.success(SlideOrphan(slide, record, retired_at))
     }
     _ ->
       unknown(
         "Orphan",
         decode.field("id", id.decoder(), fn(slide) {
-          decode.success(SlideOrphan(slide, SlideRecord, retired_at))
+          decode.success(SlideOrphan(slide, layout.no_slide_record, retired_at))
         }),
       )
   }
@@ -440,7 +464,7 @@ pub fn layout_decoder() -> Decoder(Layout) {
       use slides <- decode.optional_field(
         "slides",
         dict.new(),
-        decode.dict(id.decoder(), decode.success(SlideRecord)),
+        decode.dict(id.decoder(), slide_record_decoder()),
       )
       use orphans <- decode.optional_field(
         "orphans",
@@ -472,6 +496,12 @@ pub fn layout_op_value(op: LayoutOp) -> Value {
         #("cell", id_value(cell)),
         #("align", option.map(align, align_value) |> option.unwrap(Null)),
       ])
+    layout.SetSlide(slide:, record:) ->
+      tagged("set_slide", [
+        #("slide", id_value(slide)),
+        #("number", Bool(record.number)),
+        #("marks", Bool(record.marks)),
+      ])
     layout.PurgeOrphans -> tagged("purge_orphans", [])
   }
 }
@@ -495,6 +525,12 @@ pub fn layout_op_decoder() -> Decoder(LayoutOp) {
       use c <- cell
       use align <- decode.field("align", decode.optional(align_decoder()))
       decode.success(layout.SetAlign(c, align))
+    }
+    "set_slide" -> {
+      use slide <- decode.field("slide", id.decoder())
+      use number <- decode.field("number", decode.bool)
+      use marks <- decode.field("marks", decode.bool)
+      decode.success(layout.SetSlide(slide, SlideRecord(number:, marks:)))
     }
     "purge_orphans" -> decode.success(layout.PurgeOrphans)
     _ -> decode.failure(layout.PurgeOrphans, "LayoutOp")

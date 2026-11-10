@@ -41,6 +41,7 @@ pub fn client_messages_round_trip_test() {
     ApplyLayout(11, layout.SetVariant(a.id, None)),
     ApplyLayout(12, layout.SetAlign(a.id, Some(Center))),
     ApplyLayout(13, layout.PurgeOrphans),
+    ApplyLayout(14, layout.SetSlide(s.id, layout.SlideRecord(False, True))),
     Undo,
     Redo,
     Export,

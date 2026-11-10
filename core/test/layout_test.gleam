@@ -1,12 +1,17 @@
 import gleam/dict
 import gleam/option.{None, Some}
+import gleam/string
 import gleam/time/timestamp
 import junkslides/deck.{Position}
+import junkslides/file
+import junkslides/id
 import junkslides/layout.{
-  Area, CellOrphan, CellRecord, Center, Place, PurgeOrphans, SetAlign,
-  SetVariant, Unplace,
+  Area, CellOrphan, CellRecord, Center, Place, PurgeOrphans, SetAlign, SetSlide,
+  SetVariant, SlideOrphan, SlideRecord, Unplace,
 }
-import junkslides/op.{AreaOffSlide, Fresh, Retired, Revived, UnknownCell}
+import junkslides/op.{
+  AreaOffSlide, Fresh, Retired, Revived, SlideRetired, UnknownCell,
+}
 import support/fixture.{cell, slide}
 
 const now = timestamp.unix_epoch
@@ -92,4 +97,42 @@ pub fn external_edit_test() {
   assert effects == [Revived(a.id)]
   assert restored == layout
   assert restored.orphans == []
+}
+
+/// A slide's switches (D33): a record with something off is kept, one with
+/// everything on is not, the file names only what is off, and a slide that
+/// goes and comes back keeps them.
+pub fn slide_switches_test() {
+  let #(deck, _) = fixture.deck()
+  let s = slide(deck, 0)
+  let off = SlideRecord(number: False, marks: True)
+  let assert Ok(set) = layout.apply(layout.empty(), deck, SetSlide(s.id, off))
+  assert layout.slide_record(set, s.id) == off
+  let text = file.print_layout(set)
+  assert string.contains(text, "\"number\": false")
+  assert !string.contains(text, "marks")
+  assert file.parse_layout(text) == Ok(set)
+  let both = SlideRecord(number: False, marks: False)
+  let assert Ok(none) = layout.apply(set, deck, SetSlide(s.id, both))
+  assert file.parse_layout(file.print_layout(none)) == Ok(none)
+  // Everything on again leaves no record.
+  let assert Ok(cleared) =
+    layout.apply(set, deck, SetSlide(s.id, layout.no_slide_record))
+  assert cleared == layout.empty()
+  assert layout.slide_record(cleared, s.id) == layout.no_slide_record
+  // Gone from the deck and back: the record waits among the orphans.
+  let retired = layout.fold_effects(none, [SlideRetired(s.id)], now)
+  assert dict.is_empty(retired.slides)
+  let assert [SlideOrphan(record:, ..)] = retired.orphans
+  assert record == both
+  assert file.parse_layout(file.print_layout(retired)) == Ok(retired)
+  assert layout.consistency(retired, deck, now) == none
+  // An older file's empty record reads as everything on.
+  let assert Ok(old) =
+    file.parse_layout(
+      "{\"version\": 2, \"cells\": {}, \"slides\": {\""
+      <> id.to_string(s.id)
+      <> "\": {}}}",
+    )
+  assert layout.slide_record(old, s.id) == layout.no_slide_record
 }

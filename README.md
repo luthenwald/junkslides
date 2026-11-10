@@ -80,12 +80,22 @@ Or export it straight away with
 You can also try the editor without installing anything. `docs/` holds a
 copy of it that runs on the showcase with no server behind it, ready to be
 served as it is, for example by GitHub Pages from the `docs` folder of the
-main branch. There the deck lives in the page: your edits stay until you
-reload, nothing is saved for you, and `E` gives you `deck.md` and
-`layout.json` as they are at that moment, to save and open with junkslides
-on your own computer. Code typed there is shaded by the simple rules, and a
-PDF needs the real thing. The same talk as exported slides, with no script,
-is in `docs/slides/`.
+main branch. There the deck lives in the page. Your browser keeps your
+edits, so they are still there after a reload, and "start over" in the
+status line forgets them. `E` gives you `deck.md` and `layout.json` as they
+are at that moment, to save and open with junkslides on your own computer.
+
+"open a folder" in the status line lets you pick a deck's folder from your
+computer and work on a copy of it: `deck.md`, `layout.json`,
+`junkslides.toml`, `theme.css` and the drawings and charts the deck names.
+Nothing is written to the folder and nothing leaves your browser, which
+keeps the copy until you close it. Pictures and font files are not copied,
+so the page shows the deck without them. The picker needs Chrome, Edge or
+another browser built on Chromium.
+
+Code typed on the site is shaded by the simple rules, and a PDF needs the
+real thing. The same talk as exported slides, with no script, is in
+`docs/slides/`.
 
 ## The editor
 
@@ -348,9 +358,13 @@ To remove junkslides completely:
 2. Delete `~/.config/junkslides/`. It holds one file, `view.json`, with the
    pane sizes and snap step the editor remembers for each deck.
 3. Delete this project folder. Building leaves `build/` here and in `core`,
-   `render`, `server`, `client` and `e2e`, the editor's bundle in
-   `server/priv/static/`, and a downloaded bundler in `client/.lustre/`, all
-   of which go with the folder.
+   `render`, `server`, `client`, `demo` and `e2e`, the editor's bundle in
+   `server/priv/static/`, and a downloaded bundler in `client/.lustre/` and
+   `demo/.lustre/`, all of which go with the folder.
+4. If you used the editor on a published site, such as the copy in `docs/`,
+   that site keeps your deck in your browser's local storage under the name
+   `junkslides.deck`. "start over" or "close it" in the status line removes
+   it, and so does clearing the site's data in your browser's settings.
 
 Your decks are yours and stay where you made them. If a deck should go as
 well, delete its folder: `deck.md`, `layout.json`, `junkslides.toml`,

@@ -3,6 +3,14 @@
 - New: your theme can see where a slide sits in the talk, as `--js-index` and `--js-total`, and which slide is on screen, as `--js-here`, in the editor and in the exported page. An animation written for the slide on screen starts again each time you come to it.
 - New: the example deck comes exported in `docs/`, a static page you can open or publish as it is, for example with GitHub Pages.
 - Improved: the example deck in `examples/showcase` shows where each slide is in the talk, and grows a drawing each time you come to its slide.
+- Improved: while `deck.md` or `layout.json` is not being written, because the file has a mistake or the write failed, the status line says so until it is written again. Before, one message said it and the next key cleared it.
+- Improved: a write that failed is tried again every second, without waiting for your next edit.
+- Improved: the editor's page and the exported page tell the browser to run no script but the editor's own, and a deck's own pages and drawings opened from the editor run apart from it.
+- Fixed: a drawing could carry a script past the check when its event handler followed a slash, a quote or a carriage return. Drawings are now read tag by tag, and one with anything but drawing markup is shown as a plain image.
+- Fixed: exporting to the deck's own folder under another spelling, through a link or in other letter case, emptied the deck's assets and fonts. It is refused like the folder itself.
+- Fixed: `lit="1-99999999"` on a code block froze the editor. A range may end at line 10 000 at most, and a longer one gets a note under the cell.
+- Fixed: a `deck.md` or `layout.json` that is a symbolic link stays one when junkslides writes it, and a written file keeps its permissions.
+- Fixed: two exports started at once no longer make one of them fail.
 
 ## First release
 

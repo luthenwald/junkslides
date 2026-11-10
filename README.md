@@ -25,6 +25,9 @@ line, and each cell and slide carries an ID in an HTML comment that junkslides
 writes for you. You can edit deck.md in another editor while junkslides runs;
 it picks up the change and keeps the layout of every cell it can still
 recognise.
+If a file you edited has a mistake junkslides cannot read, it keeps
+what it had, stops writing that file, and says so in the status line until
+the file reads again.
 
 ## Running it
 
@@ -134,8 +137,9 @@ An image alone in its paragraph becomes a figure when its file is one of
 these:
 
 - `.svg`: the drawing goes into the slide itself, so your theme's rules and
-  fonts reach it. A drawing with scripts, event handlers or links to other
-  files is shown as a plain image instead, and junkslides tells you why.
+  fonts reach it. A drawing with scripts, event handlers, links to other
+  files or markup that is not SVG is shown as a plain image instead, and
+  junkslides tells you why.
 - `.json`: a chart, drawn by junkslides at the size of its cell. The spec gives
   the kind (`lines`, `dots`, `stacked` or `bars`), the axes with their labels
   and log scales, and panels of series. A chart can hold several measures

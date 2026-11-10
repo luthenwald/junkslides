@@ -471,6 +471,9 @@ pub fn code_marks_or_none(attributes: Dict(String, String)) -> CodeMarks {
   code_marks(attributes) |> result.unwrap(CodeMarks([], []))
 }
 
+/// The last line a `lit` range may name; no slide holds as many.
+pub const line_limit = 10_000
+
 fn line_numbers(value: String) -> Result(List(Int), Nil) {
   string.replace(value, ",", " ")
   |> string.split(" ")
@@ -481,7 +484,9 @@ fn line_numbers(value: String) -> Result(List(Int), Nil) {
       [from, to] -> {
         use from <- result.try(int.parse(from))
         use to <- result.try(int.parse(to))
-        case from <= to {
+        // A range is written out as a list, so one typed digit too many
+        // (`1-99999999`) would hold up the server and the editor alike.
+        case from <= to && to <= line_limit {
           True -> Ok(int.range(from, to + 1, [], list.prepend) |> list.reverse)
           False -> Error(Nil)
         }

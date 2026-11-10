@@ -72,11 +72,13 @@ pub fn code_attributes_test() {
   assert dialect.problems(fine) == []
   assert dialect.marks(fine) == ["now"]
   assert dialect.code_blocks(fine) == [#("gcl", "x y\n")]
+  assert dialect.problems("{lit=9990-10000}\n```\nx\n```") == []
   list.each(
     [
       "{lit=0}\n```\nx\n```", "{lit=3-1}\n```\nx\n```", "{lit=a}\n```\nx\n```",
       "{now=\"⟦\"}\n```\nx\n```", "{now=\"⟦⟦\"}\n```\nx\n```",
-      "{.gcl}\n```\nx\n```",
+      "{.gcl}\n```\nx\n```", "{lit=1-99999999}\n```\nx\n```",
+      "{lit=\"2 9000-10001\"}\n```\nx\n```",
     ],
     fn(source) {
       assert dialect.problems(source) == [dialect.CodeAttribute]
